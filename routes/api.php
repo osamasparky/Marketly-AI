@@ -20,6 +20,9 @@ Route::prefix('v1')->group(function () {
     // Health Check Endpoint
     Route::get('/health', [HealthController::class, 'index'])->name('api.v1.health');
 
+    // Public Billing Plans
+    Route::get('/billing/plans', [\App\Domains\Billing\Controllers\BillingController::class, 'listPlans'])->name('api.v1.billing.plans.public');
+
     // CSP Violation Reporting (Rate Limited)
     Route::post('/csp-report', CspReportController::class)->middleware('throttle:30,1')->name('api.v1.csp.report');
 
@@ -117,6 +120,13 @@ Route::prefix('v1')->group(function () {
             // Opportunities
             Route::get('/{strategy}/opportunities', [StrategyController::class, 'listOpportunities'])->name('api.v1.strategy.opportunities.index');
             Route::post('/{strategy}/opportunities', [StrategyController::class, 'storeOpportunity'])->name('api.v1.strategy.opportunities.store');
+        });
+
+        // Phase 3.5: Billing & Subscriptions API
+        Route::prefix('billing')->group(function () {
+            Route::get('/subscription', [\App\Domains\Billing\Controllers\BillingController::class, 'getSubscription'])->name('api.v1.billing.subscription');
+            Route::post('/subscription/select-plan', [\App\Domains\Billing\Controllers\BillingController::class, 'selectPlan'])->name('api.v1.billing.subscription.select_plan');
+            Route::post('/subscription/cancel', [\App\Domains\Billing\Controllers\BillingController::class, 'cancel'])->name('api.v1.billing.subscription.cancel');
         });
     });
 });

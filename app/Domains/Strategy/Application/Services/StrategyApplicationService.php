@@ -12,6 +12,7 @@ use App\Domains\Strategy\Infrastructure\Persistence\Models\StrategyPlatformModel
 use App\Domains\Tenancy\Application\Services\AuditApplicationService;
 use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Services\TenantIsolationGuard;
+use App\Domains\Billing\Domain\Services\EntitlementService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -22,7 +23,8 @@ class StrategyApplicationService
         private readonly AuditApplicationService $auditService,
         private readonly StrategyContextBuilder $contextBuilder,
         private readonly MarketingStrategyGenerator $strategyGenerator,
-        private readonly StrategyHealthCalculator $healthCalculator
+        private readonly StrategyHealthCalculator $healthCalculator,
+        private readonly EntitlementService $entitlementService
     ) {}
 
     /**
@@ -73,6 +75,9 @@ class StrategyApplicationService
     public function generateStrategy(TenantContext $context, array $params): MarketingStrategyModel
     {
         TenantIsolationGuard::assertPermission($context, 'strategy.generate');
+
+        // Verify and consume subscription plan quota
+        $this->entitlementService->assertCanAndConsume($context->organizationId, 'ai_strategy', 1);
 
         $profile = BrandProfileModel::where('organization_id', $context->organizationId)->first();
 

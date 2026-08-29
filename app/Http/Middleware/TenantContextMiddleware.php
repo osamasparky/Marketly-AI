@@ -9,6 +9,7 @@ use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationMembershipModel;
 use App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationModel;
 use Closure;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -42,6 +43,11 @@ class TenantContextMiddleware
 
     private function resolveTenantContext(UserModel $user, Request $request): ?TenantContext
     {
+        // Routes that do not require an active tenant context before execution (e.g. accepting invitations)
+        if ($request->is('api/v1/invitations/accept') || $request->is('*/invitations/accept')) {
+            return null;
+        }
+
         // 1. Check route parameter '{organization}'
         $routeOrg = $request->route('organization');
         $routeOrgId = is_numeric($routeOrg) ? (int) $routeOrg : ($routeOrg instanceof OrganizationModel ? $routeOrg->id : null);
@@ -49,17 +55,23 @@ class TenantContextMiddleware
         // 2. Check explicit header 'X-Organization-Id'
         $headerOrgId = $request->header('X-Organization-Id');
         
-        $targetOrgId = $routeOrgId ?: ($headerOrgId ? (int) $headerOrgId : $user->current_organization_id);
+        $explicitOrgId = $routeOrgId ?: ($headerOrgId ? (int) $headerOrgId : null);
 
         // 3. Query verified active membership
         $membershipQuery = OrganizationMembershipModel::with('role.permissions')
             ->where('user_id', $user->id)
             ->where('status', 'active');
 
-        if ($targetOrgId) {
-            $membership = (clone $membershipQuery)->where('organization_id', $targetOrgId)->first();
+        if ($explicitOrgId) {
+            $membership = (clone $membershipQuery)->where('organization_id', $explicitOrgId)->first();
+            if (!$membership) {
+                throw new AuthorizationException('You are not authorized to access this resource.');
+            }
         } else {
-            $membership = $membershipQuery->first();
+            $targetId = $user->current_organization_id;
+            $membership = $targetId
+                ? (clone $membershipQuery)->where('organization_id', $targetId)->first()
+                : $membershipQuery->first();
         }
 
         if (!$membership) {

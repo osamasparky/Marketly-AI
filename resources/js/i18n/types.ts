@@ -23,6 +23,14 @@ export interface TranslationSchema {
     add: string;
     delete: string;
     edit: string;
+    upgrade: string;
+    comingSoon: string;
+    getStarted: string;
+    startTrial: string;
+    viewPricing: string;
+    back: string;
+    finish: string;
+    skip: string;
   };
   navigation: {
     workspace: string;
@@ -36,6 +44,69 @@ export interface TranslationSchema {
     analytics: string;
     assistant: string;
     settings: string;
+    billing: string;
+    team: string;
+    home: string;
+    features: string;
+    howItWorks: string;
+    pricing: string;
+    faq: string;
+    contact: string;
+    privacy: string;
+    terms: string;
+    onboarding: string;
+  };
+  landing: {
+    heroBadge: string;
+    heroTitle: string;
+    heroSubtitle: string;
+    ctaPrimary: string;
+    ctaSecondary: string;
+    problemTitle: string;
+    problemSubtitle: string;
+    flowTitle: string;
+    flowSubtitle: string;
+    featuresTitle: string;
+    featuresSubtitle: string;
+    pricingTitle: string;
+    pricingSubtitle: string;
+    billingMonthly: string;
+    billingAnnual: string;
+    savePercent: string;
+    faqTitle: string;
+    trustTitle: string;
+    trustSubtitle: string;
+    contactTitle: string;
+    contactSubtitle: string;
+    sendMsg: string;
+    msgSent: string;
+  };
+  onboarding: {
+    wizardTitle: string;
+    wizardSubtitle: string;
+    step1: string;
+    step2: string;
+    step3: string;
+    step4: string;
+    step5: string;
+    congratsTitle: string;
+    congratsDesc: string;
+    launchStrategyBtn: string;
+  };
+  billing: {
+    title: string;
+    subtitle: string;
+    currentPlan: string;
+    trialBadge: string;
+    trialDaysLeft: string;
+    usageTitle: string;
+    upgradeBtn: string;
+    cancelBtn: string;
+    cancelledBadge: string;
+    unlimited: string;
+    perMonth: string;
+    featuresIncluded: string;
+    selectPlanAction: string;
   };
   tenancy: {
     selectOrg: string;
@@ -184,6 +255,8 @@ export interface TranslationSchema {
     callMeBtn: string;
     activeToken: string;
     loggedOut: string;
+    quickActions: string;
+    recentActivity: string;
   };
   validation: {
     required: string;
