@@ -12,6 +12,7 @@ use App\Domains\Strategy\Infrastructure\Persistence\Models\StrategyPlatformModel
 use App\Domains\Tenancy\Application\Services\AuditApplicationService;
 use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Services\TenantIsolationGuard;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -47,6 +48,23 @@ class StrategyApplicationService
             'strategy' => $strategy,
             'health' => $health,
         ];
+    }
+
+    /**
+     * Get a specific strategy by ID.
+     */
+    public function getStrategy(TenantContext $context, int $strategyId): MarketingStrategyModel
+    {
+        TenantIsolationGuard::assertPermission($context, 'strategy.view');
+
+        return MarketingStrategyModel::with([
+            'pillars',
+            'campaignThemes',
+            'opportunities',
+            'platforms',
+        ])->where('organization_id', $context->organizationId)
+          ->where('id', $strategyId)
+          ->firstOrFail();
     }
 
     /**
@@ -213,6 +231,54 @@ class StrategyApplicationService
     }
 
     /**
+     * Archive a marketing strategy.
+     */
+    public function archiveStrategy(TenantContext $context, int $strategyId): MarketingStrategyModel
+    {
+        TenantIsolationGuard::assertPermission($context, 'strategy.update');
+
+        $strategy = MarketingStrategyModel::where('organization_id', $context->organizationId)
+            ->where('id', $strategyId)
+            ->firstOrFail();
+
+        $strategy->update(['status' => 'archived']);
+
+        $this->auditService->log(
+            action: 'strategy.archived',
+            organizationId: $context->organizationId,
+            userId: $context->userId,
+            entityType: 'marketing_strategy',
+            entityId: (string) $strategy->id
+        );
+
+        return $strategy;
+    }
+
+    /**
+     * Delete a draft strategy.
+     */
+    public function deleteStrategy(TenantContext $context, int $strategyId): bool
+    {
+        TenantIsolationGuard::assertPermission($context, 'strategy.delete');
+
+        $strategy = MarketingStrategyModel::where('organization_id', $context->organizationId)
+            ->where('id', $strategyId)
+            ->firstOrFail();
+
+        $strategy->delete();
+
+        $this->auditService->log(
+            action: 'strategy.deleted',
+            organizationId: $context->organizationId,
+            userId: $context->userId,
+            entityType: 'marketing_strategy',
+            entityId: (string) $strategyId
+        );
+
+        return true;
+    }
+
+    /**
      * Update strategy parameters.
      */
     public function updateStrategy(TenantContext $context, int $strategyId, array $data): MarketingStrategyModel
@@ -236,6 +302,18 @@ class StrategyApplicationService
         );
 
         return $strategy->fresh(['pillars', 'campaignThemes', 'opportunities', 'platforms']);
+    }
+
+    /**
+     * Get strategy health breakdown.
+     */
+    public function getStrategyHealth(TenantContext $context, int $strategyId): array
+    {
+        TenantIsolationGuard::assertPermission($context, 'strategy.view');
+
+        $strategy = $this->getStrategy($context, $strategyId);
+
+        return $this->healthCalculator->calculate($strategy);
     }
 
     /**
@@ -289,5 +367,57 @@ class StrategyApplicationService
         $pillar->delete();
 
         return true;
+    }
+
+    /**
+     * Get Campaign Themes for a strategy.
+     */
+    public function getCampaignThemes(TenantContext $context, int $strategyId): Collection
+    {
+        TenantIsolationGuard::assertPermission($context, 'strategy.view');
+
+        $strategy = $this->getStrategy($context, $strategyId);
+
+        return $strategy->campaignThemes;
+    }
+
+    /**
+     * Save Campaign Theme.
+     */
+    public function saveCampaignTheme(TenantContext $context, int $strategyId, array $data): CampaignThemeModel
+    {
+        TenantIsolationGuard::assertPermission($context, 'strategy.update');
+
+        $strategy = $this->getStrategy($context, $strategyId);
+        $data['organization_id'] = $context->organizationId;
+        $data['strategy_id'] = $strategy->id;
+
+        return CampaignThemeModel::create($data);
+    }
+
+    /**
+     * Get Opportunities for a strategy.
+     */
+    public function getOpportunities(TenantContext $context, int $strategyId): Collection
+    {
+        TenantIsolationGuard::assertPermission($context, 'strategy.view');
+
+        $strategy = $this->getStrategy($context, $strategyId);
+
+        return $strategy->opportunities;
+    }
+
+    /**
+     * Save Opportunity.
+     */
+    public function saveOpportunity(TenantContext $context, int $strategyId, array $data): ContentOpportunityModel
+    {
+        TenantIsolationGuard::assertPermission($context, 'strategy.update');
+
+        $strategy = $this->getStrategy($context, $strategyId);
+        $data['organization_id'] = $context->organizationId;
+        $data['strategy_id'] = $strategy->id;
+
+        return ContentOpportunityModel::create($data);
     }
 }

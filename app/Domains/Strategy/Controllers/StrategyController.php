@@ -34,6 +34,18 @@ class StrategyController extends Controller
     }
 
     /**
+     * Show a specific strategy.
+     */
+    public function show(Request $request, int $id): JsonResponse
+    {
+        $strategy = $this->strategyService->getStrategy($this->getContext($request), $id);
+
+        return ApiResponse::success(
+            data: ['strategy' => $strategy]
+        );
+    }
+
+    /**
      * Generate new AI Marketing Strategy draft from Brand Brain.
      */
     public function generate(Request $request): JsonResponse
@@ -78,6 +90,19 @@ class StrategyController extends Controller
     }
 
     /**
+     * Delete strategy.
+     */
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $this->strategyService->deleteStrategy($this->getContext($request), $id);
+
+        return ApiResponse::success(
+            data: null,
+            meta: ['message' => 'Strategy deleted successfully.']
+        );
+    }
+
+    /**
      * Atomically activate strategy.
      */
     public function activate(Request $request, int $id): JsonResponse
@@ -104,8 +129,40 @@ class StrategyController extends Controller
     }
 
     /**
+     * Archive strategy.
+     */
+    public function archive(Request $request, int $id): JsonResponse
+    {
+        $strategy = $this->strategyService->archiveStrategy($this->getContext($request), $id);
+
+        return ApiResponse::success(
+            data: ['strategy' => $strategy],
+            meta: ['message' => 'Marketing strategy archived.']
+        );
+    }
+
+    /**
+     * Get strategy health breakdown.
+     */
+    public function health(Request $request, int $id): JsonResponse
+    {
+        $health = $this->strategyService->getStrategyHealth($this->getContext($request), $id);
+
+        return ApiResponse::success(
+            data: ['health' => $health]
+        );
+    }
+
+    /**
      * Content Pillars CRUD
      */
+    public function listPillars(Request $request, int $strategyId): JsonResponse
+    {
+        $strategy = $this->strategyService->getStrategy($this->getContext($request), $strategyId);
+
+        return ApiResponse::success(['pillars' => $strategy->pillars]);
+    }
+
     public function storePillar(Request $request, int $strategyId): JsonResponse
     {
         $validated = $request->validate([
@@ -150,6 +207,66 @@ class StrategyController extends Controller
         return ApiResponse::success(
             data: null,
             meta: ['message' => 'Content pillar removed.']
+        );
+    }
+
+    /**
+     * Campaign Themes
+     */
+    public function listCampaignThemes(Request $request, int $strategyId): JsonResponse
+    {
+        $themes = $this->strategyService->getCampaignThemes($this->getContext($request), $strategyId);
+
+        return ApiResponse::success(['campaign_themes' => $themes]);
+    }
+
+    public function storeCampaignTheme(Request $request, int $strategyId): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|min:2|max:100',
+            'objective' => 'nullable|string|max:50',
+            'audience_persona' => 'nullable|string|max:100',
+            'core_message' => 'nullable|string|max:1000',
+            'duration_weeks' => 'nullable|integer|min:1|max:52',
+            'recommended_formats' => 'nullable|array',
+        ]);
+
+        $theme = $this->strategyService->saveCampaignTheme($this->getContext($request), $strategyId, $validated);
+
+        return ApiResponse::success(
+            data: ['campaign_theme' => $theme],
+            meta: ['message' => 'Campaign theme created.'],
+            status: 201
+        );
+    }
+
+    /**
+     * Opportunities
+     */
+    public function listOpportunities(Request $request, int $strategyId): JsonResponse
+    {
+        $opps = $this->strategyService->getOpportunities($this->getContext($request), $strategyId);
+
+        return ApiResponse::success(['opportunities' => $opps]);
+    }
+
+    public function storeOpportunity(Request $request, int $strategyId): JsonResponse
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|min:2|max:150',
+            'description' => 'nullable|string|max:1000',
+            'objective' => 'nullable|string|max:50',
+            'priority' => 'nullable|string|in:high,medium,low',
+            'source' => 'nullable|string|max:50',
+            'recommended_timing' => 'nullable|string|max:100',
+        ]);
+
+        $opp = $this->strategyService->saveOpportunity($this->getContext($request), $strategyId, $validated);
+
+        return ApiResponse::success(
+            data: ['opportunity' => $opp],
+            meta: ['message' => 'Opportunity created.'],
+            status: 201
         );
     }
 }

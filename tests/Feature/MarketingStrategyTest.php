@@ -130,4 +130,91 @@ class MarketingStrategyTest extends TestCase
         $this->assertEquals('paused', $strat1->fresh()->status);
         $this->assertEquals('active', $strat2->fresh()->status);
     }
+
+    public function test_strategy_lifecycle_pause_archive_and_delete(): void
+    {
+        $strat = MarketingStrategyModel::create([
+            'organization_id' => $this->org->id,
+            'name' => 'Lifecycle Strategy',
+            'primary_objective' => 'sales',
+            'status' => 'active',
+            'version' => 1,
+        ]);
+
+        // Pause
+        $pauseRes = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->org->id,
+        ])->postJson("/api/v1/strategy/{$strat->id}/pause");
+        $pauseRes->assertStatus(200);
+        $this->assertEquals('paused', $strat->fresh()->status);
+
+        // Archive
+        $archiveRes = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->org->id,
+        ])->postJson("/api/v1/strategy/{$strat->id}/archive");
+        $archiveRes->assertStatus(200);
+        $this->assertEquals('archived', $strat->fresh()->status);
+
+        // Delete
+        $delRes = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->org->id,
+        ])->deleteJson("/api/v1/strategy/{$strat->id}");
+        $delRes->assertStatus(200);
+        $this->assertDatabaseMissing('marketing_strategies', ['id' => $strat->id]);
+    }
+
+    public function test_content_pillars_and_campaign_themes_crud(): void
+    {
+        $strat = MarketingStrategyModel::create([
+            'organization_id' => $this->org->id,
+            'name' => 'Pillar Strategy',
+            'primary_objective' => 'sales',
+            'status' => 'draft',
+            'version' => 1,
+        ]);
+
+        // Create Pillar
+        $pillarRes = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->org->id,
+        ])->postJson("/api/v1/strategy/{$strat->id}/pillars", [
+            'name' => 'Product Demo',
+            'recommended_percentage' => 30,
+            'objective' => 'sales',
+            'priority' => 'high',
+        ]);
+        $pillarRes->assertStatus(201);
+        $pillarId = $pillarRes->json('data.pillar.id');
+
+        // Update Pillar
+        $patchPillar = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->org->id,
+        ])->patchJson("/api/v1/strategy/{$strat->id}/pillars/{$pillarId}", [
+            'recommended_percentage' => 40,
+        ]);
+        $patchPillar->assertStatus(200);
+        $this->assertEquals(40, $patchPillar->json('data.pillar.recommended_percentage'));
+
+        // Create Campaign Theme
+        $themeRes = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->org->id,
+        ])->postJson("/api/v1/strategy/{$strat->id}/campaign-themes", [
+            'name' => 'Spring Growth Launch',
+            'core_message' => 'Scale 10x faster with AI automation.',
+            'duration_weeks' => 6,
+        ]);
+        $themeRes->assertStatus(201);
+
+        // Delete Pillar
+        $delPillar = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->org->id,
+        ])->deleteJson("/api/v1/strategy/{$strat->id}/pillars/{$pillarId}");
+        $delPillar->assertStatus(200);
+    }
 }

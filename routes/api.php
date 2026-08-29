@@ -96,14 +96,27 @@ Route::prefix('v1')->group(function () {
         Route::prefix('strategy')->group(function () {
             Route::get('/', [StrategyController::class, 'index'])->name('api.v1.strategy.index');
             Route::post('/generate', [StrategyController::class, 'generate'])->middleware('throttle:10,1')->name('api.v1.strategy.generate');
+            Route::get('/{strategy}', [StrategyController::class, 'show'])->name('api.v1.strategy.show');
             Route::patch('/{strategy}', [StrategyController::class, 'update'])->name('api.v1.strategy.update');
+            Route::delete('/{strategy}', [StrategyController::class, 'destroy'])->name('api.v1.strategy.destroy');
             Route::post('/{strategy}/activate', [StrategyController::class, 'activate'])->name('api.v1.strategy.activate');
             Route::post('/{strategy}/pause', [StrategyController::class, 'pause'])->name('api.v1.strategy.pause');
+            Route::post('/{strategy}/archive', [StrategyController::class, 'archive'])->name('api.v1.strategy.archive');
+            Route::get('/{strategy}/health', [StrategyController::class, 'health'])->name('api.v1.strategy.health');
 
             // Content Pillars
+            Route::get('/{strategy}/pillars', [StrategyController::class, 'listPillars'])->name('api.v1.strategy.pillars.index');
             Route::post('/{strategy}/pillars', [StrategyController::class, 'storePillar'])->name('api.v1.strategy.pillars.store');
             Route::patch('/{strategy}/pillars/{pillar}', [StrategyController::class, 'updatePillar'])->name('api.v1.strategy.pillars.update');
             Route::delete('/{strategy}/pillars/{pillar}', [StrategyController::class, 'deletePillar'])->name('api.v1.strategy.pillars.destroy');
+
+            // Campaign Themes
+            Route::get('/{strategy}/campaign-themes', [StrategyController::class, 'listCampaignThemes'])->name('api.v1.strategy.campaign_themes.index');
+            Route::post('/{strategy}/campaign-themes', [StrategyController::class, 'storeCampaignTheme'])->name('api.v1.strategy.campaign_themes.store');
+
+            // Opportunities
+            Route::get('/{strategy}/opportunities', [StrategyController::class, 'listOpportunities'])->name('api.v1.strategy.opportunities.index');
+            Route::post('/{strategy}/opportunities', [StrategyController::class, 'storeOpportunity'])->name('api.v1.strategy.opportunities.store');
         });
     });
 });
