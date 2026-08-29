@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Domains\Shared\Enums\UserRole;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -73,27 +72,73 @@ class RbacSeeder extends Seeder
             }
         }
 
-        // 2. Insert roles and map permissions
+        // 2. Define baseline database role permissions
         $roleDefinitions = [
             'owner' => [
                 'name' => 'Owner',
                 'description' => 'Full administrative control, billing ownership, and organization management',
+                'permissions' => [
+                    'organization.view', 'organization.manage',
+                    'members.view', 'members.invite', 'members.update', 'members.remove',
+                    'brand.view', 'brand.create', 'brand.update', 'brand.delete',
+                    'content.view', 'content.create', 'content.update', 'content.delete', 'content.approve',
+                    'campaign.view', 'campaign.create', 'campaign.update', 'campaign.delete',
+                    'social.view', 'social.connect', 'social.disconnect', 'social.publish',
+                    'analytics.view',
+                    'billing.view', 'billing.manage',
+                    'administration.manage',
+                ],
             ],
             'admin' => [
                 'name' => 'Administrator',
                 'description' => 'Organization operations, member invitations, brand and publishing management',
+                'permissions' => [
+                    'organization.view', 'organization.manage',
+                    'members.view', 'members.invite', 'members.update', 'members.remove',
+                    'brand.view', 'brand.create', 'brand.update', 'brand.delete',
+                    'content.view', 'content.create', 'content.update', 'content.delete', 'content.approve',
+                    'campaign.view', 'campaign.create', 'campaign.update', 'campaign.delete',
+                    'social.view', 'social.connect', 'social.disconnect', 'social.publish',
+                    'analytics.view',
+                    'billing.view',
+                ],
             ],
             'manager' => [
                 'name' => 'Marketing Manager',
                 'description' => 'Brand strategy, campaign planning, content approval, and publishing execution',
+                'permissions' => [
+                    'organization.view',
+                    'members.view', 'members.invite',
+                    'brand.view', 'brand.update',
+                    'content.view', 'content.create', 'content.update', 'content.approve',
+                    'campaign.view', 'campaign.create', 'campaign.update',
+                    'social.view', 'social.publish',
+                    'analytics.view',
+                ],
             ],
             'editor' => [
                 'name' => 'Content Editor',
                 'description' => 'Content generation and drafting without publishing or billing access',
+                'permissions' => [
+                    'organization.view',
+                    'brand.view',
+                    'content.view', 'content.create', 'content.update',
+                    'campaign.view',
+                    'social.view',
+                    'analytics.view',
+                ],
             ],
             'viewer' => [
                 'name' => 'Viewer',
                 'description' => 'Read-only access to campaigns, content, and performance analytics',
+                'permissions' => [
+                    'organization.view',
+                    'brand.view',
+                    'content.view',
+                    'campaign.view',
+                    'social.view',
+                    'analytics.view',
+                ],
             ],
         ];
 
@@ -106,10 +151,7 @@ class RbacSeeder extends Seeder
                 'updated_at' => now(),
             ]);
 
-            $enumRole = UserRole::from($roleSlug);
-            $rolePermSlugs = $enumRole->permissions();
-
-            foreach ($rolePermSlugs as $pSlug) {
+            foreach ($roleData['permissions'] as $pSlug) {
                 if (isset($permissionIds[$pSlug])) {
                     DB::table('role_permissions')->insert([
                         'role_id' => $roleId,

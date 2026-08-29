@@ -25,7 +25,7 @@ class PasswordResetTest extends TestCase
             'email' => 'nobody@example.com',
         ]);
         $resNonExisting->assertStatus(200);
-        $resNonExisting->assertJsonPath('data.message', 'If an account with that email exists, password reset instructions have been sent.');
+        $resNonExisting->assertJsonPath('meta.message', 'If an account with that email exists, password reset instructions have been sent.');
 
         // Existing email
         UserModel::factory()->create(['email' => 'existing@example.com']);
@@ -33,7 +33,7 @@ class PasswordResetTest extends TestCase
             'email' => 'existing@example.com',
         ]);
         $resExisting->assertStatus(200);
-        $resExisting->assertJsonPath('data.message', 'If an account with that email exists, password reset instructions have been sent.');
+        $resExisting->assertJsonPath('meta.message', 'If an account with that email exists, password reset instructions have been sent.');
     }
 
     public function test_reset_password_updates_password_and_revokes_old_tokens(): void
@@ -58,6 +58,9 @@ class PasswordResetTest extends TestCase
             'password' => 'NewSecurePassword123!',
         ]);
         $resetRes->assertStatus(200);
+
+        // Reset auth guard state
+        app('auth')->forgetGuards();
 
         // 3. Verify old token is revoked
         $meRes = $this->withHeader('Authorization', "Bearer {$oldToken}")->getJson('/api/v1/me');

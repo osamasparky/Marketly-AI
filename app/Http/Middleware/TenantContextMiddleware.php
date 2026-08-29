@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Domains\Identity\Infrastructure\Persistence\Models\UserModel;
 use App\Domains\Shared\Enums\UserRole;
+use App\Domains\Tenancy\Application\Services\AuthorizationService;
 use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationMembershipModel;
 use App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationModel;
@@ -13,6 +14,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class TenantContextMiddleware
 {
+    public function __construct(
+        private readonly AuthorizationService $authService
+    ) {}
+
     /**
      * Handle incoming request and resolve authenticated Tenant Context server-side.
      */
@@ -47,7 +52,7 @@ class TenantContextMiddleware
         $targetOrgId = $routeOrgId ?: ($headerOrgId ? (int) $headerOrgId : $user->current_organization_id);
 
         // 3. Query verified active membership
-        $membershipQuery = OrganizationMembershipModel::with('role')
+        $membershipQuery = OrganizationMembershipModel::with('role.permissions')
             ->where('user_id', $user->id)
             ->where('status', 'active');
 
@@ -63,10 +68,13 @@ class TenantContextMiddleware
 
         $roleSlug = $membership->role->slug;
         $userRole = UserRole::tryFrom($roleSlug) ?? UserRole::VIEWER;
+        $permissions = $this->authService->getPermissions($user->id, $membership->organization_id);
 
         return new TenantContext(
+            userId: $user->id,
             organizationId: $membership->organization_id,
-            role: $userRole
+            role: $userRole,
+            permissions: $permissions
         );
     }
 }

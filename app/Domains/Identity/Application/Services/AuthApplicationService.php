@@ -5,10 +5,11 @@ namespace App\Domains\Identity\Application\Services;
 use App\Domains\Identity\Application\DTOs\AuthResultData;
 use App\Domains\Identity\Application\DTOs\LoginCredentialsData;
 use App\Domains\Identity\Application\DTOs\RegisterUserData;
+use App\Domains\Identity\Infrastructure\Persistence\Models\UserModel;
 use App\Domains\Tenancy\Application\Services\AuditApplicationService;
 use App\Domains\Tenancy\Application\Services\OrganizationApplicationService;
-use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -20,41 +21,48 @@ class AuthApplicationService
     ) {}
 
     /**
-     * Register a new user, create their initial default organization tenant, and generate access token.
+     * Register a new user and create their initial organization atomically inside a single DB transaction.
+     * Tokens are generated strictly after the transaction commits successfully.
      */
     public function register(RegisterUserData $data): AuthResultData
     {
-        $existing = User::where('email', $data->email->value())->first();
+        $existing = UserModel::where('email', $data->email->value())->first();
         if ($existing) {
             throw ValidationException::withMessages([
                 'email' => ['The email has already been taken.'],
             ]);
         }
 
-        $user = User::create([
-            'name' => $data->name,
-            'email' => $data->email->value(),
-            'password' => Hash::make($data->password),
-            'status' => 'active',
-            'locale' => 'en',
-            'timezone' => 'UTC',
-        ]);
+        /** @var UserModel $user */
+        $user = DB::transaction(function () use ($data) {
+            $createdUser = UserModel::create([
+                'name' => $data->name,
+                'email' => $data->email->value(),
+                'password' => Hash::make($data->password),
+                'status' => 'active',
+                'locale' => 'en',
+                'timezone' => 'UTC',
+            ]);
 
-        // Auto-create initial default organization tenant
-        $this->orgService->createOrganization(
-            user: $user,
-            name: "{$user->name}'s Workspace",
-            type: 'business',
-            defaultLocale: 'en',
-            timezone: 'UTC'
-        );
+            // Auto-create initial default organization tenant atomically
+            $this->orgService->createOrganization(
+                user: $createdUser,
+                name: "{$createdUser->name}'s Workspace",
+                type: 'business',
+                defaultLocale: 'en',
+                timezone: 'UTC'
+            );
 
+            return $createdUser;
+        });
+
+        // Generate token strictly AFTER database transaction commits
         $token = $user->createToken('marketly_auth_token')->plainTextToken;
 
         $this->auditService->log(
             action: 'user.registered',
             userId: $user->id,
-            metadata: ['email' => $user->email]
+            metadata: ['email_fingerprint' => hash('sha256', $user->email)]
         );
 
         return new AuthResultData(
@@ -71,15 +79,16 @@ class AuthApplicationService
      */
     public function login(LoginCredentialsData $data): AuthResultData
     {
-        $user = User::where('email', $data->email->value())->first();
+        $user = UserModel::where('email', $data->email->value())->first();
 
         if (!$user || !Hash::check($data->password, $user->password)) {
             $this->auditService->log(
                 action: 'user.login_failed',
-                metadata: ['email' => $data->email->value()]
+                metadata: ['email_fingerprint' => hash('sha256', $data->email->value())]
             );
 
-            throw new AuthenticationException('Invalid credentials provided');
+            // Generic error message without revealing email existence
+            throw new AuthenticationException('Invalid credentials provided.');
         }
 
         if ($user->status !== 'active') {
@@ -93,7 +102,7 @@ class AuthApplicationService
         $this->auditService->log(
             action: 'user.login',
             userId: $user->id,
-            metadata: ['email' => $user->email]
+            metadata: ['email_fingerprint' => hash('sha256', $user->email)]
         );
 
         return new AuthResultData(
@@ -108,7 +117,7 @@ class AuthApplicationService
     /**
      * Invalidate/revoke current user token and record logout event.
      */
-    public function logout(User $user): bool
+    public function logout(UserModel $user): bool
     {
         $this->auditService->log(
             action: 'user.logout',

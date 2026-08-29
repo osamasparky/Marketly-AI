@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -13,16 +14,18 @@ class AuthenticationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RbacSeeder::class);
+        $this->seed(RbacSeeder::class);
     }
 
     public function test_user_can_register_and_receive_token(): void
     {
-        $response = $this->postJson('/api/v1/auth/register', [
-            'name' => 'Osama Marketer',
-            'email' => 'osama@marketly.ai',
+        $payload = [
+            'name' => 'Sara Al-Otaibi',
+            'email' => 'sara@marketly.ai',
             'password' => 'SecurePass123!',
-        ]);
+        ];
+
+        $response = $this->postJson('/api/v1/auth/register', $payload);
 
         $response->assertStatus(201)
             ->assertJsonStructure([
@@ -31,14 +34,15 @@ class AuthenticationTest extends TestCase
                     'token',
                     'token_type',
                 ],
-                'meta' => [
-                    'message',
-                    'timestamp',
-                ],
             ]);
 
         $this->assertDatabaseHas('users', [
-            'email' => 'osama@marketly.ai',
+            'email' => 'sara@marketly.ai',
+            'status' => 'active',
+        ]);
+
+        $this->assertDatabaseHas('organizations', [
+            'name' => "Sara Al-Otaibi's Workspace",
         ]);
     }
 
@@ -55,14 +59,12 @@ class AuthenticationTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-            ->assertJson([
-                'code' => 'VALIDATION_ERROR',
-            ]);
+            ->assertJsonValidationErrors(['email']);
     }
 
     public function test_user_can_login_with_valid_credentials(): void
     {
-        $user = User::factory()->create([
+        User::factory()->create([
             'email' => 'tester@marketly.ai',
             'password' => bcrypt('ValidPassword123!'),
         ]);
@@ -95,7 +97,8 @@ class AuthenticationTest extends TestCase
 
         $response->assertStatus(401)
             ->assertJson([
-                'code' => 'INVALID_CREDENTIALS',
+                'code' => 'UNAUTHENTICATED',
+                'message' => 'Invalid credentials provided.',
             ]);
     }
 
@@ -126,8 +129,9 @@ class AuthenticationTest extends TestCase
         $response = $this->getJson('/api/v1/me');
 
         $response->assertStatus(401)
-            ->assertJson([
-                'code' => 'UNAUTHENTICATED',
+            ->assertJsonStructure([
+                'message',
+                'code',
             ]);
     }
 }

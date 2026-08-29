@@ -50,17 +50,15 @@ class ValueObjectsTest extends TestCase
         $this->assertFalse($published->canTransitionTo($draft)); // Terminal state cannot transition back to draft
     }
 
-    public function test_user_roles_and_permissions(): void
+    public function test_user_roles_and_identifiers(): void
     {
         $admin = UserRole::ADMIN;
         $viewer = UserRole::VIEWER;
+        $owner = UserRole::OWNER;
 
-        $this->assertTrue($admin->canApproveContent());
-        $this->assertTrue($admin->canPublish());
-        $this->assertTrue($admin->canManageSocialAccounts());
-
-        $this->assertFalse($viewer->canApproveContent());
-        $this->assertFalse($viewer->canPublish());
-        $this->assertFalse($viewer->canManageSocialAccounts());
+        $this->assertEquals('admin', $admin->value);
+        $this->assertEquals('viewer', $viewer->value);
+        $this->assertEquals('owner', $owner->value);
+        $this->assertEquals('Owner', $owner->label());
     }
 }

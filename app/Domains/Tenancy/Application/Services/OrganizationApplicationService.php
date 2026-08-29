@@ -3,6 +3,7 @@
 namespace App\Domains\Tenancy\Application\Services;
 
 use App\Domains\Identity\Infrastructure\Persistence\Models\UserModel;
+use App\Domains\Tenancy\Application\DTOs\UpdateOrganizationData;
 use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationMembershipModel;
 use App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationModel;
@@ -16,11 +17,12 @@ use InvalidArgumentException;
 class OrganizationApplicationService
 {
     public function __construct(
-        private readonly AuditApplicationService $auditService
+        private readonly AuditApplicationService $auditService,
+        private readonly AuthorizationService $authService
     ) {}
 
     /**
-     * Create a new organization tenant and assign caller as Owner.
+     * Create a new organization tenant and assign caller as Owner within an atomic transaction.
      */
     public function createOrganization(
         UserModel $user,
@@ -81,6 +83,7 @@ class OrganizationApplicationService
         $memberships = OrganizationMembershipModel::with(['organization', 'role'])
             ->where('user_id', $user->id)
             ->where('status', 'active')
+            ->whereHas('organization', fn ($q) => $q->where('status', 'active'))
             ->get();
 
         return $memberships->map(function (OrganizationMembershipModel $m) use ($user) {
@@ -98,14 +101,19 @@ class OrganizationApplicationService
     }
 
     /**
-     * Switch active organization for caller after server-side membership verification.
+     * Switch active organization for caller after server-side status and membership verification.
      */
     public function switchOrganization(UserModel $user, int $targetOrgId): OrganizationModel
     {
+        if ($user->status !== 'active') {
+            throw new AuthorizationException('You are not authorized to access this resource.');
+        }
+
         $membership = OrganizationMembershipModel::with(['organization', 'role'])
             ->where('user_id', $user->id)
             ->where('organization_id', $targetOrgId)
             ->where('status', 'active')
+            ->whereHas('organization', fn ($q) => $q->where('status', 'active'))
             ->first();
 
         if (!$membership) {
@@ -113,13 +121,14 @@ class OrganizationApplicationService
                 action: 'authorization.denied',
                 organizationId: $targetOrgId,
                 userId: $user->id,
-                metadata: ['reason' => 'User is not a member of requested organization']
+                metadata: ['reason' => 'Invalid or inactive organization membership']
             );
 
             throw new AuthorizationException('You are not authorized to access this resource.');
         }
 
         $user->update(['current_organization_id' => $targetOrgId]);
+        $this->authService->flushCache();
 
         $this->auditService->log(
             action: 'organization.switched',
@@ -131,27 +140,29 @@ class OrganizationApplicationService
     }
 
     /**
-     * Update organization profile and settings under verified tenant permission.
+     * Update organization profile and settings under verified tenant permission and typed DTO.
      */
     public function updateOrganization(
         TenantContext $context,
         int $organizationId,
-        array $data
+        UpdateOrganizationData $data
     ): OrganizationModel {
         TenantIsolationGuard::assertTenantAccess($organizationId, $context);
         TenantIsolationGuard::assertPermission($context, 'organization.manage');
 
         $org = OrganizationModel::findOrFail($organizationId);
+        $updates = $data->toArray();
 
-        $allowedUpdates = array_intersect_key($data, array_flip(['name', 'default_locale', 'timezone', 'type']));
-        $org->update($allowedUpdates);
+        if (!empty($updates)) {
+            $org->update($updates);
+        }
 
         $this->auditService->log(
             action: 'organization.updated',
             organizationId: $org->id,
             entityType: 'organization',
             entityId: (string) $org->id,
-            metadata: $allowedUpdates
+            metadata: $updates
         );
 
         return $org;

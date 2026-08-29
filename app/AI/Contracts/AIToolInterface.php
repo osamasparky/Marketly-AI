@@ -2,14 +2,18 @@
 
 namespace App\AI\Contracts;
 
-use App\AI\Contracts\DTOs\ToolCall;
-
 interface AIToolInterface
 {
     /**
      * Unique machine-readable tool identifier.
      */
     public function name(): string;
+
+    /**
+     * Required domain permission to execute this AI tool (e.g. 'content.create', 'social.publish').
+     * If null, base tenant authentication is enforced.
+     */
+    public function requiredPermission(): ?string;
 
     /**
      * Tool description and schema specification for model function calling.

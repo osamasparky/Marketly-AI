@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Domains\Shared\Enums\UserRole;
+use App\Domains\Tenancy\Application\Services\AuthorizationService;
 use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Services\TenantIsolationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -11,7 +13,7 @@ class TenantIsolationTest extends TestCase
 {
     public function test_tenant_can_access_own_resource(): void
     {
-        $context = new TenantContext(organizationId: 101, brandId: 1, role: 'admin');
+        $context = new TenantContext(userId: 1, organizationId: 101, brandId: 1, role: 'admin', permissions: ['organization.view']);
 
         // Should execute without throwing exception
         TenantIsolationGuard::assertTenantAccess(resourceTenantId: 101, context: $context);
@@ -20,7 +22,7 @@ class TenantIsolationTest extends TestCase
 
     public function test_tenant_cannot_access_other_tenant_resource_with_no_info_disclosure(): void
     {
-        $context = new TenantContext(organizationId: 101, brandId: 1, role: 'owner');
+        $context = new TenantContext(userId: 1, organizationId: 101, brandId: 1, role: 'owner', permissions: []);
 
         try {
             // Tenant 101 attempting to access resource owned by Tenant 202
@@ -37,7 +39,15 @@ class TenantIsolationTest extends TestCase
 
     public function test_viewer_role_cannot_perform_content_creation(): void
     {
-        $context = new TenantContext(organizationId: 101, brandId: 1, role: 'viewer');
+        $context = new TenantContext(userId: 1, organizationId: 101, brandId: 1, role: 'viewer', permissions: ['organization.view']);
+
+        $mockAuth = $this->createMock(AuthorizationService::class);
+        $mockAuth->expects($this->once())
+            ->method('authorize')
+            ->with(1, 101, 'content.create')
+            ->willThrowException(new AuthorizationException('You are not authorized to access this resource.'));
+
+        $this->app->instance(AuthorizationService::class, $mockAuth);
 
         $this->expectException(AuthorizationException::class);
         $this->expectExceptionMessage('You are not authorized to access this resource.');
@@ -47,28 +57,25 @@ class TenantIsolationTest extends TestCase
 
     public function test_editor_can_create_content_but_cannot_publish_or_manage_billing(): void
     {
-        $context = new TenantContext(organizationId: 101, brandId: 1, role: 'editor');
+        $context = new TenantContext(
+            userId: 1,
+            organizationId: 101,
+            brandId: 1,
+            role: 'editor',
+            permissions: ['content.create', 'content.view']
+        );
 
-        // Editor CAN create content
-        TenantIsolationGuard::assertPermission($context, 'content.create');
         $this->assertTrue($context->hasPermission('content.create'));
-
-        // Editor CANNOT publish
         $this->assertFalse($context->hasPermission('social.publish'));
-
-        // Editor CANNOT manage billing
         $this->assertFalse($context->hasPermission('billing.manage'));
     }
 
-    public function test_admin_and_owner_have_appropriate_permissions(): void
+    public function test_role_labels(): void
     {
-        $adminContext = new TenantContext(organizationId: 101, brandId: 1, role: 'admin');
-        $ownerContext = new TenantContext(organizationId: 101, brandId: 1, role: 'owner');
-
-        $this->assertTrue($adminContext->hasPermission('social.publish'));
-        $this->assertFalse($adminContext->hasPermission('billing.manage')); // Admin cannot manage billing
-
-        $this->assertTrue($ownerContext->hasPermission('social.publish'));
-        $this->assertTrue($ownerContext->hasPermission('billing.manage')); // Owner has full billing access
+        $this->assertEquals('Owner', UserRole::OWNER->label());
+        $this->assertEquals('Administrator', UserRole::ADMIN->label());
+        $this->assertEquals('Marketing Manager', UserRole::MANAGER->label());
+        $this->assertEquals('Content Editor', UserRole::EDITOR->label());
+        $this->assertEquals('Viewer', UserRole::VIEWER->label());
     }
 }

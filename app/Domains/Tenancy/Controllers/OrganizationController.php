@@ -2,6 +2,7 @@
 
 namespace App\Domains\Tenancy\Controllers;
 
+use App\Domains\Tenancy\Application\DTOs\UpdateOrganizationData;
 use App\Domains\Tenancy\Application\Services\OrganizationApplicationService;
 use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationModel;
@@ -78,7 +79,7 @@ class OrganizationController extends Controller
     }
 
     /**
-     * Update organization settings.
+     * Update organization settings with typed DTO.
      */
     public function update(Request $request, int $id): JsonResponse
     {
@@ -91,7 +92,14 @@ class OrganizationController extends Controller
             'timezone' => 'sometimes|string|max:50',
         ]);
 
-        $org = $this->orgService->updateOrganization($context, $id, $validated);
+        $dto = new UpdateOrganizationData(
+            name: $validated['name'] ?? null,
+            type: $validated['type'] ?? null,
+            defaultLocale: $validated['default_locale'] ?? null,
+            timezone: $validated['timezone'] ?? null
+        );
+
+        $org = $this->orgService->updateOrganization($context, $id, $dto);
 
         return ApiResponse::success(
             data: ['organization' => $org],

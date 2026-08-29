@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Domains\Identity\Infrastructure\Persistence\Models\UserModel;
+use App\Domains\Tenancy\Application\Services\AuthorizationService;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,7 +14,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(AuthorizationService::class);
     }
 
     /**
@@ -19,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Relation::morphMap([
+            'user' => UserModel::class,
+            'users' => UserModel::class,
+            'App\Models\User' => UserModel::class,
+        ]);
     }
 }

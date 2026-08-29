@@ -4,6 +4,7 @@ namespace App\AI\Security;
 
 use App\AI\Contracts\AIToolInterface;
 use App\AI\Contracts\DTOs\ToolCall;
+use App\Domains\Tenancy\Application\Services\AuthorizationService;
 use Illuminate\Auth\Access\AuthorizationException;
 use InvalidArgumentException;
 
@@ -11,6 +12,10 @@ class AIToolExecutor
 {
     /** @var array<string, AIToolInterface> */
     private array $tools = [];
+
+    public function __construct(
+        private readonly ?AuthorizationService $authService = null
+    ) {}
 
     public function registerTool(AIToolInterface $tool): void
     {
@@ -38,6 +43,12 @@ class AIToolExecutor
         }
 
         $tool = $this->tools[$toolName];
+
+        // Enforce RBAC permission check via shared AuthorizationService
+        if ($requiredPerm = $tool->requiredPermission()) {
+            $service = $this->authService ?? app(AuthorizationService::class);
+            $service->authorize($userId, $organizationId, $requiredPerm);
+        }
 
         // Execute within strictly bounded application domain scope
         return $tool->execute($toolCall->arguments, $organizationId, $userId);

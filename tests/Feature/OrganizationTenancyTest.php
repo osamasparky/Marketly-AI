@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
+use App\Domains\Identity\Application\DTOs\RegisterUserData;
+use App\Domains\Identity\Application\Services\AuthApplicationService;
+use App\Domains\Identity\Infrastructure\Persistence\Models\UserModel;
+use App\Domains\Tenancy\Application\Services\OrganizationApplicationService;
 use App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationModel;
 use App\Domains\Tenancy\Infrastructure\Persistence\Models\RoleModel;
 use Database\Seeders\RbacSeeder;
+use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -37,9 +41,37 @@ class OrganizationTenancyTest extends TestCase
         $meRes->assertJsonPath('data.current_organization.name', "Sara Al-Otaibi's Workspace");
     }
 
+    public function test_atomic_registration_rolls_back_user_if_organization_creation_fails(): void
+    {
+        // Mock OrganizationApplicationService to simulate failure
+        $mockOrgService = $this->createMock(OrganizationApplicationService::class);
+        $mockOrgService->expects($this->once())
+            ->method('createOrganization')
+            ->willThrowException(new Exception('Simulated organization creation failure'));
+
+        $this->app->instance(OrganizationApplicationService::class, $mockOrgService);
+
+        try {
+            $authService = $this->app->make(AuthApplicationService::class);
+            $authService->register(new RegisterUserData(
+                name: 'Failed User',
+                email: 'rollback_test@example.com',
+                password: 'Password123!'
+            ));
+            $this->fail('Registration should have thrown an exception.');
+        } catch (Exception $e) {
+            $this->assertEquals('Simulated organization creation failure', $e->getMessage());
+        }
+
+        // Verify that NO orphan user exists in the database
+        $this->assertDatabaseMissing('users', [
+            'email' => 'rollback_test@example.com',
+        ]);
+    }
+
     public function test_user_can_create_new_organization_and_switch(): void
     {
-        $user = User::factory()->create(['email' => 'founder@acme.com']);
+        $user = UserModel::factory()->create(['email' => 'founder@acme.com']);
         $token = $user->createToken('test')->plainTextToken;
 
         // 1. Create Organization
@@ -66,10 +98,74 @@ class OrganizationTenancyTest extends TestCase
         $meRes->assertJsonPath('data.role', 'owner');
     }
 
+    public function test_owner_can_update_organization_settings(): void
+    {
+        $user = UserModel::factory()->create(['email' => 'owner_update@acme.com']);
+        $token = $user->createToken('test')->plainTextToken;
+
+        $org = OrganizationModel::create(['name' => 'Original Name', 'slug' => 'original-org']);
+        $ownerRole = RoleModel::where('slug', 'owner')->first();
+        $org->memberships()->create([
+            'user_id' => $user->id,
+            'role_id' => $ownerRole->id,
+            'status' => 'active',
+        ]);
+        $user->update(['current_organization_id' => $org->id]);
+
+        $updateRes = $this->withHeaders([
+            'Authorization' => "Bearer {$token}",
+            'X-Organization-Id' => (string) $org->id,
+        ])->patchJson("/api/v1/organizations/{$org->id}", [
+            'name' => 'Updated Brand Name',
+            'default_locale' => 'ar',
+            'timezone' => 'Asia/Riyadh',
+        ]);
+
+        $updateRes->assertStatus(200);
+        $updateRes->assertJsonPath('data.organization.name', 'Updated Brand Name');
+        $updateRes->assertJsonPath('data.organization.timezone', 'Asia/Riyadh');
+    }
+
+    public function test_viewer_cannot_update_organization_or_invite_members(): void
+    {
+        $viewer = UserModel::factory()->create(['email' => 'viewer_test@acme.com']);
+        $token = $viewer->createToken('test')->plainTextToken;
+
+        $org = OrganizationModel::create(['name' => 'Secure Org', 'slug' => 'secure-org']);
+        $viewerRole = RoleModel::where('slug', 'viewer')->first();
+        $org->memberships()->create([
+            'user_id' => $viewer->id,
+            'role_id' => $viewerRole->id,
+            'status' => 'active',
+        ]);
+        $viewer->update(['current_organization_id' => $org->id]);
+
+        // Attempt update organization (Privilege Escalation attempt)
+        $updateRes = $this->withHeaders([
+            'Authorization' => "Bearer {$token}",
+            'X-Organization-Id' => (string) $org->id,
+        ])->patchJson("/api/v1/organizations/{$org->id}", [
+            'name' => 'Hacked Name',
+        ]);
+
+        $updateRes->assertStatus(403);
+
+        // Attempt invite member
+        $inviteRes = $this->withHeaders([
+            'Authorization' => "Bearer {$token}",
+            'X-Organization-Id' => (string) $org->id,
+        ])->postJson("/api/v1/organizations/{$org->id}/invitations", [
+            'email' => 'intruder@acme.com',
+            'role' => 'admin',
+        ]);
+
+        $inviteRes->assertStatus(403);
+    }
+
     public function test_cross_tenant_idor_is_blocked_on_organization_switch(): void
     {
-        $userA = User::factory()->create(['email' => 'userA@org.com']);
-        $userB = User::factory()->create(['email' => 'userB@org.com']);
+        $userA = UserModel::factory()->create(['email' => 'userA@org.com']);
+        $userB = UserModel::factory()->create(['email' => 'userB@org.com']);
 
         $tokenA = $userA->createToken('test')->plainTextToken;
 
@@ -92,7 +188,7 @@ class OrganizationTenancyTest extends TestCase
 
     public function test_invitation_lifecycle_and_acceptance(): void
     {
-        $owner = User::factory()->create(['email' => 'owner@brand.com']);
+        $owner = UserModel::factory()->create(['email' => 'owner@brand.com']);
         $ownerToken = $owner->createToken('test')->plainTextToken;
 
         $org = OrganizationModel::create(['name' => 'Brand Org', 'slug' => 'brand-org']);
@@ -120,7 +216,7 @@ class OrganizationTenancyTest extends TestCase
         app('auth')->forgetGuards();
 
         // 2. New user accepts invitation
-        $editorUser = User::factory()->create(['email' => 'editor@brand.com']);
+        $editorUser = UserModel::factory()->create(['email' => 'editor@brand.com']);
         $editorToken = $editorUser->createToken('test')->plainTextToken;
 
         $acceptRes = $this->withHeaders([
@@ -145,7 +241,7 @@ class OrganizationTenancyTest extends TestCase
 
     public function test_last_owner_protection_prevents_removing_or_demoting_only_owner(): void
     {
-        $owner = User::factory()->create(['email' => 'solo_owner@org.com']);
+        $owner = UserModel::factory()->create(['email' => 'solo_owner@org.com']);
         $token = $owner->createToken('test')->plainTextToken;
 
         $org = OrganizationModel::create(['name' => 'Solo Org', 'slug' => 'solo-org']);

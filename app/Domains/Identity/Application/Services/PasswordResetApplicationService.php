@@ -44,7 +44,7 @@ class PasswordResetApplicationService
             $this->auditService->log(
                 action: 'user.password_reset_requested',
                 userId: $user->id,
-                metadata: ['email' => $sanitizedEmail]
+                metadata: ['email_fingerprint' => hash('sha256', $sanitizedEmail)]
             );
         }
 
@@ -52,6 +52,14 @@ class PasswordResetApplicationService
             'message' => 'If an account with that email exists, password reset instructions have been sent.',
             'raw_token' => $rawToken,
         ];
+    }
+
+    /**
+     * Alias for requestPasswordReset.
+     */
+    public function sendResetLink(string $email): array
+    {
+        return $this->requestPasswordReset($email);
     }
 
     /**
@@ -71,30 +79,33 @@ class PasswordResetApplicationService
             throw new InvalidArgumentException('Invalid or expired password reset token.');
         }
 
-        $createdAt = \Carbon\Carbon::parse($record->created_at);
-        if ($createdAt->addMinutes(self::TOKEN_EXPIRE_MINUTES)->isPast()) {
+        // Check 60-minute expiration
+        if (now()->subMinutes(self::TOKEN_EXPIRE_MINUTES)->gt($record->created_at)) {
             DB::table('password_reset_tokens')->where('email', $sanitizedEmail)->delete();
             throw new InvalidArgumentException('Password reset token has expired.');
         }
 
         $user = UserModel::where('email', $sanitizedEmail)->firstOrFail();
 
-        // 1. Update password
-        $user->update([
-            'password' => Hash::make($newPassword),
-        ]);
+        DB::transaction(function () use ($user, $sanitizedEmail, $newPassword) {
+            $user->update([
+                'password' => Hash::make($newPassword),
+            ]);
 
-        // 2. Delete used reset token
-        DB::table('password_reset_tokens')->where('email', $sanitizedEmail)->delete();
+            // Revoke all existing personal access tokens for absolute session termination
+            DB::table('personal_access_tokens')
+                ->where('tokenable_id', $user->id)
+                ->delete();
 
-        // 3. Invalidate all active Sanctum tokens for security (session fixation / theft protection)
-        DB::table('personal_access_tokens')->where('tokenable_id', $user->id)->delete();
+            // Invalidate the reset token
+            DB::table('password_reset_tokens')->where('email', $sanitizedEmail)->delete();
 
-        $this->auditService->log(
-            action: 'user.password_reset',
-            userId: $user->id,
-            metadata: ['email' => $sanitizedEmail]
-        );
+            $this->auditService->log(
+                action: 'user.password_reset_completed',
+                userId: $user->id,
+                metadata: ['email_fingerprint' => hash('sha256', $sanitizedEmail)]
+            );
+        });
 
         return true;
     }

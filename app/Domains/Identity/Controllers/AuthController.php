@@ -6,14 +6,13 @@ use App\Domains\Identity\Application\DTOs\LoginCredentialsData;
 use App\Domains\Identity\Application\DTOs\RegisterUserData;
 use App\Domains\Identity\Application\Services\AuthApplicationService;
 use App\Domains\Identity\Application\Services\PasswordResetApplicationService;
+use App\Domains\Shared\ValueObjects\Email;
 use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationMembershipModel;
 use App\Http\Controllers\Controller;
 use App\Support\ApiResponse;
-use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -23,64 +22,92 @@ class AuthController extends Controller
     ) {}
 
     /**
-     * Register a new user account.
+     * Register a new user and create an initial organization workspace atomically.
      */
     public function register(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255'],
-            'password' => ['required', 'string', Password::min(8)],
+            'name' => 'required|string|min:2|max:100',
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|min:8|max:100',
         ]);
 
         $dto = new RegisterUserData(
             name: $validated['name'],
-            email: $validated['email'],
+            email: new Email($validated['email']),
             password: $validated['password']
         );
 
         $result = $this->authService->register($dto);
 
         return ApiResponse::success(
-            data: $result->toArray(),
-            meta: ['message' => 'User registered successfully'],
+            data: [
+                'user' => [
+                    'id' => $result->userId,
+                    'name' => $result->name,
+                    'email' => $result->email,
+                ],
+                'token' => $result->token,
+                'token_type' => 'Bearer',
+            ],
+            meta: [
+                'message' => 'Registration successful.',
+            ],
             status: 201
         );
     }
 
     /**
-     * Authenticate user credentials and return API token.
+     * Authenticate existing user and issue Sanctum token.
      */
     public function login(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'email' => ['required', 'string', 'email'],
-            'password' => ['required', 'string'],
+            'email' => 'required|email',
+            'password' => 'required|string',
         ]);
 
-        try {
-            $dto = new LoginCredentialsData(
-                email: $validated['email'],
-                password: $validated['password']
-            );
+        $dto = new LoginCredentialsData(
+            email: new Email($validated['email']),
+            password: $validated['password']
+        );
 
-            $result = $this->authService->login($dto);
+        $result = $this->authService->login($dto);
 
-            return ApiResponse::success(
-                data: $result->toArray(),
-                meta: ['message' => 'Login successful']
-            );
-        } catch (AuthenticationException $e) {
-            return ApiResponse::error(
-                message: $e->getMessage() ?: 'Invalid credentials provided',
-                code: 'INVALID_CREDENTIALS',
-                status: 401
-            );
-        }
+        return ApiResponse::success(
+            data: [
+                'user' => [
+                    'id' => $result->userId,
+                    'name' => $result->name,
+                    'email' => $result->email,
+                ],
+                'token' => $result->token,
+                'token_type' => 'Bearer',
+            ],
+            meta: [
+                'message' => 'Authentication successful.',
+            ]
+        );
     }
 
     /**
-     * Request password reset instructions without exposing user existence.
+     * Invalidate current user session token.
+     */
+    public function logout(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if ($user) {
+            $this->authService->logout($user);
+        }
+
+        return ApiResponse::success(
+            data: ['logged_out' => true],
+            meta: ['message' => 'Logged out successfully.']
+        );
+    }
+
+    /**
+     * Request a password reset link (Generic anti-enumeration response).
      */
     public function forgotPassword(Request $request): JsonResponse
     {
@@ -91,20 +118,23 @@ class AuthController extends Controller
         $result = $this->passwordResetService->requestPasswordReset($validated['email']);
 
         return ApiResponse::success(
-            data: $result,
+            data: [
+                'message' => $result['message'],
+                'raw_token' => $result['raw_token'],
+            ],
             meta: ['message' => $result['message']]
         );
     }
 
     /**
-     * Complete password reset using token and revoke existing session tokens.
+     * Reset password using a valid raw reset token.
      */
     public function resetPassword(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'email' => 'required|email',
             'token' => 'required|string',
-            'password' => ['required', 'string', Password::min(8)],
+            'password' => 'required|string|min:8|max:100',
         ]);
 
         $this->passwordResetService->resetPassword(
@@ -114,30 +144,13 @@ class AuthController extends Controller
         );
 
         return ApiResponse::success(
-            data: ['reset' => true],
-            meta: ['message' => 'Password has been reset successfully. Please sign in with your new password.']
+            data: null,
+            meta: ['message' => 'Password reset successfully. You may now log in with your new credentials.']
         );
     }
 
     /**
-     * Revoke current API token.
-     */
-    public function logout(Request $request): JsonResponse
-    {
-        $user = $request->user();
-
-        if ($user) {
-            $this->authService->logout($user);
-        }
-
-        return ApiResponse::success(
-            data: ['logged_out' => true],
-            meta: ['message' => 'Successfully logged out']
-        );
-    }
-
-    /**
-     * Return authenticated user profile with active organization and permissions.
+     * Return authenticated user profile with active organization and DB-backed permissions.
      */
     public function me(Request $request): JsonResponse
     {
@@ -151,7 +164,7 @@ class AuthController extends Controller
         $permissions = [];
 
         if ($context) {
-            $membership = OrganizationMembershipModel::with(['organization', 'role.permissions'])
+            $membership = OrganizationMembershipModel::with(['organization', 'role'])
                 ->where('user_id', $user->id)
                 ->where('organization_id', $context->organizationId)
                 ->first();
@@ -165,7 +178,7 @@ class AuthController extends Controller
                     'status' => $membership->organization->status,
                 ];
                 $roleSlug = $membership->role->slug;
-                $permissions = $context->userRole->permissions();
+                $permissions = $context->permissions;
             }
         }
 

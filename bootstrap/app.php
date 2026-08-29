@@ -1,6 +1,7 @@
 <?php
 
 use App\Support\ApiResponse;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -39,9 +40,19 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (AuthenticationException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return ApiResponse::error(
-                    message: 'Unauthenticated',
+                    message: $e->getMessage() ?: 'Unauthenticated',
                     code: 'UNAUTHENTICATED',
                     status: Response::HTTP_UNAUTHORIZED
+                );
+            }
+        });
+
+        $exceptions->render(function (AuthorizationException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return ApiResponse::error(
+                    message: $e->getMessage() ?: 'You are not authorized to access this resource.',
+                    code: 'FORBIDDEN',
+                    status: Response::HTTP_FORBIDDEN
                 );
             }
         });
@@ -49,7 +60,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (AccessDeniedHttpException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return ApiResponse::error(
-                    message: $e->getMessage() ?: 'Unauthorized action',
+                    message: $e->getMessage() ?: 'You are not authorized to access this resource.',
                     code: 'FORBIDDEN',
                     status: Response::HTTP_FORBIDDEN
                 );
@@ -73,8 +84,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
                 return ApiResponse::error(
                     message: $message,
-                    code: 'SERVER_ERROR',
-                    errors: app()->environment('local', 'testing') ? ['trace' => $e->getTraceAsString()] : null,
+                    code: 'INTERNAL_SERVER_ERROR',
                     status: $status
                 );
             }
