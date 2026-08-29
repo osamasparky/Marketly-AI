@@ -9,13 +9,23 @@ return [
     | Strict deny-by-default Content Security Policy adhering to Section 53
     | of the Marketly AI Engineering Constitution.
     |
+    | Hardened rules:
+    | - NO 'unsafe-eval'
+    | - NO 'unsafe-inline' in production (Dynamic Nonce used for scripts)
+    | - NO broad wildcard origins (https: / *)
+    | - Environment-aware directives (Localhost/WS allowed ONLY in local environment)
+    |
     */
     'csp' => [
         'enabled' => env('CSP_ENABLED', true),
         'report_only' => env('CSP_REPORT_ONLY', false),
         'report_uri' => env('CSP_REPORT_URI', '/api/v1/csp-report'),
 
-        'directives' => [
+        // Configurable trusted origins (populated from environment)
+        'trusted_cdn' => env('CDN_URL', ''),
+        'trusted_media' => env('MEDIA_STORAGE_URL', ''),
+
+        'base_directives' => [
             'default-src' => ["'self'"],
             'base-uri' => ["'self'"],
             'form-action' => ["'self'"],
@@ -23,41 +33,46 @@ return [
             'object-src' => ["'none'"],
             'script-src' => [
                 "'self'",
-                // Vite HMR and local scripts via per-request cryptographic nonce
             ],
             'style-src' => [
                 "'self'",
-                "'unsafe-inline'", // Allowed for Tailwind utility injection; nonces applied when available
                 'https://fonts.googleapis.com',
             ],
             'img-src' => [
                 "'self'",
                 'data:',
                 'blob:',
-                'https:',
             ],
             'font-src' => [
                 "'self'",
-                'data:',
                 'https://fonts.gstatic.com',
             ],
             'connect-src' => [
                 "'self'",
-                'http://localhost:*',
-                'ws://localhost:*',
                 'https://fonts.googleapis.com',
                 'https://fonts.gstatic.com',
             ],
             'frame-src' => ["'none'"],
             'worker-src' => ["'self'", 'blob:'],
-            'media-src' => ["'self'", 'blob:', 'https:'],
+            'media-src' => ["'self'", 'blob:'],
             'manifest-src' => ["'self'"],
+        ],
+
+        // Development-only additions (strictly ignored when APP_ENV === 'production')
+        'dev_additions' => [
+            'style-src' => ["'unsafe-inline'"], // Needed for Vite local dev server HMR styling
+            'connect-src' => [
+                'http://localhost:*',
+                'ws://localhost:*',
+                'http://127.0.0.1:*',
+                'ws://127.0.0.1:*',
+            ],
         ],
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Additional Security Headers Baseline
+    | Baseline Security Headers
     |--------------------------------------------------------------------------
     */
     'headers' => [

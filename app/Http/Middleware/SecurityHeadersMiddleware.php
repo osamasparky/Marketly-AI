@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 class SecurityHeadersMiddleware
 {
     /**
-     * Handle an incoming request and attach strict security and CSP headers.
+     * Handle incoming request and apply strict, hardened security headers and CSP.
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -24,13 +24,15 @@ class SecurityHeadersMiddleware
         // 2. Attach baseline security headers
         $headers = config('security.headers', []);
         foreach ($headers as $header => $value) {
-            if ($header === 'Strict-Transport-Security' && !$request->isSecure() && app()->environment('local', 'testing')) {
-                continue; // Skip HSTS over plain HTTP in local testing
+            if ($header === 'Strict-Transport-Security') {
+                if (!$request->isSecure() && !app()->environment('production')) {
+                    continue; // Skip HSTS over plain HTTP in local testing
+                }
             }
             $response->headers->set($header, $value);
         }
 
-        // 3. Build Content-Security-Policy header
+        // 3. Build hardened, environment-aware Content-Security-Policy
         if (config('security.csp.enabled', true)) {
             $csp = $this->buildCspString($nonce);
             $headerName = config('security.csp.report_only', false)
@@ -44,15 +46,34 @@ class SecurityHeadersMiddleware
     }
 
     /**
-     * Build the CSP policy string from configuration.
+     * Build the CSP policy string enforcing production lockdown and trusted origins.
      */
     private function buildCspString(string $nonce): string
     {
-        $directives = config('security.csp.directives', []);
+        $baseDirectives = config('security.csp.base_directives', []);
+        $isDev = !app()->environment('production');
+        $devAdditions = $isDev ? config('security.csp.dev_additions', []) : [];
+
+        $cdnUrl = config('security.csp.trusted_cdn');
+        $mediaUrl = config('security.csp.trusted_media');
+
         $policyParts = [];
 
-        foreach ($directives as $directive => $sources) {
+        foreach ($baseDirectives as $directive => $sources) {
             $sourceList = (array) $sources;
+
+            // In non-production only, merge dev-specific sources (e.g. Vite HMR WebSockets)
+            if ($isDev && isset($devAdditions[$directive])) {
+                $sourceList = array_merge($sourceList, (array) $devAdditions[$directive]);
+            }
+
+            // Inject trusted CDN/Storage origins into appropriate directives
+            if ($cdnUrl && in_array($directive, ['script-src', 'style-src', 'font-src', 'img-src'], true)) {
+                $sourceList[] = $cdnUrl;
+            }
+            if ($mediaUrl && in_array($directive, ['media-src', 'img-src'], true)) {
+                $sourceList[] = $mediaUrl;
+            }
 
             // Inject per-request cryptographic nonce into script-src
             if ($directive === 'script-src') {

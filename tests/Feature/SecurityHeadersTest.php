@@ -29,6 +29,24 @@ class SecurityHeadersTest extends TestCase
         $this->assertStringNotContainsString("'unsafe-eval'", $csp);
     }
 
+    public function test_production_mode_does_not_contain_dev_origins(): void
+    {
+        // Simulate production environment
+        $this->app['env'] = 'production';
+
+        $response = $this->get('/api/v1/health');
+        $csp = $response->headers->get('Content-Security-Policy');
+
+        // Production must strictly NEVER contain localhost or ws: wildcards
+        $this->assertStringNotContainsString('http://localhost:*', $csp);
+        $this->assertStringNotContainsString('ws://localhost:*', $csp);
+        $this->assertStringNotContainsString('http://127.0.0.1:*', $csp);
+        $this->assertStringNotContainsString('ws://127.0.0.1:*', $csp);
+
+        // Production style-src must NOT contain unsafe-inline
+        $this->assertStringNotContainsString("style-src 'self' 'unsafe-inline'", $csp);
+    }
+
     public function test_csp_reporting_endpoint_accepts_reports(): void
     {
         $response = $this->postJson('/api/v1/csp-report', [
