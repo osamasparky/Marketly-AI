@@ -3,13 +3,17 @@
 namespace App\Domains\Brand\Domain\Services;
 
 use App\Domains\Brand\Domain\DTOs\BrandContext;
-use App\Domains\Brand\Infrastructure\Persistence\Models\BrandProfileModel;
+use App\Domains\Brand\Domain\Repositories\BrandProfileRepositoryInterface;
 use InvalidArgumentException;
 
 class BrandContextBuilder
 {
+    public function __construct(
+        private readonly BrandProfileRepositoryInterface $profileRepository
+    ) {}
+
     /**
-     * Assemble full, validated, tenant-isolated BrandContext DTO from database models.
+     * Assemble full, validated, tenant-isolated BrandContext DTO from repository.
      */
     public function build(int $organizationId): BrandContext
     {
@@ -17,20 +21,13 @@ class BrandContextBuilder
             throw new InvalidArgumentException('Valid organization ID is required to build BrandContext.');
         }
 
-        $profile = BrandProfileModel::with([
-            'productsServices' => fn ($q) => $q->where('status', 'active'),
-            'audiences' => fn ($q) => $q->where('status', 'active'),
-            'voice',
-            'goals' => fn ($q) => $q->where('status', 'active'),
-            'competitors',
-            'locations' => fn ($q) => $q->where('status', 'active'),
-        ])->where('organization_id', $organizationId)->first();
+        $profile = $this->profileRepository->findWithRelationsByOrganizationId($organizationId);
 
         if (!$profile) {
-            // Return minimal fallback context
+            // Return safe fallback context without leaking database identifiers
             return new BrandContext(
                 organizationId: $organizationId,
-                businessName: "Organization #{$organizationId}",
+                businessName: 'Unknown Business',
                 industry: 'General',
                 businessType: 'B2B',
                 description: 'AI-assisted business workspace',
@@ -65,25 +62,25 @@ class BrandContextBuilder
         $voice = $profile->voice;
         $voiceAndTone = $voice ? [
             'primary_tones' => $voice->primary_tones ?? ['professional'],
-            'formality_scale' => $voice->formality_scale,
-            'playfulness_scale' => $voice->playfulness_scale,
-            'boldness_scale' => $voice->boldness_scale,
-            'simplicity_scale' => $voice->simplicity_scale,
+            'formality_scale' => (int) $voice->formality_scale,
+            'playfulness_scale' => (int) $voice->playfulness_scale,
+            'boldness_scale' => (int) $voice->boldness_scale,
+            'simplicity_scale' => (int) $voice->simplicity_scale,
             'preferred_phrases' => $voice->preferred_phrases ?? [],
             'forbidden_phrases' => $voice->forbidden_phrases ?? [],
             'words_to_avoid' => $voice->words_to_avoid ?? [],
             'words_to_emphasize' => $voice->words_to_emphasize ?? [],
             'cta_preferences' => $voice->cta_preferences ?? [],
-            'emoji_style' => $voice->emoji_style,
-            'hashtag_style' => $voice->hashtag_style,
-            'dialect' => $voice->dialect,
+            'emoji_style' => $voice->emoji_style ?? 'moderate',
+            'hashtag_style' => $voice->hashtag_style ?? 'targeted',
+            'dialect' => $voice->dialect ?? 'saudi',
         ] : [
             'primary_tones' => ['professional'],
             'formality_scale' => 3,
             'dialect' => 'saudi',
         ];
 
-        $audiences = $profile->audiences->map(function ($aud) {
+        $audiences = $profile->audiences ? $profile->audiences->map(function ($aud) {
             return [
                 'id' => $aud->id,
                 'name' => $aud->name,
@@ -98,9 +95,9 @@ class BrandContextBuilder
                 'company_size' => $aud->company_size,
                 'job_titles' => $aud->job_titles ?? [],
             ];
-        })->toArray();
+        })->toArray() : [];
 
-        $products = $profile->productsServices->map(function ($prod) {
+        $products = $profile->productsServices ? $profile->productsServices->map(function ($prod) {
             return [
                 'id' => $prod->id,
                 'name' => $prod->name,
@@ -111,9 +108,9 @@ class BrandContextBuilder
                 'currency' => $prod->currency,
                 'features' => $prod->features ?? [],
             ];
-        })->toArray();
+        })->toArray() : [];
 
-        $goals = $profile->goals->map(function ($goal) {
+        $goals = $profile->goals ? $profile->goals->map(function ($goal) {
             return [
                 'id' => $goal->id,
                 'goal_type' => $goal->goal_type,
@@ -121,9 +118,9 @@ class BrandContextBuilder
                 'description' => $goal->description,
                 'target_metrics' => $goal->target_metrics ?? [],
             ];
-        })->toArray();
+        })->toArray() : [];
 
-        $competitors = $profile->competitors->map(function ($comp) {
+        $competitors = $profile->competitors ? $profile->competitors->map(function ($comp) {
             return [
                 'id' => $comp->id,
                 'name' => $comp->name,
@@ -132,16 +129,16 @@ class BrandContextBuilder
                 'strengths' => $comp->strengths ?? [],
                 'weaknesses' => $comp->weaknesses ?? [],
             ];
-        })->toArray();
+        })->toArray() : [];
 
-        $locations = $profile->locations->map(function ($loc) {
+        $locations = $profile->locations ? $profile->locations->map(function ($loc) {
             return [
                 'id' => $loc->id,
                 'name' => $loc->name,
                 'country' => $loc->country,
                 'city' => $loc->city,
             ];
-        })->toArray();
+        })->toArray() : [];
 
         return new BrandContext(
             organizationId: $organizationId,
@@ -149,8 +146,8 @@ class BrandContextBuilder
             industry: $profile->industry,
             businessType: $profile->business_type,
             description: $profile->description ?? '',
-            defaultLocale: $profile->default_locale,
-            country: $profile->country,
+            defaultLocale: $profile->default_locale ?? 'ar',
+            country: $profile->country ?? 'SA',
             region: $profile->region,
             city: $profile->city,
             brandIdentity: $brandIdentity,

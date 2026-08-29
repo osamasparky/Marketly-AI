@@ -2,7 +2,19 @@
 
 namespace App\Domains\Brand\Controllers;
 
+use App\Domains\Brand\Application\DTOs\SaveAudienceData;
+use App\Domains\Brand\Application\DTOs\SaveBrandProfileData;
+use App\Domains\Brand\Application\DTOs\SaveBrandVoiceData;
+use App\Domains\Brand\Application\DTOs\SaveCompetitorData;
+use App\Domains\Brand\Application\DTOs\SaveGoalData;
+use App\Domains\Brand\Application\DTOs\SaveProductServiceData;
 use App\Domains\Brand\Application\Services\BrandApplicationService;
+use App\Domains\Brand\Presentation\Resources\AudienceResource;
+use App\Domains\Brand\Presentation\Resources\BrandProfileResource;
+use App\Domains\Brand\Presentation\Resources\BrandVoiceResource;
+use App\Domains\Brand\Presentation\Resources\CompetitorResource;
+use App\Domains\Brand\Presentation\Resources\GoalResource;
+use App\Domains\Brand\Presentation\Resources\ProductServiceResource;
 use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Http\Controllers\Controller;
 use App\Support\ApiResponse;
@@ -11,6 +23,8 @@ use Illuminate\Http\Request;
 
 class BrandController extends Controller
 {
+    private const SAFE_URL_REGEX = '/^https?:\/\/[a-zA-Z0-9\-\.]+(\.[a-zA-Z]{2,})+(:[0-9]+)?(\/.*)?$/i';
+
     public function __construct(
         private readonly BrandApplicationService $brandService
     ) {}
@@ -28,7 +42,10 @@ class BrandController extends Controller
         $result = $this->brandService->getBrandBrain($this->getContext($request));
 
         return ApiResponse::success(
-            data: $result,
+            data: [
+                'profile' => $result['profile'] ? new BrandProfileResource($result['profile']) : null,
+                'completeness' => $result['completeness'],
+            ],
             meta: ['message' => 'Brand Brain retrieved successfully.']
         );
     }
@@ -44,7 +61,7 @@ class BrandController extends Controller
             'industry' => 'nullable|string|max:50',
             'business_type' => 'nullable|string|max:30',
             'description' => 'nullable|string|max:2000',
-            'website' => 'nullable|url|max:255',
+            'website' => ['nullable', 'string', 'max:255', 'regex:' . self::SAFE_URL_REGEX],
             'phone' => 'nullable|string|max:30',
             'email' => 'nullable|email|max:100',
             'country' => 'nullable|string|max:10',
@@ -55,16 +72,19 @@ class BrandController extends Controller
             'tagline' => 'nullable|string|max:255',
             'mission' => 'nullable|string|max:1000',
             'vision' => 'nullable|string|max:1000',
-            'values' => 'nullable|array',
+            'values' => 'nullable|array|max:20',
+            'values.*' => 'string|max:100',
             'positioning' => 'nullable|string|max:1000',
-            'unique_selling_points' => 'nullable|array',
+            'unique_selling_points' => 'nullable|array|max:20',
+            'unique_selling_points.*' => 'string|max:255',
             'brand_promise' => 'nullable|string|max:1000',
         ]);
 
-        $profile = $this->brandService->saveBrandProfile($this->getContext($request), $validated);
+        $dto = SaveBrandProfileData::fromArray($validated);
+        $profile = $this->brandService->saveBrandProfile($this->getContext($request), $dto);
 
         return ApiResponse::success(
-            data: ['profile' => $profile],
+            data: ['profile' => new BrandProfileResource($profile)],
             meta: ['message' => 'Brand profile updated successfully.']
         );
     }
@@ -74,8 +94,8 @@ class BrandController extends Controller
      */
     public function listProducts(Request $request): JsonResponse
     {
-        $brain = $this->brandService->getBrandBrain($this->getContext($request));
-        return ApiResponse::success(['products' => $brain['profile']?->productsServices ?? []]);
+        $products = $this->brandService->listProducts($this->getContext($request));
+        return ApiResponse::success(['products' => ProductServiceResource::collection($products)]);
     }
 
     public function storeProduct(Request $request): JsonResponse
@@ -85,14 +105,21 @@ class BrandController extends Controller
             'type' => 'required|string|in:product,service',
             'description' => 'nullable|string|max:1000',
             'category' => 'nullable|string|max:50',
-            'price' => 'nullable|numeric|min:0',
+            'price' => 'nullable|numeric|min:0|max:10000000',
             'currency' => 'nullable|string|max:10',
-            'url' => 'nullable|url|max:255',
-            'features' => 'nullable|array',
+            'url' => ['nullable', 'string', 'max:255', 'regex:' . self::SAFE_URL_REGEX],
+            'features' => 'nullable|array|max:30',
+            'features.*' => 'string|max:255',
         ]);
 
-        $product = $this->brandService->saveProductService($this->getContext($request), $validated);
-        return ApiResponse::success(['product' => $product], ['message' => 'Product created successfully.'], 201);
+        $dto = SaveProductServiceData::fromArray($validated);
+        $product = $this->brandService->saveProductService($this->getContext($request), $dto);
+
+        return ApiResponse::success(
+            data: ['product' => new ProductServiceResource($product)],
+            meta: ['message' => 'Product created successfully.'],
+            status: 201
+        );
     }
 
     public function updateProduct(Request $request, int $id): JsonResponse
@@ -102,14 +129,20 @@ class BrandController extends Controller
             'type' => 'sometimes|string|in:product,service',
             'description' => 'nullable|string|max:1000',
             'category' => 'nullable|string|max:50',
-            'price' => 'nullable|numeric|min:0',
+            'price' => 'nullable|numeric|min:0|max:10000000',
             'currency' => 'nullable|string|max:10',
-            'url' => 'nullable|url|max:255',
-            'features' => 'nullable|array',
+            'url' => ['nullable', 'string', 'max:255', 'regex:' . self::SAFE_URL_REGEX],
+            'features' => 'nullable|array|max:30',
+            'features.*' => 'string|max:255',
         ]);
 
-        $product = $this->brandService->saveProductService($this->getContext($request), $validated, $id);
-        return ApiResponse::success(['product' => $product], ['message' => 'Product updated successfully.']);
+        $dto = SaveProductServiceData::fromArray($validated);
+        $product = $this->brandService->saveProductService($this->getContext($request), $dto, $id);
+
+        return ApiResponse::success(
+            data: ['product' => new ProductServiceResource($product)],
+            meta: ['message' => 'Product updated successfully.']
+        );
     }
 
     public function deleteProduct(Request $request, int $id): JsonResponse
@@ -123,8 +156,8 @@ class BrandController extends Controller
      */
     public function listAudiences(Request $request): JsonResponse
     {
-        $brain = $this->brandService->getBrandBrain($this->getContext($request));
-        return ApiResponse::success(['audiences' => $brain['profile']?->audiences ?? []]);
+        $audiences = $this->brandService->listAudiences($this->getContext($request));
+        return ApiResponse::success(['audiences' => AudienceResource::collection($audiences)]);
     }
 
     public function storeAudience(Request $request): JsonResponse
@@ -135,17 +168,28 @@ class BrandController extends Controller
             'description' => 'nullable|string|max:1000',
             'age_range' => 'nullable|string|max:30',
             'gender' => 'nullable|string|max:20',
-            'locations' => 'nullable|array',
-            'interests' => 'nullable|array',
-            'pain_points' => 'nullable|array',
-            'needs' => 'nullable|array',
+            'locations' => 'nullable|array|max:20',
+            'locations.*' => 'string|max:100',
+            'interests' => 'nullable|array|max:30',
+            'interests.*' => 'string|max:100',
+            'pain_points' => 'nullable|array|max:30',
+            'pain_points.*' => 'string|max:255',
+            'needs' => 'nullable|array|max:30',
+            'needs.*' => 'string|max:255',
             'industry' => 'nullable|string|max:100',
             'company_size' => 'nullable|string|max:50',
-            'job_titles' => 'nullable|array',
+            'job_titles' => 'nullable|array|max:30',
+            'job_titles.*' => 'string|max:100',
         ]);
 
-        $audience = $this->brandService->saveAudience($this->getContext($request), $validated);
-        return ApiResponse::success(['audience' => $audience], ['message' => 'Audience profile created.'], 201);
+        $dto = SaveAudienceData::fromArray($validated);
+        $audience = $this->brandService->saveAudience($this->getContext($request), $dto);
+
+        return ApiResponse::success(
+            data: ['audience' => new AudienceResource($audience)],
+            meta: ['message' => 'Audience profile created.'],
+            status: 201
+        );
     }
 
     public function updateAudience(Request $request, int $id): JsonResponse
@@ -156,17 +200,27 @@ class BrandController extends Controller
             'description' => 'nullable|string|max:1000',
             'age_range' => 'nullable|string|max:30',
             'gender' => 'nullable|string|max:20',
-            'locations' => 'nullable|array',
-            'interests' => 'nullable|array',
-            'pain_points' => 'nullable|array',
-            'needs' => 'nullable|array',
+            'locations' => 'nullable|array|max:20',
+            'locations.*' => 'string|max:100',
+            'interests' => 'nullable|array|max:30',
+            'interests.*' => 'string|max:100',
+            'pain_points' => 'nullable|array|max:30',
+            'pain_points.*' => 'string|max:255',
+            'needs' => 'nullable|array|max:30',
+            'needs.*' => 'string|max:255',
             'industry' => 'nullable|string|max:100',
             'company_size' => 'nullable|string|max:50',
-            'job_titles' => 'nullable|array',
+            'job_titles' => 'nullable|array|max:30',
+            'job_titles.*' => 'string|max:100',
         ]);
 
-        $audience = $this->brandService->saveAudience($this->getContext($request), $validated, $id);
-        return ApiResponse::success(['audience' => $audience], ['message' => 'Audience profile updated.']);
+        $dto = SaveAudienceData::fromArray($validated);
+        $audience = $this->brandService->saveAudience($this->getContext($request), $dto, $id);
+
+        return ApiResponse::success(
+            data: ['audience' => new AudienceResource($audience)],
+            meta: ['message' => 'Audience profile updated.']
+        );
     }
 
     public function deleteAudience(Request $request, int $id): JsonResponse
@@ -181,29 +235,39 @@ class BrandController extends Controller
     public function getVoice(Request $request): JsonResponse
     {
         $brain = $this->brandService->getBrandBrain($this->getContext($request));
-        return ApiResponse::success(['voice' => $brain['profile']?->voice]);
+        $voice = $brain['profile']?->voice;
+
+        return ApiResponse::success(['voice' => $voice ? new BrandVoiceResource($voice) : null]);
     }
 
     public function saveVoice(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'primary_tones' => 'nullable|array',
+            'primary_tones' => 'nullable|array|max:10',
+            'primary_tones.*' => 'string|max:50',
             'formality_scale' => 'nullable|integer|min:1|max:5',
             'playfulness_scale' => 'nullable|integer|min:1|max:5',
             'boldness_scale' => 'nullable|integer|min:1|max:5',
             'simplicity_scale' => 'nullable|integer|min:1|max:5',
-            'preferred_phrases' => 'nullable|array',
-            'forbidden_phrases' => 'nullable|array',
-            'words_to_avoid' => 'nullable|array',
-            'words_to_emphasize' => 'nullable|array',
-            'cta_preferences' => 'nullable|array',
+            'preferred_phrases' => 'nullable|array|max:50',
+            'preferred_phrases.*' => 'string|max:150',
+            'forbidden_phrases' => 'nullable|array|max:50',
+            'forbidden_phrases.*' => 'string|max:150',
+            'words_to_avoid' => 'nullable|array|max:50',
+            'words_to_avoid.*' => 'string|max:100',
+            'words_to_emphasize' => 'nullable|array|max:50',
+            'words_to_emphasize.*' => 'string|max:100',
+            'cta_preferences' => 'nullable|array|max:20',
+            'cta_preferences.*' => 'string|max:150',
             'emoji_style' => 'nullable|string|in:none,minimal,moderate,expressive',
             'hashtag_style' => 'nullable|string|max:30',
             'dialect' => 'nullable|string|max:50',
         ]);
 
-        $voice = $this->brandService->saveBrandVoice($this->getContext($request), $validated);
-        return ApiResponse::success(['voice' => $voice], ['message' => 'Brand voice updated successfully.']);
+        $dto = SaveBrandVoiceData::fromArray($validated);
+        $voice = $this->brandService->saveBrandVoice($this->getContext($request), $dto);
+
+        return ApiResponse::success(['voice' => new BrandVoiceResource($voice)], ['message' => 'Brand voice updated successfully.']);
     }
 
     /**
@@ -211,8 +275,8 @@ class BrandController extends Controller
      */
     public function listGoals(Request $request): JsonResponse
     {
-        $brain = $this->brandService->getBrandBrain($this->getContext($request));
-        return ApiResponse::success(['goals' => $brain['profile']?->goals ?? []]);
+        $goals = $this->brandService->listGoals($this->getContext($request));
+        return ApiResponse::success(['goals' => GoalResource::collection($goals)]);
     }
 
     public function storeGoal(Request $request): JsonResponse
@@ -221,11 +285,14 @@ class BrandController extends Controller
             'goal_type' => 'required|string|max:50',
             'priority' => 'required|string|in:primary,secondary,tertiary',
             'description' => 'nullable|string|max:1000',
-            'target_metrics' => 'nullable|array',
+            'target_metrics' => 'nullable|array|max:20',
+            'target_metrics.*' => 'string|max:100',
         ]);
 
-        $goal = $this->brandService->saveGoal($this->getContext($request), $validated);
-        return ApiResponse::success(['goal' => $goal], ['message' => 'Goal created.'], 201);
+        $dto = SaveGoalData::fromArray($validated);
+        $goal = $this->brandService->saveGoal($this->getContext($request), $dto);
+
+        return ApiResponse::success(['goal' => new GoalResource($goal)], ['message' => 'Goal created.'], 201);
     }
 
     public function updateGoal(Request $request, int $id): JsonResponse
@@ -234,11 +301,14 @@ class BrandController extends Controller
             'goal_type' => 'sometimes|string|max:50',
             'priority' => 'sometimes|string|in:primary,secondary,tertiary',
             'description' => 'nullable|string|max:1000',
-            'target_metrics' => 'nullable|array',
+            'target_metrics' => 'nullable|array|max:20',
+            'target_metrics.*' => 'string|max:100',
         ]);
 
-        $goal = $this->brandService->saveGoal($this->getContext($request), $validated, $id);
-        return ApiResponse::success(['goal' => $goal], ['message' => 'Goal updated.']);
+        $dto = SaveGoalData::fromArray($validated);
+        $goal = $this->brandService->saveGoal($this->getContext($request), $dto, $id);
+
+        return ApiResponse::success(['goal' => new GoalResource($goal)], ['message' => 'Goal updated.']);
     }
 
     public function deleteGoal(Request $request, int $id): JsonResponse
@@ -252,40 +322,48 @@ class BrandController extends Controller
      */
     public function listCompetitors(Request $request): JsonResponse
     {
-        $brain = $this->brandService->getBrandBrain($this->getContext($request));
-        return ApiResponse::success(['competitors' => $brain['profile']?->competitors ?? []]);
+        $competitors = $this->brandService->listCompetitors($this->getContext($request));
+        return ApiResponse::success(['competitors' => CompetitorResource::collection($competitors)]);
     }
 
     public function storeCompetitor(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|min:2|max:100',
-            'website' => 'nullable|url|max:255',
+            'website' => ['nullable', 'string', 'max:255', 'regex:' . self::SAFE_URL_REGEX],
             'description' => 'nullable|string|max:1000',
             'positioning' => 'nullable|string|max:500',
-            'strengths' => 'nullable|array',
-            'weaknesses' => 'nullable|array',
+            'strengths' => 'nullable|array|max:20',
+            'strengths.*' => 'string|max:150',
+            'weaknesses' => 'nullable|array|max:20',
+            'weaknesses.*' => 'string|max:150',
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $competitor = $this->brandService->saveCompetitor($this->getContext($request), $validated);
-        return ApiResponse::success(['competitor' => $competitor], ['message' => 'Competitor added.'], 201);
+        $dto = SaveCompetitorData::fromArray($validated);
+        $competitor = $this->brandService->saveCompetitor($this->getContext($request), $dto);
+
+        return ApiResponse::success(['competitor' => new CompetitorResource($competitor)], ['message' => 'Competitor added.'], 201);
     }
 
     public function updateCompetitor(Request $request, int $id): JsonResponse
     {
         $validated = $request->validate([
             'name' => 'sometimes|string|min:2|max:100',
-            'website' => 'nullable|url|max:255',
+            'website' => ['nullable', 'string', 'max:255', 'regex:' . self::SAFE_URL_REGEX],
             'description' => 'nullable|string|max:1000',
             'positioning' => 'nullable|string|max:500',
-            'strengths' => 'nullable|array',
-            'weaknesses' => 'nullable|array',
+            'strengths' => 'nullable|array|max:20',
+            'strengths.*' => 'string|max:150',
+            'weaknesses' => 'nullable|array|max:20',
+            'weaknesses.*' => 'string|max:150',
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $competitor = $this->brandService->saveCompetitor($this->getContext($request), $validated, $id);
-        return ApiResponse::success(['competitor' => $competitor], ['message' => 'Competitor updated.']);
+        $dto = SaveCompetitorData::fromArray($validated);
+        $competitor = $this->brandService->saveCompetitor($this->getContext($request), $dto, $id);
+
+        return ApiResponse::success(['competitor' => new CompetitorResource($competitor)], ['message' => 'Competitor updated.']);
     }
 
     public function deleteCompetitor(Request $request, int $id): JsonResponse
@@ -296,24 +374,32 @@ class BrandController extends Controller
 
     /**
      * Preview Sanitized AI Brand Context for the current tenant.
+     * Note: Internal system prompts and instructions are NEVER exposed publicly.
      */
     public function aiContext(Request $request): JsonResponse
     {
-        $task = $request->query('task', 'content_generation');
-        $audienceId = $request->query('audience_id') ? (int) $request->query('audience_id') : null;
-        $productId = $request->query('product_id') ? (int) $request->query('product_id') : null;
-        $platform = $request->query('platform');
+        $validated = $request->validate([
+            'task' => 'nullable|string|in:content_generation,social_post,campaign,marketing_strategy',
+            'audience_id' => 'nullable|integer',
+            'product_id' => 'nullable|integer',
+            'platform' => 'nullable|string|in:linkedin,instagram,x,tiktok,facebook,youtube',
+        ]);
 
-        $context = $this->brandService->getAIBrandContext($this->getContext($request));
+        $task = $validated['task'] ?? 'content_generation';
+        $audienceId = isset($validated['audience_id']) ? (int) $validated['audience_id'] : null;
+        $productId = isset($validated['product_id']) ? (int) $validated['product_id'] : null;
+        $platform = $validated['platform'] ?? null;
+
+        $context = $this->brandService->getAIBrandContext($this->getContext($request), $audienceId, $productId);
 
         $minimized = match ($task) {
-            'content_generation' => $context->forContentGeneration($audienceId, $productId, $platform),
+            'content_generation', 'social_post' => $context->forContentGeneration($audienceId, $productId, $platform),
             default => $context->toArray(),
         };
 
+        // NEVER expose internal system prompt / instructions to frontend
         return ApiResponse::success([
             'context' => $minimized,
-            'system_block' => $context->toSanitizedSystemBlock(),
         ]);
     }
 }

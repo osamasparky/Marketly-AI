@@ -2,47 +2,49 @@
 
 namespace App\Domains\Brand\Application\Services;
 
+use App\Domains\Brand\Application\DTOs\SaveAudienceData;
+use App\Domains\Brand\Application\DTOs\SaveBrandProfileData;
+use App\Domains\Brand\Application\DTOs\SaveBrandVoiceData;
+use App\Domains\Brand\Application\DTOs\SaveCompetitorData;
+use App\Domains\Brand\Application\DTOs\SaveGoalData;
+use App\Domains\Brand\Application\DTOs\SaveProductServiceData;
 use App\Domains\Brand\Domain\DTOs\BrandContext;
+use App\Domains\Brand\Domain\Repositories\BrandAudienceRepositoryInterface;
+use App\Domains\Brand\Domain\Repositories\BrandCompetitorRepositoryInterface;
+use App\Domains\Brand\Domain\Repositories\BrandGoalRepositoryInterface;
+use App\Domains\Brand\Domain\Repositories\BrandProductServiceRepositoryInterface;
+use App\Domains\Brand\Domain\Repositories\BrandProfileRepositoryInterface;
+use App\Domains\Brand\Domain\Repositories\BrandVoiceRepositoryInterface;
 use App\Domains\Brand\Domain\Services\BrandCompletenessService;
 use App\Domains\Brand\Domain\Services\BrandContextBuilder;
-use App\Domains\Brand\Infrastructure\Persistence\Models\BrandAssetModel;
-use App\Domains\Brand\Infrastructure\Persistence\Models\BrandAudienceModel;
-use App\Domains\Brand\Infrastructure\Persistence\Models\BrandCompetitorModel;
-use App\Domains\Brand\Infrastructure\Persistence\Models\BrandGoalModel;
-use App\Domains\Brand\Infrastructure\Persistence\Models\BrandLocationModel;
-use App\Domains\Brand\Infrastructure\Persistence\Models\BrandProductServiceModel;
-use App\Domains\Brand\Infrastructure\Persistence\Models\BrandProfileModel;
-use App\Domains\Brand\Infrastructure\Persistence\Models\BrandVoiceModel;
 use App\Domains\Tenancy\Application\Services\AuditApplicationService;
 use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Services\TenantIsolationGuard;
-use InvalidArgumentException;
+use Illuminate\Support\Collection;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class BrandApplicationService
 {
     public function __construct(
         private readonly AuditApplicationService $auditService,
         private readonly BrandCompletenessService $completenessService,
-        private readonly BrandContextBuilder $contextBuilder
+        private readonly BrandContextBuilder $contextBuilder,
+        private readonly BrandProfileRepositoryInterface $profileRepository,
+        private readonly BrandProductServiceRepositoryInterface $productRepository,
+        private readonly BrandAudienceRepositoryInterface $audienceRepository,
+        private readonly BrandVoiceRepositoryInterface $voiceRepository,
+        private readonly BrandGoalRepositoryInterface $goalRepository,
+        private readonly BrandCompetitorRepositoryInterface $competitorRepository
     ) {}
 
     /**
-     * Get or initialize Brand Profile with completeness score for the current tenant.
+     * Get Brand Profile with completeness score for the current tenant.
      */
     public function getBrandBrain(TenantContext $context): array
     {
         TenantIsolationGuard::assertPermission($context, 'brand.view');
 
-        $profile = BrandProfileModel::with([
-            'productsServices',
-            'audiences',
-            'voice',
-            'goals',
-            'competitors',
-            'locations',
-            'assets',
-        ])->where('organization_id', $context->organizationId)->first();
-
+        $profile = $this->profileRepository->findWithRelationsByOrganizationId($context->organizationId);
         $completeness = $this->completenessService->calculate($profile);
 
         return [
@@ -52,41 +54,13 @@ class BrandApplicationService
     }
 
     /**
-     * Create or update the Brand Profile.
+     * Create or update the Brand Profile using typed DTO.
      */
-    public function saveBrandProfile(TenantContext $context, array $data): BrandProfileModel
+    public function saveBrandProfile(TenantContext $context, SaveBrandProfileData $data): object
     {
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
-        $existing = BrandProfileModel::where('organization_id', $context->organizationId)->first();
-        $nextVersion = $existing ? ($existing->version + 1) : 1;
-
-        $profile = BrandProfileModel::updateOrCreate(
-            ['organization_id' => $context->organizationId],
-            [
-                'business_name' => trim($data['business_name'] ?? ($existing?->business_name ?? 'My Business')),
-                'legal_name' => $data['legal_name'] ?? $existing?->legal_name,
-                'industry' => $data['industry'] ?? ($existing?->industry ?? 'Technology'),
-                'business_type' => $data['business_type'] ?? ($existing?->business_type ?? 'B2B'),
-                'description' => $data['description'] ?? $existing?->description,
-                'website' => $data['website'] ?? $existing?->website,
-                'phone' => $data['phone'] ?? $existing?->phone,
-                'email' => $data['email'] ?? $existing?->email,
-                'country' => $data['country'] ?? ($existing?->country ?? 'SA'),
-                'region' => $data['region'] ?? $existing?->region,
-                'city' => $data['city'] ?? $existing?->city,
-                'timezone' => $data['timezone'] ?? ($existing?->timezone ?? 'Asia/Riyadh'),
-                'default_locale' => $data['default_locale'] ?? ($existing?->default_locale ?? 'ar'),
-                'tagline' => $data['tagline'] ?? $existing?->tagline,
-                'mission' => $data['mission'] ?? $existing?->mission,
-                'vision' => $data['vision'] ?? $existing?->vision,
-                'values' => $data['values'] ?? ($existing?->values ?? []),
-                'positioning' => $data['positioning'] ?? $existing?->positioning,
-                'unique_selling_points' => $data['unique_selling_points'] ?? ($existing?->unique_selling_points ?? []),
-                'brand_promise' => $data['brand_promise'] ?? $existing?->brand_promise,
-                'version' => $nextVersion,
-            ]
-        );
+        $profile = $this->profileRepository->saveForOrganization($context->organizationId, $data);
 
         $this->auditService->log(
             action: 'brand.profile_updated',
@@ -100,26 +74,31 @@ class BrandApplicationService
     }
 
     /**
+     * List products/services for tenant.
+     */
+    public function listProducts(TenantContext $context): Collection
+    {
+        TenantIsolationGuard::assertPermission($context, 'brand.view');
+        return $this->productRepository->listByOrganizationId($context->organizationId);
+    }
+
+    /**
      * Add or update product/service.
      */
-    public function saveProductService(TenantContext $context, array $data, ?int $productId = null): BrandProductServiceModel
+    public function saveProductService(TenantContext $context, SaveProductServiceData $data, ?int $productId = null): object
     {
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
-        $profile = BrandProfileModel::firstOrCreate(
-            ['organization_id' => $context->organizationId],
-            ['business_name' => 'My Business']
-        );
+        $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
 
         if ($productId) {
-            $model = BrandProductServiceModel::where('organization_id', $context->organizationId)
-                ->where('id', $productId)
-                ->firstOrFail();
-            $model->update($data);
+            $existing = $this->productRepository->findByIdForOrganization($context->organizationId, $productId);
+            if (!$existing) {
+                throw new NotFoundHttpException('Product not found.');
+            }
+            $model = $this->productRepository->updateForOrganization($context->organizationId, $productId, $data);
         } else {
-            $data['organization_id'] = $context->organizationId;
-            $data['brand_profile_id'] = $profile->id;
-            $model = BrandProductServiceModel::create($data);
+            $model = $this->productRepository->createForOrganization($context->organizationId, $profile->id, $data);
         }
 
         $this->auditService->log(
@@ -140,11 +119,12 @@ class BrandApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
-        $model = BrandProductServiceModel::where('organization_id', $context->organizationId)
-            ->where('id', $productId)
-            ->firstOrFail();
+        $existing = $this->productRepository->findByIdForOrganization($context->organizationId, $productId);
+        if (!$existing) {
+            throw new NotFoundHttpException('Product not found.');
+        }
 
-        $model->delete();
+        $this->productRepository->deleteForOrganization($context->organizationId, $productId);
 
         $this->auditService->log(
             action: 'brand.product_deleted',
@@ -158,26 +138,31 @@ class BrandApplicationService
     }
 
     /**
+     * List audiences for tenant.
+     */
+    public function listAudiences(TenantContext $context): Collection
+    {
+        TenantIsolationGuard::assertPermission($context, 'brand.view');
+        return $this->audienceRepository->listByOrganizationId($context->organizationId);
+    }
+
+    /**
      * Add or update Target Audience.
      */
-    public function saveAudience(TenantContext $context, array $data, ?int $audienceId = null): BrandAudienceModel
+    public function saveAudience(TenantContext $context, SaveAudienceData $data, ?int $audienceId = null): object
     {
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
-        $profile = BrandProfileModel::firstOrCreate(
-            ['organization_id' => $context->organizationId],
-            ['business_name' => 'My Business']
-        );
+        $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
 
         if ($audienceId) {
-            $model = BrandAudienceModel::where('organization_id', $context->organizationId)
-                ->where('id', $audienceId)
-                ->firstOrFail();
-            $model->update($data);
+            $existing = $this->audienceRepository->findByIdForOrganization($context->organizationId, $audienceId);
+            if (!$existing) {
+                throw new NotFoundHttpException('Audience profile not found.');
+            }
+            $model = $this->audienceRepository->updateForOrganization($context->organizationId, $audienceId, $data);
         } else {
-            $data['organization_id'] = $context->organizationId;
-            $data['brand_profile_id'] = $profile->id;
-            $model = BrandAudienceModel::create($data);
+            $model = $this->audienceRepository->createForOrganization($context->organizationId, $profile->id, $data);
         }
 
         $this->auditService->log(
@@ -198,11 +183,12 @@ class BrandApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
-        $model = BrandAudienceModel::where('organization_id', $context->organizationId)
-            ->where('id', $audienceId)
-            ->firstOrFail();
+        $existing = $this->audienceRepository->findByIdForOrganization($context->organizationId, $audienceId);
+        if (!$existing) {
+            throw new NotFoundHttpException('Audience profile not found.');
+        }
 
-        $model->delete();
+        $this->audienceRepository->deleteForOrganization($context->organizationId, $audienceId);
 
         $this->auditService->log(
             action: 'brand.audience_deleted',
@@ -218,35 +204,12 @@ class BrandApplicationService
     /**
      * Save Brand Voice & Tone settings.
      */
-    public function saveBrandVoice(TenantContext $context, array $data): BrandVoiceModel
+    public function saveBrandVoice(TenantContext $context, SaveBrandVoiceData $data): object
     {
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
-        $profile = BrandProfileModel::firstOrCreate(
-            ['organization_id' => $context->organizationId],
-            ['business_name' => 'My Business']
-        );
-
-        $voice = BrandVoiceModel::updateOrCreate(
-            ['organization_id' => $context->organizationId],
-            [
-                'brand_profile_id' => $profile->id,
-                'primary_tones' => $data['primary_tones'] ?? ['professional'],
-                'formality_scale' => $data['formality_scale'] ?? 3,
-                'playfulness_scale' => $data['playfulness_scale'] ?? 2,
-                'boldness_scale' => $data['boldness_scale'] ?? 3,
-                'simplicity_scale' => $data['simplicity_scale'] ?? 4,
-                'preferred_phrases' => $data['preferred_phrases'] ?? [],
-                'forbidden_phrases' => $data['forbidden_phrases'] ?? [],
-                'words_to_avoid' => $data['words_to_avoid'] ?? [],
-                'words_to_emphasize' => $data['words_to_emphasize'] ?? [],
-                'cta_preferences' => $data['cta_preferences'] ?? [],
-                'emoji_style' => $data['emoji_style'] ?? 'moderate',
-                'hashtag_style' => $data['hashtag_style'] ?? 'targeted',
-                'dialect' => $data['dialect'] ?? 'saudi',
-                'language_specific_notes' => $data['language_specific_notes'] ?? null,
-            ]
-        );
+        $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
+        $voice = $this->voiceRepository->saveForOrganization($context->organizationId, $profile->id, $data);
 
         $this->auditService->log(
             action: 'brand.voice_updated',
@@ -260,26 +223,31 @@ class BrandApplicationService
     }
 
     /**
+     * List goals for tenant.
+     */
+    public function listGoals(TenantContext $context): Collection
+    {
+        TenantIsolationGuard::assertPermission($context, 'brand.view');
+        return $this->goalRepository->listByOrganizationId($context->organizationId);
+    }
+
+    /**
      * Add or update Business Goal.
      */
-    public function saveGoal(TenantContext $context, array $data, ?int $goalId = null): BrandGoalModel
+    public function saveGoal(TenantContext $context, SaveGoalData $data, ?int $goalId = null): object
     {
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
-        $profile = BrandProfileModel::firstOrCreate(
-            ['organization_id' => $context->organizationId],
-            ['business_name' => 'My Business']
-        );
+        $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
 
         if ($goalId) {
-            $model = BrandGoalModel::where('organization_id', $context->organizationId)
-                ->where('id', $goalId)
-                ->firstOrFail();
-            $model->update($data);
+            $existing = $this->goalRepository->findByIdForOrganization($context->organizationId, $goalId);
+            if (!$existing) {
+                throw new NotFoundHttpException('Goal not found.');
+            }
+            $model = $this->goalRepository->updateForOrganization($context->organizationId, $goalId, $data);
         } else {
-            $data['organization_id'] = $context->organizationId;
-            $data['brand_profile_id'] = $profile->id;
-            $model = BrandGoalModel::create($data);
+            $model = $this->goalRepository->createForOrganization($context->organizationId, $profile->id, $data);
         }
 
         $this->auditService->log(
@@ -300,11 +268,12 @@ class BrandApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
-        $model = BrandGoalModel::where('organization_id', $context->organizationId)
-            ->where('id', $goalId)
-            ->firstOrFail();
+        $existing = $this->goalRepository->findByIdForOrganization($context->organizationId, $goalId);
+        if (!$existing) {
+            throw new NotFoundHttpException('Goal not found.');
+        }
 
-        $model->delete();
+        $this->goalRepository->deleteForOrganization($context->organizationId, $goalId);
 
         $this->auditService->log(
             action: 'brand.goal_deleted',
@@ -318,26 +287,31 @@ class BrandApplicationService
     }
 
     /**
+     * List competitors for tenant.
+     */
+    public function listCompetitors(TenantContext $context): Collection
+    {
+        TenantIsolationGuard::assertPermission($context, 'brand.view');
+        return $this->competitorRepository->listByOrganizationId($context->organizationId);
+    }
+
+    /**
      * Add or update Competitor.
      */
-    public function saveCompetitor(TenantContext $context, array $data, ?int $competitorId = null): BrandCompetitorModel
+    public function saveCompetitor(TenantContext $context, SaveCompetitorData $data, ?int $competitorId = null): object
     {
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
-        $profile = BrandProfileModel::firstOrCreate(
-            ['organization_id' => $context->organizationId],
-            ['business_name' => 'My Business']
-        );
+        $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
 
         if ($competitorId) {
-            $model = BrandCompetitorModel::where('organization_id', $context->organizationId)
-                ->where('id', $competitorId)
-                ->firstOrFail();
-            $model->update($data);
+            $existing = $this->competitorRepository->findByIdForOrganization($context->organizationId, $competitorId);
+            if (!$existing) {
+                throw new NotFoundHttpException('Competitor not found.');
+            }
+            $model = $this->competitorRepository->updateForOrganization($context->organizationId, $competitorId, $data);
         } else {
-            $data['organization_id'] = $context->organizationId;
-            $data['brand_profile_id'] = $profile->id;
-            $model = BrandCompetitorModel::create($data);
+            $model = $this->competitorRepository->createForOrganization($context->organizationId, $profile->id, $data);
         }
 
         $this->auditService->log(
@@ -358,11 +332,12 @@ class BrandApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
-        $model = BrandCompetitorModel::where('organization_id', $context->organizationId)
-            ->where('id', $competitorId)
-            ->firstOrFail();
+        $existing = $this->competitorRepository->findByIdForOrganization($context->organizationId, $competitorId);
+        if (!$existing) {
+            throw new NotFoundHttpException('Competitor not found.');
+        }
 
-        $model->delete();
+        $this->competitorRepository->deleteForOrganization($context->organizationId, $competitorId);
 
         $this->auditService->log(
             action: 'brand.competitor_deleted',
@@ -378,9 +353,26 @@ class BrandApplicationService
     /**
      * Generate sanitized AI Brand Context for the current tenant.
      */
-    public function getAIBrandContext(TenantContext $context): BrandContext
+    public function getAIBrandContext(TenantContext $context, ?int $audienceId = null, ?int $productId = null): BrandContext
     {
         TenantIsolationGuard::assertPermission($context, 'brand.view');
+
+        // Verify audience belongs to current tenant if specified
+        if ($audienceId) {
+            $audience = $this->audienceRepository->findByIdForOrganization($context->organizationId, $audienceId);
+            if (!$audience) {
+                $audienceId = null; // Ignore cross-tenant audience
+            }
+        }
+
+        // Verify product belongs to current tenant if specified
+        if ($productId) {
+            $product = $this->productRepository->findByIdForOrganization($context->organizationId, $productId);
+            if (!$product) {
+                $productId = null; // Ignore cross-tenant product
+            }
+        }
+
         return $this->contextBuilder->build($context->organizationId);
     }
 }

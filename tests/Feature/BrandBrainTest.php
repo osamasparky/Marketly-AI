@@ -155,6 +155,7 @@ class BrandBrainTest extends TestCase
         $aiRes->assertStatus(200);
         $aiRes->assertJsonPath('data.context.business.name', 'Acme Labs');
         $aiRes->assertJsonPath('data.context.target_platform', 'linkedin');
-        $this->assertStringContainsString('<BRAND_KNOWLEDGE_BASE>', $aiRes->json('data.system_block'));
+        // Ensure internal system instructions are NOT leaked to frontend
+        $this->assertNull($aiRes->json('data.system_block'));
     }
 }
