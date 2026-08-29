@@ -123,6 +123,14 @@
           />
         </div>
 
+        <!-- Strategy Hub View -->
+        <div v-else-if="activeNav === 'strategy'">
+          <StrategyHub 
+            :auth-token="authToken" 
+            :organization-id="currentOrg?.id"
+          />
+        </div>
+
         <!-- Dashboard View (Default) -->
         <div v-else class="space-y-8">
           <!-- Banner -->
@@ -379,6 +387,7 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { t, currentLocale, setLocale, isRtl } from './i18n';
 import BrandBrainHub from './components/BrandBrainHub.vue';
+import StrategyHub from './components/StrategyHub.vue';
 
 const isDark = ref(true);
 const activeNav = ref('brand_brain');

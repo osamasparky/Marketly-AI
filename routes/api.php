@@ -2,6 +2,7 @@
 
 use App\Domains\Brand\Controllers\BrandController;
 use App\Domains\Identity\Controllers\AuthController;
+use App\Domains\Strategy\Controllers\StrategyController;
 use App\Domains\Tenancy\Controllers\MembershipController;
 use App\Domains\Tenancy\Controllers\OrganizationController;
 use App\Http\Controllers\Api\V1\CspReportController;
@@ -89,6 +90,20 @@ Route::prefix('v1')->group(function () {
             Route::post('/competitors', [BrandController::class, 'storeCompetitor'])->name('api.v1.brand.competitors.store');
             Route::patch('/competitors/{competitor}', [BrandController::class, 'updateCompetitor'])->name('api.v1.brand.competitors.update');
             Route::delete('/competitors/{competitor}', [BrandController::class, 'deleteCompetitor'])->name('api.v1.brand.competitors.destroy');
+        });
+
+        // Phase 3: AI Marketing Strategy API
+        Route::prefix('strategy')->group(function () {
+            Route::get('/', [StrategyController::class, 'index'])->name('api.v1.strategy.index');
+            Route::post('/generate', [StrategyController::class, 'generate'])->middleware('throttle:10,1')->name('api.v1.strategy.generate');
+            Route::patch('/{strategy}', [StrategyController::class, 'update'])->name('api.v1.strategy.update');
+            Route::post('/{strategy}/activate', [StrategyController::class, 'activate'])->name('api.v1.strategy.activate');
+            Route::post('/{strategy}/pause', [StrategyController::class, 'pause'])->name('api.v1.strategy.pause');
+
+            // Content Pillars
+            Route::post('/{strategy}/pillars', [StrategyController::class, 'storePillar'])->name('api.v1.strategy.pillars.store');
+            Route::patch('/{strategy}/pillars/{pillar}', [StrategyController::class, 'updatePillar'])->name('api.v1.strategy.pillars.update');
+            Route::delete('/{strategy}/pillars/{pillar}', [StrategyController::class, 'deletePillar'])->name('api.v1.strategy.pillars.destroy');
         });
     });
 });

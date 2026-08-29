@@ -116,6 +116,48 @@ export interface TranslationSchema {
     aiContextBadge: string;
     aiContextDesc: string;
   };
+  strategy: {
+    title: string;
+    subtitle: string;
+    healthMeter: string;
+    activeStrategy: string;
+    draftStrategy: string;
+    noStrategy: string;
+    generateBtn: string;
+    activateBtn: string;
+    pauseBtn: string;
+    tabs: {
+      overview: string;
+      pillars: string;
+      campaigns: string;
+      opportunities: string;
+      platforms: string;
+    };
+    wizard: {
+      title: string;
+      step1: string;
+      step2: string;
+      step3: string;
+      objectiveLabel: string;
+      platformsLabel: string;
+      timeHorizonLabel: string;
+      generateAction: string;
+    };
+    fields: {
+      strategyName: string;
+      primaryObjective: string;
+      timeHorizon: string;
+      rationale: string;
+      pillarName: string;
+      percentage: string;
+      themeName: string;
+      coreMessage: string;
+      durationWeeks: string;
+      opportunityTitle: string;
+      priority: string;
+      timing: string;
+    };
+  };
   dashboard: {
     welcome: string;
     welcomeDesc: string;
