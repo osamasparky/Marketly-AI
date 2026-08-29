@@ -1,0 +1,26 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build"
+    },
+    "devDependencies": {
+        "@types/canvas-confetti": "^1.9.0",
+        "@types/node": "^26.4.0",
+        "axios": "^1.20.0",
+        "laravel-vite-plugin": "^1.0",
+        "typescript": "^7.0.2",
+        "vite": "^5.0",
+        "vue-tsc": "^3.3.11"
+    },
+    "dependencies": {
+        "@vitejs/plugin-vue": "^5.2.4",
+        "autoprefixer": "^10.5.4",
+        "canvas-confetti": "^1.9.4",
+        "lucide-vue-next": "^1.0.0",
+        "postcss": "^8.5.26",
+        "tailwindcss": "^3.4.19",
+        "vue": "^3.5.42"
+    }
+}
