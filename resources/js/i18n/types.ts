@@ -34,6 +34,25 @@ export interface TranslationSchema {
     assistant: string;
     settings: string;
   };
+  tenancy: {
+    selectOrg: string;
+    createOrg: string;
+    orgName: string;
+    orgType: string;
+    business: string;
+    agency: string;
+    membersTitle: string;
+    inviteMember: string;
+    inviteEmail: string;
+    role: string;
+    ownerRole: string;
+    adminRole: string;
+    managerRole: string;
+    editorRole: string;
+    viewerRole: string;
+    sendInvite: string;
+    switchSuccess: string;
+  };
   dashboard: {
     welcome: string;
     welcomeDesc: string;
@@ -46,13 +65,16 @@ export interface TranslationSchema {
     authConsoleDesc: string;
     registerMode: string;
     loginMode: string;
+    forgotMode: string;
     fullName: string;
     email: string;
     password: string;
     btnRegister: string;
     btnLogin: string;
+    btnForgot: string;
     toggleToLogin: string;
     toggleToRegister: string;
+    toggleToForgot: string;
     responseStream: string;
     callMeBtn: string;
     activeToken: string;

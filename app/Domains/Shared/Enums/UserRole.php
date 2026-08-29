@@ -11,7 +11,7 @@ enum UserRole: string
     case VIEWER = 'viewer';
 
     /**
-     * Granular permission matrix enforcing the principle of least privilege.
+     * Granular permission matrix enforcing the principle of least privilege (Section 36).
      *
      * @return array<int, string>
      */
@@ -20,6 +20,7 @@ enum UserRole: string
         return match ($this) {
             self::OWNER => [
                 'organization.view', 'organization.manage',
+                'members.view', 'members.invite', 'members.update', 'members.remove',
                 'brand.view', 'brand.create', 'brand.update', 'brand.delete',
                 'content.view', 'content.create', 'content.update', 'content.delete', 'content.approve',
                 'campaign.view', 'campaign.create', 'campaign.update', 'campaign.delete',
@@ -30,6 +31,7 @@ enum UserRole: string
             ],
             self::ADMIN => [
                 'organization.view', 'organization.manage',
+                'members.view', 'members.invite', 'members.update', 'members.remove',
                 'brand.view', 'brand.create', 'brand.update', 'brand.delete',
                 'content.view', 'content.create', 'content.update', 'content.delete', 'content.approve',
                 'campaign.view', 'campaign.create', 'campaign.update', 'campaign.delete',
@@ -39,6 +41,7 @@ enum UserRole: string
             ],
             self::MANAGER => [
                 'organization.view',
+                'members.view', 'members.invite',
                 'brand.view', 'brand.update',
                 'content.view', 'content.create', 'content.update', 'content.approve',
                 'campaign.view', 'campaign.create', 'campaign.update',

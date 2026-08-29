@@ -10,6 +10,12 @@ class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(\Database\Seeders\RbacSeeder::class);
+    }
+
     public function test_user_can_register_and_receive_token(): void
     {
         $response = $this->postJson('/api/v1/auth/register', [

@@ -19,6 +19,25 @@
             <p class="text-[11px] text-slate-400">{{ t('common.tagline') }}</p>
           </div>
         </div>
+
+        <!-- Organization Switcher Dropdown (If authenticated) -->
+        <div v-if="authUser && userOrgs.length > 0" class="relative hidden sm:block">
+          <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700/80 text-xs">
+            <span class="text-slate-400">🏢</span>
+            <select 
+              :value="currentOrg?.id" 
+              @change="handleOrgSwitch(Number(($event.target as HTMLSelectElement).value))"
+              class="bg-transparent text-emerald-400 font-bold text-xs focus:outline-none cursor-pointer"
+            >
+              <option v-for="org in userOrgs" :key="org.id" :value="org.id" class="bg-slate-900 text-slate-200">
+                {{ org.name }} ({{ org.role }})
+              </option>
+            </select>
+            <button @click="showNewOrgModal = true" class="text-slate-400 hover:text-emerald-400 text-xs px-1" :title="t('tenancy.createOrg')">
+              ➕
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Right Controls: Health Pill, Language, User -->
@@ -43,7 +62,10 @@
           <div class="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-[10px]">
             {{ authUser.name.charAt(0).toUpperCase() }}
           </div>
-          <span class="text-emerald-300 font-medium">{{ authUser.name }}</span>
+          <div class="flex flex-col">
+            <span class="text-emerald-300 font-medium leading-none">{{ authUser.name }}</span>
+            <span class="text-[9px] text-emerald-400/80 uppercase font-bold">{{ userRole }}</span>
+          </div>
           <button @click="handleLogout" class="text-slate-400 hover:text-red-400 text-[10px] mx-1">
             ({{ t('common.logout') }})
           </button>
@@ -81,13 +103,13 @@
           </button>
         </div>
 
-        <!-- System Architecture Pill -->
+        <!-- Current Tenant / Architecture Pill -->
         <div class="p-3.5 rounded-2xl bg-slate-800/40 border border-slate-700/40 text-xs space-y-1.5">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold text-slate-300">Laravel 11 + Vue 3</span>
+            <span class="text-[11px] font-bold text-slate-300">{{ currentOrg?.name || 'Multi-Tenant Ready' }}</span>
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
           </div>
-          <p class="text-[11px] text-slate-400">Sanctum Auth • Gemini AI • i18n RTL/LTR</p>
+          <p class="text-[10px] text-slate-400">Role: <span class="text-emerald-400 uppercase font-bold">{{ userRole }}</span> • {{ permissionsList.length }} Perms</p>
         </div>
       </aside>
 
@@ -97,7 +119,7 @@
         <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950/60 via-slate-900 to-slate-900 p-6 md:p-8 border border-emerald-500/20 shadow-2xl">
           <div class="relative z-10 max-w-3xl space-y-3">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-              <span>✨</span>
+              <span>🛡️</span>
               <span>{{ t('dashboard.phaseBadge') }}</span>
             </div>
             <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
@@ -109,71 +131,7 @@
           </div>
         </div>
 
-        <!-- Grid Cards: Live Health & Architecture Verification -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <!-- Card 1: Live API Health -->
-          <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 shadow-lg space-y-4">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ t('dashboard.healthTitle') }}</span>
-              <button @click="fetchHealth" class="text-xs text-emerald-400 hover:underline">{{ t('common.refresh') }}</button>
-            </div>
-            <div class="space-y-2 font-mono text-xs">
-              <div class="flex justify-between py-1 border-b border-slate-800">
-                <span class="text-slate-400">Endpoint:</span>
-                <span class="text-emerald-400">/api/v1/health</span>
-              </div>
-              <div class="flex justify-between py-1 border-b border-slate-800">
-                <span class="text-slate-400">Database:</span>
-                <span class="text-slate-200">{{ healthStatus.database || t('common.loading') }}</span>
-              </div>
-              <div class="flex justify-between py-1 border-b border-slate-800">
-                <span class="text-slate-400">PHP Version:</span>
-                <span class="text-slate-200">{{ healthStatus.php_version || '8.2+' }}</span>
-              </div>
-              <div class="flex justify-between py-1">
-                <span class="text-slate-400">{{ t('common.version') }}:</span>
-                <span class="text-slate-200">v1 (Versioned)</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 2: AI & Social Provider Contracts -->
-          <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 shadow-lg space-y-4">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ t('dashboard.providerContracts') }}</span>
-              <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{{ t('common.ready') }}</span>
-            </div>
-            <div class="space-y-2 text-xs">
-              <div class="flex items-center justify-between py-1 border-b border-slate-800">
-                <span class="text-slate-300">AIProvider Contract</span>
-                <span class="text-emerald-400 font-mono">Gemini Ready</span>
-              </div>
-              <div class="flex items-center justify-between py-1 border-b border-slate-800">
-                <span class="text-slate-300">Image & Video Provider</span>
-                <span class="text-emerald-400 font-mono">Standardized</span>
-              </div>
-              <div class="flex items-center justify-between py-1">
-                <span class="text-slate-300">Social Publishers</span>
-                <span class="text-emerald-400 font-mono">6 Platforms</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 3: Modular Domains -->
-          <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 shadow-lg space-y-4">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ t('dashboard.domainModules') }}</span>
-              <span class="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">11 Domains</span>
-            </div>
-            <div class="flex flex-wrap gap-1.5">
-              <span v-for="d in ['Identity', 'Tenancy', 'Brand', 'Strategy', 'Content', 'Creative', 'Publishing', 'Analytics', 'AI', 'Billing', 'Admin']" :key="d" class="px-2 py-1 rounded bg-slate-800 text-[10px] text-slate-300 border border-slate-700">
-                {{ d }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Authentication Testing Console -->
+        <!-- Identity, Multi-Tenancy & Auth Console -->
         <div class="p-6 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-6">
           <div class="flex items-center justify-between border-b border-slate-800 pb-4">
             <div>
@@ -185,14 +143,26 @@
                 {{ t('dashboard.authConsoleDesc') }}
               </p>
             </div>
+
+            <div class="flex items-center gap-2">
+              <button 
+                v-if="authUser"
+                @click="showNewOrgModal = true"
+                class="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20"
+              >
+                + {{ t('tenancy.createOrg') }}
+              </button>
+            </div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Register / Login Form -->
+            <!-- Auth Forms (Register / Login / Forgot) -->
             <div class="space-y-4 bg-slate-950/60 p-5 rounded-2xl border border-slate-800">
-              <h3 class="text-xs font-bold uppercase text-slate-300">
-                {{ authMode === 'register' ? t('dashboard.registerMode') : t('dashboard.loginMode') }}
-              </h3>
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold uppercase text-slate-300">
+                  {{ authMode === 'register' ? t('dashboard.registerMode') : (authMode === 'login' ? t('dashboard.loginMode') : t('dashboard.forgotMode')) }}
+                </h3>
+              </div>
               
               <div v-if="authMode === 'register'" class="space-y-1.5">
                 <label class="text-[11px] font-medium text-slate-400">{{ t('dashboard.fullName') }}</label>
@@ -204,7 +174,7 @@
                 <input v-model="authForm.email" type="email" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="admin@marketly.ai" />
               </div>
 
-              <div class="space-y-1.5">
+              <div v-if="authMode !== 'forgot'" class="space-y-1.5">
                 <label class="text-[11px] font-medium text-slate-400">{{ t('dashboard.password') }}</label>
                 <input v-model="authForm.password" type="password" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="••••••••" />
               </div>
@@ -212,13 +182,33 @@
               <div class="flex items-center gap-3 pt-2">
                 <button @click="submitAuth" :disabled="authLoading" class="tactile-btn tactile-btn-primary text-xs w-full py-2.5">
                   <span v-if="authLoading">{{ t('common.processing') }}</span>
-                  <span v-else>{{ authMode === 'register' ? t('dashboard.btnRegister') : t('dashboard.btnLogin') }}</span>
+                  <span v-else>
+                    {{ authMode === 'register' ? t('dashboard.btnRegister') : (authMode === 'login' ? t('dashboard.btnLogin') : t('dashboard.btnForgot')) }}
+                  </span>
                 </button>
               </div>
 
-              <div class="text-center pt-1">
-                <button @click="authMode = authMode === 'register' ? 'login' : 'register'" class="text-[11px] text-slate-400 hover:text-emerald-400 underline">
-                  {{ authMode === 'register' ? t('dashboard.toggleToLogin') : t('dashboard.toggleToRegister') }}
+              <div class="flex items-center justify-between text-[11px] pt-1">
+                <button 
+                  v-if="authMode !== 'login'" 
+                  @click="authMode = 'login'" 
+                  class="text-slate-400 hover:text-emerald-400 underline"
+                >
+                  {{ t('dashboard.toggleToLogin') }}
+                </button>
+                <button 
+                  v-if="authMode !== 'register'" 
+                  @click="authMode = 'register'" 
+                  class="text-slate-400 hover:text-emerald-400 underline"
+                >
+                  {{ t('dashboard.toggleToRegister') }}
+                </button>
+                <button 
+                  v-if="authMode !== 'forgot'" 
+                  @click="authMode = 'forgot'" 
+                  class="text-slate-400 hover:text-amber-400 underline"
+                >
+                  {{ t('dashboard.toggleToForgot') }}
                 </button>
               </div>
             </div>
@@ -240,6 +230,52 @@
                 <span class="text-slate-300 font-mono text-[10px] truncate block">{{ authToken }}</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Members & Team Permissions Section (When Authenticated) -->
+        <div v-if="authUser" class="p-6 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <span>👥</span>
+                <span>{{ t('tenancy.membersTitle') }}</span>
+              </h3>
+              <p class="text-xs text-slate-400">{{ currentOrg?.name }}</p>
+            </div>
+            <button 
+              @click="showInviteModal = true" 
+              class="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20"
+            >
+              + {{ t('tenancy.inviteMember') }}
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-start">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400 font-bold">
+                  <th class="py-2.5 px-3 text-start">{{ t('dashboard.fullName') }}</th>
+                  <th class="py-2.5 px-3 text-start">{{ t('dashboard.email') }}</th>
+                  <th class="py-2.5 px-3 text-start">{{ t('tenancy.role') }}</th>
+                  <th class="py-2.5 px-3 text-start">{{ t('common.status') }}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60">
+                <tr v-for="m in orgMembers" :key="m.membership_id" class="hover:bg-slate-800/30">
+                  <td class="py-2.5 px-3 font-semibold text-slate-200">{{ m.name }}</td>
+                  <td class="py-2.5 px-3 font-mono text-slate-400">{{ m.email }}</td>
+                  <td class="py-2.5 px-3">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      {{ m.role }}
+                    </span>
+                  </td>
+                  <td class="py-2.5 px-3">
+                    <span class="text-emerald-400 text-[11px] font-medium">{{ m.status }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -272,6 +308,58 @@
         </div>
       </main>
     </div>
+
+    <!-- Create Organization Modal -->
+    <div v-if="showNewOrgModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+        <h3 class="text-sm font-bold text-white">{{ t('tenancy.createOrg') }}</h3>
+        
+        <div class="space-y-1.5">
+          <label class="text-[11px] text-slate-400">{{ t('tenancy.orgName') }}</label>
+          <input v-model="newOrgForm.name" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white" placeholder="Acme Co." />
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-[11px] text-slate-400">{{ t('tenancy.orgType') }}</label>
+          <select v-model="newOrgForm.type" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white">
+            <option value="business">{{ t('tenancy.business') }}</option>
+            <option value="agency">{{ t('tenancy.agency') }}</option>
+          </select>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button @click="showNewOrgModal = false" class="px-3 py-2 rounded-xl bg-slate-800 text-xs text-slate-300">{{ t('common.cancel') }}</button>
+          <button @click="handleCreateOrg" class="tactile-btn tactile-btn-primary text-xs px-4 py-2">{{ t('common.save') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Invite Member Modal -->
+    <div v-if="showInviteModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+        <h3 class="text-sm font-bold text-white">{{ t('tenancy.inviteMember') }}</h3>
+        
+        <div class="space-y-1.5">
+          <label class="text-[11px] text-slate-400">{{ t('tenancy.inviteEmail') }}</label>
+          <input v-model="inviteForm.email" type="email" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white" placeholder="colleague@brand.com" />
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-[11px] text-slate-400">{{ t('tenancy.role') }}</label>
+          <select v-model="inviteForm.role" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white">
+            <option value="admin">{{ t('tenancy.adminRole') }}</option>
+            <option value="manager">{{ t('tenancy.managerRole') }}</option>
+            <option value="editor">{{ t('tenancy.editorRole') }}</option>
+            <option value="viewer">{{ t('tenancy.viewerRole') }}</option>
+          </select>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button @click="showInviteModal = false" class="px-3 py-2 rounded-xl bg-slate-800 text-xs text-slate-300">{{ t('common.cancel') }}</button>
+          <button @click="handleSendInvite" class="tactile-btn tactile-btn-primary text-xs px-4 py-2">{{ t('tenancy.sendInvite') }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -284,11 +372,30 @@ const isDark = ref(true);
 const activeNav = ref('dashboard');
 
 const healthStatus = ref<Record<string, any>>({});
-const authMode = ref<'register' | 'login'>('register');
+const authMode = ref<'register' | 'login' | 'forgot'>('register');
 const authLoading = ref(false);
 const authUser = ref<any>(null);
 const authToken = ref<string>('');
 const authOutput = ref<string>('');
+
+const userOrgs = ref<any[]>([]);
+const currentOrg = ref<any>(null);
+const userRole = ref<string>('viewer');
+const permissionsList = ref<string[]>([]);
+const orgMembers = ref<any[]>([]);
+
+const showNewOrgModal = ref(false);
+const newOrgForm = ref({
+  name: '',
+  type: 'business',
+  default_locale: 'en',
+});
+
+const showInviteModal = ref(false);
+const inviteForm = ref({
+  email: '',
+  role: 'editor',
+});
 
 const authForm = ref({
   name: 'Osama Sabry',
@@ -311,8 +418,8 @@ const navItems = [
 
 const phases = [
   { num: '0', titleEn: 'Foundation & Security', titleAr: 'الأساس المعماري والأمني', descEn: 'Laravel 11, Vue 3, Sanctum, Domain Contracts, i18n', descAr: 'لارافيل، فيو، سانكتوم، عقود النطاقات، والتعريب الكامل', status: 'completed' },
-  { num: '1', titleEn: 'Tenancy & Identity', titleAr: 'الهوية وتعدد المستأجرين', descEn: 'Organizations, Roles, Policies, Isolation', descAr: 'المنظمات، الأدوار، العزل التام', status: 'next' },
-  { num: '2', titleEn: 'Brand Brain', titleAr: 'عقل العلامة التجارية', descEn: 'Knowledge Ingestion, Facts, Approval', descAr: 'استيعاب المستندات، استخراج الحقائق', status: 'pending' },
+  { num: '1', titleEn: 'Tenancy & Identity', titleAr: 'الهوية وتعدد المستأجرين', descEn: 'Organizations, Roles, Policies, Isolation', descAr: 'المنظمات، الأدوار، العزل التام', status: 'completed' },
+  { num: '2', titleEn: 'Brand Brain', titleAr: 'عقل العلامة التجارية', descEn: 'Knowledge Ingestion, Facts, Approval', descAr: 'استيعاب المستندات، استخراج الحقائق', status: 'next' },
   { num: '3', titleEn: 'AI Strategy', titleAr: 'استراتيجية الذكاء الاصطناعي', descEn: 'Pillars, 30-Day Plan, Gemini Agent', descAr: 'ركائز المحتوى، خطة 30 يوم', status: 'pending' },
   { num: '4', titleEn: 'Content Studio', titleAr: 'استوديو المحتوى', descEn: 'Captions, Hooks, Quality Agent, Dialects', descAr: 'النصوص، الخطافات، فحص الجودة', status: 'pending' },
   { num: '5', titleEn: 'Creative Studio', titleAr: 'استوديو الإبداع', descEn: 'Prompts, Aspect Ratios, Video Briefs', descAr: 'توليد الصور، مقاسات النشر، الفيديو', status: 'pending' },
@@ -327,9 +434,7 @@ const toggleLanguage = () => {
 const fetchHealth = async () => {
   try {
     const res = await axios.get('/api/v1/health', {
-      headers: {
-        'X-Locale': currentLocale.value,
-      },
+      headers: { 'X-Locale': currentLocale.value },
     });
     healthStatus.value = res.data.data;
   } catch (err: any) {
@@ -337,24 +442,118 @@ const fetchHealth = async () => {
   }
 };
 
+const fetchOrganizations = async () => {
+  if (!authToken.value) return;
+  try {
+    const res = await axios.get('/api/v1/organizations', {
+      headers: {
+        Authorization: `Bearer ${authToken.value}`,
+        'X-Locale': currentLocale.value,
+      },
+    });
+    userOrgs.value = res.data?.data?.organizations || [];
+  } catch (e) {
+    // Ignore error
+  }
+};
+
+const fetchMembers = async () => {
+  if (!authToken.value || !currentOrg.value?.id) return;
+  try {
+    const res = await axios.get(`/api/v1/organizations/${currentOrg.value.id}/members`, {
+      headers: {
+        Authorization: `Bearer ${authToken.value}`,
+        'X-Locale': currentLocale.value,
+        'X-Organization-Id': String(currentOrg.value.id),
+      },
+    });
+    orgMembers.value = res.data?.data?.members || [];
+  } catch (e) {
+    // Ignore error
+  }
+};
+
+const handleOrgSwitch = async (orgId: number) => {
+  if (!authToken.value) return;
+  try {
+    const res = await axios.post(`/api/v1/organizations/${orgId}/switch`, {}, {
+      headers: {
+        Authorization: `Bearer ${authToken.value}`,
+        'X-Locale': currentLocale.value,
+      },
+    });
+    authOutput.value = JSON.stringify(res.data, null, 2);
+    await testMeEndpoint();
+    await fetchOrganizations();
+    await fetchMembers();
+  } catch (err: any) {
+    authOutput.value = JSON.stringify(err.response?.data || { error: err.message }, null, 2);
+  }
+};
+
+const handleCreateOrg = async () => {
+  if (!authToken.value || !newOrgForm.value.name) return;
+  try {
+    const res = await axios.post('/api/v1/organizations', newOrgForm.value, {
+      headers: {
+        Authorization: `Bearer ${authToken.value}`,
+        'X-Locale': currentLocale.value,
+      },
+    });
+    showNewOrgModal.value = false;
+    newOrgForm.value.name = '';
+    authOutput.value = JSON.stringify(res.data, null, 2);
+    await testMeEndpoint();
+    await fetchOrganizations();
+  } catch (err: any) {
+    authOutput.value = JSON.stringify(err.response?.data || { error: err.message }, null, 2);
+  }
+};
+
+const handleSendInvite = async () => {
+  if (!authToken.value || !currentOrg.value?.id || !inviteForm.value.email) return;
+  try {
+    const res = await axios.post(`/api/v1/organizations/${currentOrg.value.id}/invitations`, inviteForm.value, {
+      headers: {
+        Authorization: `Bearer ${authToken.value}`,
+        'X-Locale': currentLocale.value,
+        'X-Organization-Id': String(currentOrg.value.id),
+      },
+    });
+    showInviteModal.value = false;
+    inviteForm.value.email = '';
+    authOutput.value = JSON.stringify(res.data, null, 2);
+    await fetchMembers();
+  } catch (err: any) {
+    authOutput.value = JSON.stringify(err.response?.data || { error: err.message }, null, 2);
+  }
+};
+
 const submitAuth = async () => {
   authLoading.value = true;
   authOutput.value = t('common.processing');
   try {
+    if (authMode.value === 'forgot') {
+      const res = await axios.post('/api/v1/auth/forgot-password', { email: authForm.value.email }, {
+        headers: { 'X-Locale': currentLocale.value },
+      });
+      authOutput.value = JSON.stringify(res.data, null, 2);
+      return;
+    }
+
     const endpoint = authMode.value === 'register' ? '/api/v1/auth/register' : '/api/v1/auth/login';
     const payload = authMode.value === 'register' 
       ? { name: authForm.value.name, email: authForm.value.email, password: authForm.value.password }
       : { email: authForm.value.email, password: authForm.value.password };
 
     const res = await axios.post(endpoint, payload, {
-      headers: {
-        'X-Locale': currentLocale.value,
-      },
+      headers: { 'X-Locale': currentLocale.value },
     });
     authOutput.value = JSON.stringify(res.data, null, 2);
     if (res.data?.data?.token) {
       authToken.value = res.data.data.token;
-      authUser.value = res.data.data.user;
+      await testMeEndpoint();
+      await fetchOrganizations();
     }
   } catch (err: any) {
     authOutput.value = JSON.stringify(err.response?.data || { error: err.message }, null, 2);
@@ -365,7 +564,6 @@ const submitAuth = async () => {
 
 const testMeEndpoint = async () => {
   if (!authToken.value) return;
-  authOutput.value = 'Calling /api/v1/me with Bearer Token...';
   try {
     const res = await axios.get('/api/v1/me', {
       headers: {
@@ -375,6 +573,10 @@ const testMeEndpoint = async () => {
     });
     authOutput.value = JSON.stringify(res.data, null, 2);
     authUser.value = res.data.data.user;
+    currentOrg.value = res.data.data.current_organization;
+    userRole.value = res.data.data.role;
+    permissionsList.value = res.data.data.permissions || [];
+    await fetchMembers();
   } catch (err: any) {
     authOutput.value = JSON.stringify(err.response?.data || { error: err.message }, null, 2);
   }
@@ -394,6 +596,9 @@ const handleLogout = async () => {
   }
   authToken.value = '';
   authUser.value = null;
+  currentOrg.value = null;
+  userOrgs.value = [];
+  orgMembers.value = [];
   authOutput.value = t('dashboard.loggedOut');
 };
 

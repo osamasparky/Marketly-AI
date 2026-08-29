@@ -5,6 +5,9 @@ namespace App\Domains\Identity\Controllers;
 use App\Domains\Identity\Application\DTOs\LoginCredentialsData;
 use App\Domains\Identity\Application\DTOs\RegisterUserData;
 use App\Domains\Identity\Application\Services\AuthApplicationService;
+use App\Domains\Identity\Application\Services\PasswordResetApplicationService;
+use App\Domains\Tenancy\Domain\Entities\TenantContext;
+use App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationMembershipModel;
 use App\Http\Controllers\Controller;
 use App\Support\ApiResponse;
 use Illuminate\Auth\AuthenticationException;
@@ -15,7 +18,8 @@ use Illuminate\Validation\Rules\Password;
 class AuthController extends Controller
 {
     public function __construct(
-        private readonly AuthApplicationService $authService
+        private readonly AuthApplicationService $authService,
+        private readonly PasswordResetApplicationService $passwordResetService
     ) {}
 
     /**
@@ -38,9 +42,9 @@ class AuthController extends Controller
         $result = $this->authService->register($dto);
 
         return ApiResponse::success(
-            $result->toArray(),
-            ['message' => 'User registered successfully'],
-            201
+            data: $result->toArray(),
+            meta: ['message' => 'User registered successfully'],
+            status: 201
         );
     }
 
@@ -63,16 +67,56 @@ class AuthController extends Controller
             $result = $this->authService->login($dto);
 
             return ApiResponse::success(
-                $result->toArray(),
-                ['message' => 'Login successful']
+                data: $result->toArray(),
+                meta: ['message' => 'Login successful']
             );
-        } catch (AuthenticationException) {
+        } catch (AuthenticationException $e) {
             return ApiResponse::error(
-                message: 'Invalid credentials provided',
+                message: $e->getMessage() ?: 'Invalid credentials provided',
                 code: 'INVALID_CREDENTIALS',
                 status: 401
             );
         }
+    }
+
+    /**
+     * Request password reset instructions without exposing user existence.
+     */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $result = $this->passwordResetService->requestPasswordReset($validated['email']);
+
+        return ApiResponse::success(
+            data: $result,
+            meta: ['message' => $result['message']]
+        );
+    }
+
+    /**
+     * Complete password reset using token and revoke existing session tokens.
+     */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'token' => 'required|string',
+            'password' => ['required', 'string', Password::min(8)],
+        ]);
+
+        $this->passwordResetService->resetPassword(
+            email: $validated['email'],
+            rawToken: $validated['token'],
+            newPassword: $validated['password']
+        );
+
+        return ApiResponse::success(
+            data: ['reset' => true],
+            meta: ['message' => 'Password has been reset successfully. Please sign in with your new password.']
+        );
     }
 
     /**
@@ -87,25 +131,58 @@ class AuthController extends Controller
         }
 
         return ApiResponse::success(
-            ['logged_out' => true],
-            ['message' => 'Successfully logged out']
+            data: ['logged_out' => true],
+            meta: ['message' => 'Successfully logged out']
         );
     }
 
     /**
-     * Return authenticated user profile.
+     * Return authenticated user profile with active organization and permissions.
      */
     public function me(Request $request): JsonResponse
     {
         $user = $request->user();
+
+        /** @var TenantContext|null $context */
+        $context = $request->attributes->get('tenant_context') ?? (app()->bound(TenantContext::class) ? app(TenantContext::class) : null);
+
+        $currentOrg = null;
+        $roleSlug = 'viewer';
+        $permissions = [];
+
+        if ($context) {
+            $membership = OrganizationMembershipModel::with(['organization', 'role.permissions'])
+                ->where('user_id', $user->id)
+                ->where('organization_id', $context->organizationId)
+                ->first();
+
+            if ($membership) {
+                $currentOrg = [
+                    'id' => $membership->organization->id,
+                    'name' => $membership->organization->name,
+                    'slug' => $membership->organization->slug,
+                    'type' => $membership->organization->type,
+                    'status' => $membership->organization->status,
+                ];
+                $roleSlug = $membership->role->slug;
+                $permissions = $context->userRole->permissions();
+            }
+        }
 
         return ApiResponse::success([
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'locale' => $user->locale ?? 'en',
+                'timezone' => $user->timezone ?? 'UTC',
+                'status' => $user->status ?? 'active',
+                'last_login_at' => $user->last_login_at?->toIso8601String(),
                 'created_at' => $user->created_at?->toIso8601String(),
             ],
+            'current_organization' => $currentOrg,
+            'role' => $roleSlug,
+            'permissions' => $permissions,
         ]);
     }
 }
