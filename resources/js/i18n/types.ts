@@ -20,6 +20,9 @@ export interface TranslationSchema {
     next: string;
     completed: string;
     version: string;
+    add: string;
+    delete: string;
+    edit: string;
   };
   navigation: {
     workspace: string;
@@ -52,6 +55,66 @@ export interface TranslationSchema {
     viewerRole: string;
     sendInvite: string;
     switchSuccess: string;
+  };
+  brandBrain: {
+    title: string;
+    subtitle: string;
+    healthMeter: string;
+    completeness: string;
+    pillars: {
+      business: string;
+      identity: string;
+      audience: string;
+      products: string;
+      voice: string;
+      goals: string;
+    };
+    tabs: {
+      overview: string;
+      identity: string;
+      products: string;
+      audience: string;
+      voice: string;
+      goals: string;
+      aiContext: string;
+    };
+    fields: {
+      businessName: string;
+      legalName: string;
+      industry: string;
+      businessType: string;
+      description: string;
+      website: string;
+      country: string;
+      city: string;
+      tagline: string;
+      mission: string;
+      vision: string;
+      positioning: string;
+      productName: string;
+      productType: string;
+      price: string;
+      currency: string;
+      audienceName: string;
+      audienceType: string;
+      painPoints: string;
+      primaryTones: string;
+      formality: string;
+      dialect: string;
+      emojiStyle: string;
+      goalType: string;
+      priority: string;
+    };
+    buttons: {
+      saveProfile: string;
+      addProduct: string;
+      addAudience: string;
+      addGoal: string;
+      saveVoice: string;
+      previewAiContext: string;
+    };
+    aiContextBadge: string;
+    aiContextDesc: string;
   };
   dashboard: {
     welcome: string;

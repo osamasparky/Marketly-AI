@@ -115,194 +115,205 @@
 
       <!-- Main Content Area -->
       <main class="flex-1 overflow-y-auto p-6 md:p-8 space-y-8">
-        <!-- Banner -->
-        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950/60 via-slate-900 to-slate-900 p-6 md:p-8 border border-emerald-500/20 shadow-2xl">
-          <div class="relative z-10 max-w-3xl space-y-3">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-              <span>🛡️</span>
-              <span>{{ t('dashboard.phaseBadge') }}</span>
-            </div>
-            <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-              {{ t('dashboard.welcome') }}
-            </h1>
-            <p class="text-sm text-slate-300 leading-relaxed">
-              {{ t('dashboard.welcomeDesc') }}
-            </p>
-          </div>
+        <!-- Brand Brain View -->
+        <div v-if="activeNav === 'brand_brain'">
+          <BrandBrainHub 
+            :auth-token="authToken" 
+            :organization-id="currentOrg?.id"
+          />
         </div>
 
-        <!-- Identity, Multi-Tenancy & Auth Console -->
-        <div class="p-6 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-6">
-          <div class="flex items-center justify-between border-b border-slate-800 pb-4">
-            <div>
-              <h2 class="text-base font-bold text-white flex items-center gap-2">
-                <span>🔐</span>
-                <span>{{ t('dashboard.authConsoleTitle') }}</span>
-              </h2>
-              <p class="text-xs text-slate-400 mt-1">
-                {{ t('dashboard.authConsoleDesc') }}
+        <!-- Dashboard View (Default) -->
+        <div v-else class="space-y-8">
+          <!-- Banner -->
+          <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950/60 via-slate-900 to-slate-900 p-6 md:p-8 border border-emerald-500/20 shadow-2xl">
+            <div class="relative z-10 max-w-3xl space-y-3">
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+                <span>🛡️</span>
+                <span>{{ t('dashboard.phaseBadge') }}</span>
+              </div>
+              <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+                {{ t('dashboard.welcome') }}
+              </h1>
+              <p class="text-sm text-slate-300 leading-relaxed">
+                {{ t('dashboard.welcomeDesc') }}
               </p>
             </div>
-
-            <div class="flex items-center gap-2">
-              <button 
-                v-if="authUser"
-                @click="showNewOrgModal = true"
-                class="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20"
-              >
-                + {{ t('tenancy.createOrg') }}
-              </button>
-            </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Auth Forms (Register / Login / Forgot) -->
-            <div class="space-y-4 bg-slate-950/60 p-5 rounded-2xl border border-slate-800">
-              <div class="flex items-center justify-between">
-                <h3 class="text-xs font-bold uppercase text-slate-300">
-                  {{ authMode === 'register' ? t('dashboard.registerMode') : (authMode === 'login' ? t('dashboard.loginMode') : t('dashboard.forgotMode')) }}
-                </h3>
-              </div>
-              
-              <div v-if="authMode === 'register'" class="space-y-1.5">
-                <label class="text-[11px] font-medium text-slate-400">{{ t('dashboard.fullName') }}</label>
-                <input v-model="authForm.name" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="Osama Sabry" />
-              </div>
-
-              <div class="space-y-1.5">
-                <label class="text-[11px] font-medium text-slate-400">{{ t('dashboard.email') }}</label>
-                <input v-model="authForm.email" type="email" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="admin@marketly.ai" />
+          <!-- Identity, Multi-Tenancy & Auth Console -->
+          <div class="p-6 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div>
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                  <span>🔐</span>
+                  <span>{{ t('dashboard.authConsoleTitle') }}</span>
+                </h2>
+                <p class="text-xs text-slate-400 mt-1">
+                  {{ t('dashboard.authConsoleDesc') }}
+                </p>
               </div>
 
-              <div v-if="authMode !== 'forgot'" class="space-y-1.5">
-                <label class="text-[11px] font-medium text-slate-400">{{ t('dashboard.password') }}</label>
-                <input v-model="authForm.password" type="password" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="••••••••" />
-              </div>
-
-              <div class="flex items-center gap-3 pt-2">
-                <button @click="submitAuth" :disabled="authLoading" class="tactile-btn tactile-btn-primary text-xs w-full py-2.5">
-                  <span v-if="authLoading">{{ t('common.processing') }}</span>
-                  <span v-else>
-                    {{ authMode === 'register' ? t('dashboard.btnRegister') : (authMode === 'login' ? t('dashboard.btnLogin') : t('dashboard.btnForgot')) }}
-                  </span>
-                </button>
-              </div>
-
-              <div class="flex items-center justify-between text-[11px] pt-1">
+              <div class="flex items-center gap-2">
                 <button 
-                  v-if="authMode !== 'login'" 
-                  @click="authMode = 'login'" 
-                  class="text-slate-400 hover:text-emerald-400 underline"
+                  v-if="authUser"
+                  @click="showNewOrgModal = true"
+                  class="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20"
                 >
-                  {{ t('dashboard.toggleToLogin') }}
-                </button>
-                <button 
-                  v-if="authMode !== 'register'" 
-                  @click="authMode = 'register'" 
-                  class="text-slate-400 hover:text-emerald-400 underline"
-                >
-                  {{ t('dashboard.toggleToRegister') }}
-                </button>
-                <button 
-                  v-if="authMode !== 'forgot'" 
-                  @click="authMode = 'forgot'" 
-                  class="text-slate-400 hover:text-amber-400 underline"
-                >
-                  {{ t('dashboard.toggleToForgot') }}
+                  + {{ t('tenancy.createOrg') }}
                 </button>
               </div>
             </div>
 
-            <!-- Token & Response Inspector -->
-            <div class="space-y-3 bg-slate-950/60 p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
-              <div class="space-y-2">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Auth Forms (Register / Login / Forgot) -->
+              <div class="space-y-4 bg-slate-950/60 p-5 rounded-2xl border border-slate-800">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold uppercase text-slate-300">{{ t('dashboard.responseStream') }}</span>
-                  <button @click="testMeEndpoint" :disabled="!authToken" class="text-[11px] text-emerald-400 hover:underline disabled:opacity-40">
-                    {{ t('dashboard.callMeBtn') }}
+                  <h3 class="text-xs font-bold uppercase text-slate-300">
+                    {{ authMode === 'register' ? t('dashboard.registerMode') : (authMode === 'login' ? t('dashboard.loginMode') : t('dashboard.forgotMode')) }}
+                  </h3>
+                </div>
+                
+                <div v-if="authMode === 'register'" class="space-y-1.5">
+                  <label class="text-[11px] font-medium text-slate-400">{{ t('dashboard.fullName') }}</label>
+                  <input v-model="authForm.name" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="Osama Sabry" />
+                </div>
+
+                <div class="space-y-1.5">
+                  <label class="text-[11px] font-medium text-slate-400">{{ t('dashboard.email') }}</label>
+                  <input v-model="authForm.email" type="email" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="admin@marketly.ai" />
+                </div>
+
+                <div v-if="authMode !== 'forgot'" class="space-y-1.5">
+                  <label class="text-[11px] font-medium text-slate-400">{{ t('dashboard.password') }}</label>
+                  <input v-model="authForm.password" type="password" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="••••••••" />
+                </div>
+
+                <div class="flex items-center gap-3 pt-2">
+                  <button @click="submitAuth" :disabled="authLoading" class="tactile-btn tactile-btn-primary text-xs w-full py-2.5">
+                    <span v-if="authLoading">{{ t('common.processing') }}</span>
+                    <span v-else>
+                      {{ authMode === 'register' ? t('dashboard.btnRegister') : (authMode === 'login' ? t('dashboard.btnLogin') : t('dashboard.btnForgot')) }}
+                    </span>
                   </button>
                 </div>
-                <pre class="w-full h-44 p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-mono text-emerald-400 overflow-y-auto">{{ authOutput || '// JSON Response stream...' }}</pre>
-              </div>
 
-              <div v-if="authToken" class="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-xs">
-                <span class="text-emerald-400 font-bold text-[10px] block">{{ t('dashboard.activeToken') }}:</span>
-                <span class="text-slate-300 font-mono text-[10px] truncate block">{{ authToken }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Members & Team Permissions Section (When Authenticated) -->
-        <div v-if="authUser" class="p-6 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-4">
-          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-            <div>
-              <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                <span>👥</span>
-                <span>{{ t('tenancy.membersTitle') }}</span>
-              </h3>
-              <p class="text-xs text-slate-400">{{ currentOrg?.name }}</p>
-            </div>
-            <button 
-              @click="showInviteModal = true" 
-              class="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20"
-            >
-              + {{ t('tenancy.inviteMember') }}
-            </button>
-          </div>
-
-          <div class="overflow-x-auto">
-            <table class="w-full text-xs text-start">
-              <thead>
-                <tr class="border-b border-slate-800 text-slate-400 font-bold">
-                  <th class="py-2.5 px-3 text-start">{{ t('dashboard.fullName') }}</th>
-                  <th class="py-2.5 px-3 text-start">{{ t('dashboard.email') }}</th>
-                  <th class="py-2.5 px-3 text-start">{{ t('tenancy.role') }}</th>
-                  <th class="py-2.5 px-3 text-start">{{ t('common.status') }}</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-800/60">
-                <tr v-for="m in orgMembers" :key="m.membership_id" class="hover:bg-slate-800/30">
-                  <td class="py-2.5 px-3 font-semibold text-slate-200">{{ m.name }}</td>
-                  <td class="py-2.5 px-3 font-mono text-slate-400">{{ m.email }}</td>
-                  <td class="py-2.5 px-3">
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      {{ m.role }}
-                    </span>
-                  </td>
-                  <td class="py-2.5 px-3">
-                    <span class="text-emerald-400 text-[11px] font-medium">{{ m.status }}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Master Roadmap Progress -->
-        <div class="p-6 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-4">
-          <h2 class="text-base font-bold text-white flex items-center gap-2">
-            <span>🗺️</span>
-            <span>{{ t('dashboard.roadmapTitle') }}</span>
-          </h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-            <div v-for="phase in phases" :key="phase.num" :class="[
-              phase.status === 'completed' ? 'border-emerald-500/40 bg-emerald-950/20' : 
-              phase.status === 'next' ? 'border-amber-500/40 bg-amber-950/20' : 'border-slate-800 bg-slate-950/30',
-              'p-3.5 rounded-2xl border flex flex-col justify-between gap-2'
-            ]">
-              <div>
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] font-bold uppercase text-slate-400">Phase {{ phase.num }}</span>
-                  <span :class="[
-                    phase.status === 'completed' ? 'text-emerald-400 bg-emerald-500/10' : 
-                    phase.status === 'next' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-500 bg-slate-800',
-                    'text-[9px] font-bold px-1.5 py-0.5 rounded'
-                  ]">{{ phase.status.toUpperCase() }}</span>
+                <div class="flex items-center justify-between text-[11px] pt-1">
+                  <button 
+                    v-if="authMode !== 'login'" 
+                    @click="authMode = 'login'" 
+                    class="text-slate-400 hover:text-emerald-400 underline"
+                  >
+                    {{ t('dashboard.toggleToLogin') }}
+                  </button>
+                  <button 
+                    v-if="authMode !== 'register'" 
+                    @click="authMode = 'register'" 
+                    class="text-slate-400 hover:text-emerald-400 underline"
+                  >
+                    {{ t('dashboard.toggleToRegister') }}
+                  </button>
+                  <button 
+                    v-if="authMode !== 'forgot'" 
+                    @click="authMode = 'forgot'" 
+                    class="text-slate-400 hover:text-amber-400 underline"
+                  >
+                    {{ t('dashboard.toggleToForgot') }}
+                  </button>
                 </div>
-                <h4 class="text-xs font-bold text-slate-200 mt-1">{{ isRtl ? phase.titleAr : phase.titleEn }}</h4>
               </div>
-              <p class="text-[10px] text-slate-400">{{ isRtl ? phase.descAr : phase.descEn }}</p>
+
+              <!-- Token & Response Inspector -->
+              <div class="space-y-3 bg-slate-950/60 p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase text-slate-300">{{ t('dashboard.responseStream') }}</span>
+                    <button @click="testMeEndpoint" :disabled="!authToken" class="text-[11px] text-emerald-400 hover:underline disabled:opacity-40">
+                      {{ t('dashboard.callMeBtn') }}
+                    </button>
+                  </div>
+                  <pre class="w-full h-44 p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-mono text-emerald-400 overflow-y-auto">{{ authOutput || '// JSON Response stream...' }}</pre>
+                </div>
+
+                <div v-if="authToken" class="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-xs">
+                  <span class="text-emerald-400 font-bold text-[10px] block">{{ t('dashboard.activeToken') }}:</span>
+                  <span class="text-slate-300 font-mono text-[10px] truncate block">{{ authToken }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Members & Team Permissions Section (When Authenticated) -->
+          <div v-if="authUser" class="p-6 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                  <span>👥</span>
+                  <span>{{ t('tenancy.membersTitle') }}</span>
+                </h3>
+                <p class="text-xs text-slate-400">{{ currentOrg?.name }}</p>
+              </div>
+              <button 
+                @click="showInviteModal = true" 
+                class="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20"
+              >
+                + {{ t('tenancy.inviteMember') }}
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-start">
+                <thead>
+                  <tr class="border-b border-slate-800 text-slate-400 font-bold">
+                    <th class="py-2.5 px-3 text-start">{{ t('dashboard.fullName') }}</th>
+                    <th class="py-2.5 px-3 text-start">{{ t('dashboard.email') }}</th>
+                    <th class="py-2.5 px-3 text-start">{{ t('tenancy.role') }}</th>
+                    <th class="py-2.5 px-3 text-start">{{ t('common.status') }}</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                  <tr v-for="m in orgMembers" :key="m.membership_id" class="hover:bg-slate-800/30">
+                    <td class="py-2.5 px-3 font-semibold text-slate-200">{{ m.name }}</td>
+                    <td class="py-2.5 px-3 font-mono text-slate-400">{{ m.email }}</td>
+                    <td class="py-2.5 px-3">
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        {{ m.role }}
+                      </span>
+                    </td>
+                    <td class="py-2.5 px-3">
+                      <span class="text-emerald-400 text-[11px] font-medium">{{ m.status }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Master Roadmap Progress -->
+          <div class="p-6 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-4">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <span>🗺️</span>
+              <span>{{ t('dashboard.roadmapTitle') }}</span>
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <div v-for="phase in phases" :key="phase.num" :class="[
+                phase.status === 'completed' ? 'border-emerald-500/40 bg-emerald-950/20' : 
+                phase.status === 'next' ? 'border-amber-500/40 bg-amber-950/20' : 'border-slate-800 bg-slate-950/30',
+                'p-3.5 rounded-2xl border flex flex-col justify-between gap-2'
+              ]">
+                <div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold uppercase text-slate-400">Phase {{ phase.num }}</span>
+                    <span :class="[
+                      phase.status === 'completed' ? 'text-emerald-400 bg-emerald-500/10' : 
+                      phase.status === 'next' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-500 bg-slate-800',
+                      'text-[9px] font-bold px-1.5 py-0.5 rounded'
+                    ]">{{ phase.status.toUpperCase() }}</span>
+                  </div>
+                  <h4 class="text-xs font-bold text-slate-200 mt-1">{{ isRtl ? phase.titleAr : phase.titleEn }}</h4>
+                </div>
+                <p class="text-[10px] text-slate-400">{{ isRtl ? phase.descAr : phase.descEn }}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -367,9 +378,10 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { t, currentLocale, setLocale, isRtl } from './i18n';
+import BrandBrainHub from './components/BrandBrainHub.vue';
 
 const isDark = ref(true);
-const activeNav = ref('dashboard');
+const activeNav = ref('brand_brain');
 
 const healthStatus = ref<Record<string, any>>({});
 const authMode = ref<'register' | 'login' | 'forgot'>('register');
@@ -419,8 +431,8 @@ const navItems = [
 const phases = [
   { num: '0', titleEn: 'Foundation & Security', titleAr: 'الأساس المعماري والأمني', descEn: 'Laravel 11, Vue 3, Sanctum, Domain Contracts, i18n', descAr: 'لارافيل، فيو، سانكتوم، عقود النطاقات، والتعريب الكامل', status: 'completed' },
   { num: '1', titleEn: 'Tenancy & Identity', titleAr: 'الهوية وتعدد المستأجرين', descEn: 'Organizations, Roles, Policies, Isolation', descAr: 'المنظمات، الأدوار، العزل التام', status: 'completed' },
-  { num: '2', titleEn: 'Brand Brain', titleAr: 'عقل العلامة التجارية', descEn: 'Knowledge Ingestion, Facts, Approval', descAr: 'استيعاب المستندات، استخراج الحقائق', status: 'next' },
-  { num: '3', titleEn: 'AI Strategy', titleAr: 'استراتيجية الذكاء الاصطناعي', descEn: 'Pillars, 30-Day Plan, Gemini Agent', descAr: 'ركائز المحتوى، خطة 30 يوم', status: 'pending' },
+  { num: '2', titleEn: 'Brand Brain', titleAr: 'عقل العلامة التجارية', descEn: 'Knowledge Ingestion, Facts, Approval', descAr: 'استيعاب المستندات، استخراج الحقائق، ومجمع السياق', status: 'completed' },
+  { num: '3', titleEn: 'AI Strategy', titleAr: 'استراتيجية الذكاء الاصطناعي', descEn: 'Pillars, 30-Day Plan, Gemini Agent', descAr: 'ركائز المحتوى، خطة 30 يوم', status: 'next' },
   { num: '4', titleEn: 'Content Studio', titleAr: 'استوديو المحتوى', descEn: 'Captions, Hooks, Quality Agent, Dialects', descAr: 'النصوص، الخطافات، فحص الجودة', status: 'pending' },
   { num: '5', titleEn: 'Creative Studio', titleAr: 'استوديو الإبداع', descEn: 'Prompts, Aspect Ratios, Video Briefs', descAr: 'توليد الصور، مقاسات النشر، الفيديو', status: 'pending' },
   { num: '6', titleEn: 'Content Calendar', titleAr: 'تقويم المحتوى', descEn: 'Interactive Scheduling, Status Flow', descAr: 'جدولة المنشورات وتدفق الحالات', status: 'pending' },
@@ -476,7 +488,7 @@ const fetchMembers = async () => {
 const handleOrgSwitch = async (orgId: number) => {
   if (!authToken.value) return;
   try {
-    const res = await axios.post(`/api/v1/organizations/${orgId}/switch`, {}, {
+    const res = await axios.post(`/api/v1/organizations/{$orgId}/switch`, {}, {
       headers: {
         Authorization: `Bearer ${authToken.value}`,
         'X-Locale': currentLocale.value,

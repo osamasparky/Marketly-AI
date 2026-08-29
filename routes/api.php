@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Brand\Controllers\BrandController;
 use App\Domains\Identity\Controllers\AuthController;
 use App\Domains\Tenancy\Controllers\MembershipController;
 use App\Domains\Tenancy\Controllers\OrganizationController;
@@ -53,5 +54,41 @@ Route::prefix('v1')->group(function () {
 
         // Accept Invitation
         Route::post('/invitations/accept', [MembershipController::class, 'accept'])->name('api.v1.invitations.accept');
+
+        // Phase 2: Brand Brain API
+        Route::prefix('brand')->group(function () {
+            Route::get('/', [BrandController::class, 'show'])->name('api.v1.brand.show');
+            Route::post('/', [BrandController::class, 'saveProfile'])->name('api.v1.brand.save');
+            Route::patch('/', [BrandController::class, 'saveProfile'])->name('api.v1.brand.update');
+            Route::get('/ai-context', [BrandController::class, 'aiContext'])->name('api.v1.brand.ai_context');
+
+            // Products & Services
+            Route::get('/products', [BrandController::class, 'listProducts'])->name('api.v1.brand.products.index');
+            Route::post('/products', [BrandController::class, 'storeProduct'])->name('api.v1.brand.products.store');
+            Route::patch('/products/{product}', [BrandController::class, 'updateProduct'])->name('api.v1.brand.products.update');
+            Route::delete('/products/{product}', [BrandController::class, 'deleteProduct'])->name('api.v1.brand.products.destroy');
+
+            // Target Audiences
+            Route::get('/audiences', [BrandController::class, 'listAudiences'])->name('api.v1.brand.audiences.index');
+            Route::post('/audiences', [BrandController::class, 'storeAudience'])->name('api.v1.brand.audiences.store');
+            Route::patch('/audiences/{audience}', [BrandController::class, 'updateAudience'])->name('api.v1.brand.audiences.update');
+            Route::delete('/audiences/{audience}', [BrandController::class, 'deleteAudience'])->name('api.v1.brand.audiences.destroy');
+
+            // Brand Voice & Tone
+            Route::get('/voice', [BrandController::class, 'getVoice'])->name('api.v1.brand.voice.show');
+            Route::patch('/voice', [BrandController::class, 'saveVoice'])->name('api.v1.brand.voice.save');
+
+            // Goals
+            Route::get('/goals', [BrandController::class, 'listGoals'])->name('api.v1.brand.goals.index');
+            Route::post('/goals', [BrandController::class, 'storeGoal'])->name('api.v1.brand.goals.store');
+            Route::patch('/goals/{goal}', [BrandController::class, 'updateGoal'])->name('api.v1.brand.goals.update');
+            Route::delete('/goals/{goal}', [BrandController::class, 'deleteGoal'])->name('api.v1.brand.goals.destroy');
+
+            // Competitors
+            Route::get('/competitors', [BrandController::class, 'listCompetitors'])->name('api.v1.brand.competitors.index');
+            Route::post('/competitors', [BrandController::class, 'storeCompetitor'])->name('api.v1.brand.competitors.store');
+            Route::patch('/competitors/{competitor}', [BrandController::class, 'updateCompetitor'])->name('api.v1.brand.competitors.update');
+            Route::delete('/competitors/{competitor}', [BrandController::class, 'deleteCompetitor'])->name('api.v1.brand.competitors.destroy');
+        });
     });
 });
