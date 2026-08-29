@@ -60,6 +60,10 @@ return [
 
         // Development-only additions (strictly ignored when APP_ENV === 'production')
         'dev_additions' => [
+            'script-src' => [
+                'http://localhost:*',
+                'http://127.0.0.1:*',
+            ],
             'style-src' => ["'unsafe-inline'"], // Needed for Vite local dev server HMR styling
             'connect-src' => [
                 'http://localhost:*',
