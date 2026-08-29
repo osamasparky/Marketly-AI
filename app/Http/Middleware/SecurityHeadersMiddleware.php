@@ -46,7 +46,7 @@ class SecurityHeadersMiddleware
     }
 
     /**
-     * Build the CSP policy string enforcing production lockdown and trusted origins.
+     * Build the CSP policy string enforcing production lockdown and validating trusted origins.
      */
     private function buildCspString(string $nonce): string
     {
@@ -54,8 +54,8 @@ class SecurityHeadersMiddleware
         $isDev = !app()->environment('production');
         $devAdditions = $isDev ? config('security.csp.dev_additions', []) : [];
 
-        $cdnUrl = config('security.csp.trusted_cdn');
-        $mediaUrl = config('security.csp.trusted_media');
+        $cdnUrl = $this->sanitizeTrustedOrigin(config('security.csp.trusted_cdn'));
+        $mediaUrl = $this->sanitizeTrustedOrigin(config('security.csp.trusted_media'));
 
         $policyParts = [];
 
@@ -67,7 +67,7 @@ class SecurityHeadersMiddleware
                 $sourceList = array_merge($sourceList, (array) $devAdditions[$directive]);
             }
 
-            // Inject trusted CDN/Storage origins into appropriate directives
+            // Inject validated trusted CDN/Storage origins into appropriate directives
             if ($cdnUrl && in_array($directive, ['script-src', 'style-src', 'font-src', 'img-src'], true)) {
                 $sourceList[] = $cdnUrl;
             }
@@ -88,5 +88,29 @@ class SecurityHeadersMiddleware
         }
 
         return implode('; ', $policyParts);
+    }
+
+    /**
+     * Sanitize and validate trusted origin to prevent wildcard / injection vulnerabilities.
+     */
+    private function sanitizeTrustedOrigin(?string $url): ?string
+    {
+        if (empty($url)) {
+            return null;
+        }
+
+        $trimmed = trim($url);
+
+        // Disallow dangerous wildcards or relative paths
+        if ($trimmed === '*' || str_starts_with($trimmed, 'https:*') || str_starts_with($trimmed, 'http:*')) {
+            return null;
+        }
+
+        $parsed = parse_url($trimmed);
+        if (!$parsed || empty($parsed['scheme']) || empty($parsed['host'])) {
+            return null;
+        }
+
+        return strtolower($parsed['scheme']) . '://' . strtolower($parsed['host']) . (!empty($parsed['port']) ? ':' . $parsed['port'] : '');
     }
 }

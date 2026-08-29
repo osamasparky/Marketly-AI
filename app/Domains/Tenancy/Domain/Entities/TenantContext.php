@@ -2,6 +2,7 @@
 
 namespace App\Domains\Tenancy\Domain\Entities;
 
+use App\Domains\Shared\Enums\UserRole;
 use InvalidArgumentException;
 
 /**
@@ -9,23 +10,27 @@ use InvalidArgumentException;
  */
 class TenantContext
 {
+    public readonly UserRole $userRole;
+
     public function __construct(
         public readonly int $organizationId,
         public readonly ?int $brandId = null,
-        public readonly string $role = 'viewer'
+        string|UserRole $role = UserRole::VIEWER
     ) {
         if ($organizationId <= 0) {
             throw new InvalidArgumentException('Organization ID must be a positive integer.');
         }
+
+        $this->userRole = is_string($role) ? (UserRole::tryFrom($role) ?? UserRole::VIEWER) : $role;
     }
 
-    public function canMutate(): bool
+    public function role(): string
     {
-        return in_array($this->role, ['owner', 'admin', 'manager', 'editor'], true);
+        return $this->userRole->value;
     }
 
-    public function canAdminister(): bool
+    public function hasPermission(string $permission): bool
     {
-        return in_array($this->role, ['owner', 'admin'], true);
+        return $this->userRole->hasPermission($permission);
     }
 }

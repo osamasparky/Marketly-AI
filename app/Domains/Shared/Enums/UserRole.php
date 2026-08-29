@@ -10,18 +10,77 @@ enum UserRole: string
     case EDITOR = 'editor';
     case VIEWER = 'viewer';
 
-    public function canApproveContent(): bool
+    /**
+     * Granular permission matrix enforcing the principle of least privilege.
+     *
+     * @return array<int, string>
+     */
+    public function permissions(): array
     {
-        return in_array($this, [self::OWNER, self::ADMIN, self::MANAGER], true);
+        return match ($this) {
+            self::OWNER => [
+                'organization.view', 'organization.manage',
+                'brand.view', 'brand.create', 'brand.update', 'brand.delete',
+                'content.view', 'content.create', 'content.update', 'content.delete', 'content.approve',
+                'campaign.view', 'campaign.create', 'campaign.update', 'campaign.delete',
+                'social.view', 'social.connect', 'social.disconnect', 'social.publish',
+                'analytics.view',
+                'billing.view', 'billing.manage',
+                'administration.manage',
+            ],
+            self::ADMIN => [
+                'organization.view', 'organization.manage',
+                'brand.view', 'brand.create', 'brand.update', 'brand.delete',
+                'content.view', 'content.create', 'content.update', 'content.delete', 'content.approve',
+                'campaign.view', 'campaign.create', 'campaign.update', 'campaign.delete',
+                'social.view', 'social.connect', 'social.disconnect', 'social.publish',
+                'analytics.view',
+                'billing.view',
+            ],
+            self::MANAGER => [
+                'organization.view',
+                'brand.view', 'brand.update',
+                'content.view', 'content.create', 'content.update', 'content.approve',
+                'campaign.view', 'campaign.create', 'campaign.update',
+                'social.view', 'social.publish',
+                'analytics.view',
+            ],
+            self::EDITOR => [
+                'organization.view',
+                'brand.view',
+                'content.view', 'content.create', 'content.update',
+                'campaign.view',
+                'social.view',
+                'analytics.view',
+            ],
+            self::VIEWER => [
+                'organization.view',
+                'brand.view',
+                'content.view',
+                'campaign.view',
+                'social.view',
+                'analytics.view',
+            ],
+        };
     }
 
-    public function canManageSocialAccounts(): bool
+    public function hasPermission(string $permission): bool
     {
-        return in_array($this, [self::OWNER, self::ADMIN], true);
+        return in_array($permission, $this->permissions(), true);
+    }
+
+    public function canApproveContent(): bool
+    {
+        return $this->hasPermission('content.approve');
     }
 
     public function canPublish(): bool
     {
-        return in_array($this, [self::OWNER, self::ADMIN, self::MANAGER], true);
+        return $this->hasPermission('social.publish');
+    }
+
+    public function canManageSocialAccounts(): bool
+    {
+        return $this->hasPermission('social.connect');
     }
 }

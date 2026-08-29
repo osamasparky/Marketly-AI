@@ -47,7 +47,7 @@ class SecurityHeadersTest extends TestCase
         $this->assertStringNotContainsString("style-src 'self' 'unsafe-inline'", $csp);
     }
 
-    public function test_csp_reporting_endpoint_accepts_reports(): void
+    public function test_csp_reporting_endpoint_accepts_valid_reports(): void
     {
         $response = $this->postJson('/api/v1/csp-report', [
             'csp-report' => [
@@ -59,5 +59,32 @@ class SecurityHeadersTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson(['received' => true]);
+    }
+
+    public function test_csp_reporting_endpoint_rejects_oversized_payload(): void
+    {
+        $largeString = str_repeat('A', 10000); // 10 KB (Limit is 8 KB)
+        $response = $this->postJson('/api/v1/csp-report', [
+            'csp-report' => [
+                'blocked-uri' => $largeString,
+            ],
+        ]);
+
+        $response->assertStatus(413);
+    }
+
+    public function test_csp_reporting_endpoint_rejects_malformed_json(): void
+    {
+        $response = $this->call(
+            'POST',
+            '/api/v1/csp-report',
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            '{ malformed json '
+        );
+
+        $response->assertStatus(400);
     }
 }
