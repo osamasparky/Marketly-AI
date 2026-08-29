@@ -2,17 +2,22 @@
 
 namespace App\Domains\Identity\Controllers;
 
+use App\Domains\Identity\Application\DTOs\LoginCredentialsData;
+use App\Domains\Identity\Application\DTOs\RegisterUserData;
+use App\Domains\Identity\Application\Services\AuthApplicationService;
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Support\ApiResponse;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly AuthApplicationService $authService
+    ) {}
+
     /**
      * Register a new user account.
      */
@@ -20,28 +25,23 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'string', Password::min(8)],
         ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-        ]);
+        $dto = new RegisterUserData(
+            name: $validated['name'],
+            email: $validated['email'],
+            password: $validated['password']
+        );
 
-        $token = $user->createToken('marketly_auth_token')->plainTextToken;
+        $result = $this->authService->register($dto);
 
-        return ApiResponse::success([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'created_at' => $user->created_at?->toIso8601String(),
-            ],
-            'token' => $token,
-            'token_type' => 'Bearer',
-        ], ['message' => 'User registered successfully'], 201);
+        return ApiResponse::success(
+            $result->toArray(),
+            ['message' => 'User registered successfully'],
+            201
+        );
     }
 
     /**
@@ -54,28 +54,25 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        try {
+            $dto = new LoginCredentialsData(
+                email: $validated['email'],
+                password: $validated['password']
+            );
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
+            $result = $this->authService->login($dto);
+
+            return ApiResponse::success(
+                $result->toArray(),
+                ['message' => 'Login successful']
+            );
+        } catch (AuthenticationException) {
             return ApiResponse::error(
                 message: 'Invalid credentials provided',
                 code: 'INVALID_CREDENTIALS',
                 status: 401
             );
         }
-
-        $token = $user->createToken('marketly_auth_token')->plainTextToken;
-
-        return ApiResponse::success([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'created_at' => $user->created_at?->toIso8601String(),
-            ],
-            'token' => $token,
-            'token_type' => 'Bearer',
-        ], ['message' => 'Login successful']);
     }
 
     /**
@@ -86,7 +83,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         if ($user) {
-            $user->currentAccessToken()?->delete();
+            $this->authService->logout($user);
         }
 
         return ApiResponse::success(
