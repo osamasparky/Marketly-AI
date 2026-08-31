@@ -24,6 +24,9 @@ Route::prefix('v1')->group(function () {
     // Public Billing Plans
     Route::get('/billing/plans', [\App\Domains\Billing\Controllers\BillingController::class, 'listPlans'])->name('api.v1.billing.plans.public');
 
+    // Public Site Settings
+    Route::get('/site-settings', [\App\Domains\Administration\Controllers\SiteSettingController::class, 'getPublicSettings'])->name('api.v1.site_settings.public');
+
     // CSP Violation Reporting (Rate Limited)
     Route::post('/csp-report', CspReportController::class)->middleware('throttle:30,1')->name('api.v1.csp.report');
 
@@ -199,6 +202,15 @@ Route::prefix('v1')->group(function () {
             Route::post('/organizations/{id}/impersonate', [\App\Domains\Administration\Controllers\SuperAdminController::class, 'impersonate'])->name('api.v1.super_admin.organizations.impersonate');
             Route::get('/subscriptions', [\App\Domains\Administration\Controllers\SuperAdminController::class, 'subscriptions'])->name('api.v1.super_admin.subscriptions.index');
             Route::get('/reports', [\App\Domains\Administration\Controllers\SuperAdminController::class, 'reports'])->name('api.v1.super_admin.reports');
+
+            // Phase B: Super Admin Plans Management CRUD
+            Route::get('/plans', [\App\Domains\Administration\Controllers\SuperAdminPlanController::class, 'index'])->name('api.v1.super_admin.plans.index');
+            Route::post('/plans', [\App\Domains\Administration\Controllers\SuperAdminPlanController::class, 'store'])->name('api.v1.super_admin.plans.store');
+            Route::patch('/plans/{id}', [\App\Domains\Administration\Controllers\SuperAdminPlanController::class, 'update'])->name('api.v1.super_admin.plans.update');
+            Route::delete('/plans/{id}', [\App\Domains\Administration\Controllers\SuperAdminPlanController::class, 'destroy'])->name('api.v1.super_admin.plans.destroy');
+
+            // Phase C: Super Admin Site Settings Management
+            Route::patch('/site-settings', [\App\Domains\Administration\Controllers\SiteSettingController::class, 'updateSettings'])->name('api.v1.super_admin.site_settings.update');
         });
     });
 });

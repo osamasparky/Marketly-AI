@@ -61,17 +61,17 @@
         <div class="absolute top-1/3 right-10 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10 space-y-8">
-          <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold animate-pulse">
-            <span>✨</span>
-            <span>{{ t('landing.heroBadge') }}</span>
+          <div v-if="siteSettings.announcement_banner" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+            <span>🚀</span>
+            <span>{{ siteSettings.announcement_banner }}</span>
           </div>
 
           <h1 class="text-4xl sm:text-6xl font-black text-white tracking-tight leading-[1.15] max-w-4xl mx-auto">
-            {{ t('landing.heroTitle') }}
+            {{ heroTitle }}
           </h1>
 
           <p class="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            {{ t('landing.heroSubtitle') }}
+            {{ heroSubtitle }}
           </p>
 
           <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -390,24 +390,61 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { t, currentLocale, setLocale } from '../i18n';
 
 defineEmits(['open-auth']);
 
-const isAnnual = ref(false);
-const activeSection = ref('hero');
 const showContactModal = ref(false);
 const showPrivacyModal = ref(false);
 const showTermsModal = ref(false);
+const billingInterval = ref<'monthly' | 'annual'>('monthly');
+
+const siteSettings = ref<any>({
+  hero_title_ar: '',
+  hero_title_en: '',
+  hero_subtitle_ar: '',
+  hero_subtitle_en: '',
+  announcement_banner: '',
+  contact_email: 'contact@marketly.ai',
+  contact_phone: '+966 50 000 0000',
+});
+
+const heroTitle = computed(() => {
+  if (currentLocale.value === 'ar' && siteSettings.value.hero_title_ar) {
+    return siteSettings.value.hero_title_ar;
+  }
+  if (currentLocale.value === 'en' && siteSettings.value.hero_title_en) {
+    return siteSettings.value.hero_title_en;
+  }
+  return t('landing.heroTitle');
+});
+
+const heroSubtitle = computed(() => {
+  if (currentLocale.value === 'ar' && siteSettings.value.hero_subtitle_ar) {
+    return siteSettings.value.hero_subtitle_ar;
+  }
+  if (currentLocale.value === 'en' && siteSettings.value.hero_subtitle_en) {
+    return siteSettings.value.hero_subtitle_en;
+  }
+  return t('landing.heroSubtitle');
+});
+
+const fetchSiteSettings = async () => {
+  try {
+    const res = await axios.get('/api/v1/site-settings');
+    if (res.data?.data?.settings) {
+      siteSettings.value = { ...siteSettings.value, ...res.data.data.settings };
+    }
+  } catch (e) {}
+};
 
 const plans = ref<any[]>([
   {
     id: 1,
-    slug: 'starter',
     name: 'Starter',
-    description: 'Perfect for early-stage startups and solopreneurs exploring AI marketing autonomy.',
+    description: 'Perfect for solopreneurs & creators exploring AI marketing autonomy.',
     price_monthly: 0,
     price_annual: 0,
     currency: 'SAR',
@@ -416,11 +453,11 @@ const plans = ref<any[]>([
       { id: 2, feature_key: 'ai_strategy', is_enabled: true, limit_count: 5 },
       { id: 3, feature_key: 'ai_content', is_enabled: true, limit_count: 30 },
       { id: 4, feature_key: 'team_members', is_enabled: true, limit_count: 2 },
+      { id: 5, feature_key: 'social_accounts', is_enabled: false, limit_count: 0 },
     ]
   },
   {
     id: 2,
-    slug: 'growth',
     name: 'Growth',
     description: 'For growing teams requiring continuous strategic generation and multi-channel publishing.',
     price_monthly: 299,
@@ -431,7 +468,8 @@ const plans = ref<any[]>([
       { id: 6, feature_key: 'ai_strategy', is_enabled: true, limit_count: 20 },
       { id: 7, feature_key: 'ai_content', is_enabled: true, limit_count: 150 },
       { id: 8, feature_key: 'team_members', is_enabled: true, limit_count: 5 },
-      { id: 9, feature_key: 'analytics', is_enabled: true, limit_count: -1 },
+      { id: 9, feature_key: 'social_accounts', is_enabled: true, limit_count: 5 },
+      { id: 10, feature_key: 'analytics', is_enabled: true, limit_count: -1 },
     ]
   },
   {
@@ -495,5 +533,6 @@ const handleSendContact = () => {
 
 onMounted(() => {
   fetchPlans();
+  fetchSiteSettings();
 });
 </script>

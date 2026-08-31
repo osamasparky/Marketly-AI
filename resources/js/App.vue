@@ -164,7 +164,19 @@
       <footer class="py-4 text-center text-xs text-slate-600">Marketly AI Onboarding Hub</footer>
     </div>
 
-    <!-- 4. Authenticated SaaS Workspace & Application -->
+    <!-- 4. Dedicated Super Admin Console View (Isolated Root Shell) -->
+    <div v-else-if="authUser?.is_super_admin && !isImpersonating">
+      <SuperAdminShell 
+        :auth-token="authToken" 
+        :auth-user="authUser" 
+        @impersonate="handleImpersonateSuccess" 
+        @logout="handleLogout" 
+        @view-website="currentMode = 'website'" 
+        @toggle-lang="toggleLanguage" 
+      />
+    </div>
+
+    <!-- 5. Authenticated Tenant SaaS Workspace & Application -->
     <div v-else class="flex flex-col min-h-screen">
       <!-- Top Navigation Header -->
       <header class="h-16 border-b border-slate-800/80 bg-slate-900/70 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-50">
@@ -247,16 +259,17 @@
       </header>
 
       <!-- Impersonation Notice Banner (Super Admin Mode) -->
-      <div v-if="isImpersonating" class="bg-gradient-to-r from-amber-500/20 via-amber-500/30 to-amber-500/20 border-b border-amber-500/40 px-6 py-2 flex items-center justify-between text-xs text-amber-200">
-        <div class="flex items-center gap-2">
+      <div v-if="isImpersonating" class="bg-gradient-to-r from-amber-500/20 via-amber-500/30 to-amber-500/20 border-b border-amber-500/40 px-6 py-2.5 flex items-center justify-between text-xs text-amber-200 shadow-md">
+        <div class="flex items-center gap-2 font-semibold">
           <span>⚠️</span>
-          <span>{{ t('superAdmin.impersonationBanner.warning') }} <strong class="text-white font-bold">{{ currentOrg?.name }}</strong></span>
+          <span>{{ currentLocale === 'ar' ? 'وضع المحاكاة النشط: أنت تتصفح الآن كـ' : 'Active Impersonation Mode: Browsing as' }} <strong class="text-white font-black underline">{{ currentOrg?.name }}</strong></span>
         </div>
         <button 
           @click="exitImpersonation" 
-          class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] transition-colors"
+          class="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5"
         >
-          {{ t('superAdmin.impersonationBanner.returnBtn') }}
+          <span>👑</span>
+          <span>{{ currentLocale === 'ar' ? 'العودة للوحة تحكم السوبر أدمن' : 'Exit Impersonation' }}</span>
         </button>
       </div>
 
@@ -326,6 +339,7 @@
             <StrategyHub 
               :auth-token="authToken" 
               :organization-id="currentOrg?.id"
+              @navigate-content="activeNav = 'content'"
             />
           </div>
 
@@ -431,6 +445,7 @@ import axios from 'axios';
 import { t, currentLocale, setLocale, isRtl } from './i18n';
 import PublicWebsite from './components/PublicWebsite.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
+import SuperAdminShell from './components/SuperAdminShell.vue';
 import DashboardView from './components/DashboardView.vue';
 import BrandBrainHub from './components/BrandBrainHub.vue';
 import StrategyHub from './components/StrategyHub.vue';
@@ -480,18 +495,7 @@ const baseNavItems = [
   { id: 'settings', icon: '⚙️', titleKey: 'navigation.settings' },
 ];
 
-const navItems = computed(() => {
-  const items = [...baseNavItems];
-  if (authUser.value?.is_super_admin) {
-    items.push({
-      id: 'super_admin',
-      icon: '👑',
-      titleKey: 'navigation.superAdmin',
-      badge: 'Master',
-    });
-  }
-  return items;
-});
+const navItems = computed(() => baseNavItems);
 
 const toggleLanguage = () => {
   setLocale(currentLocale.value === 'ar' ? 'en' : 'ar');
