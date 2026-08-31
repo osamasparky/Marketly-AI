@@ -748,8 +748,16 @@ function formatDate(dateStr?: string) {
 
 function getAssetUrl(asset: any): string {
   if (!asset) return '';
-  if (asset.public_url) return asset.public_url;
-  if (asset.metadata?.image_url) return asset.metadata.image_url;
+  let url = asset.public_url || asset.metadata?.image_url || '';
+  if (url) {
+    if (url.startsWith('http://localhost/') || url.startsWith('http://127.0.0.1/')) {
+      try {
+        const parsed = new URL(url);
+        url = parsed.pathname;
+      } catch (e) {}
+    }
+    return url;
+  }
   if (asset.file_path) {
     const path = asset.file_path.startsWith('/') ? asset.file_path.substring(1) : asset.file_path;
     return `/storage/${path}`;

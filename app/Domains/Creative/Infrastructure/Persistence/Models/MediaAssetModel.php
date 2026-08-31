@@ -55,7 +55,9 @@ class MediaAssetModel extends Model
             return null;
         }
 
-        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->file_path);
+        $path = ltrim($this->file_path, '/');
+
+        return '/storage/' . $path;
     }
 
     public function organization(): BelongsTo
