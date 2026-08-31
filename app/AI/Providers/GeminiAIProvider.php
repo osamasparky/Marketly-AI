@@ -368,7 +368,7 @@ class GeminiAIProvider implements AIProviderInterface
     }
 
     /**
-     * Generate visual marketing image using Imagen / Gemini image generation.
+     * Generate visual marketing image using Gemini Multimodal Image Generation / Imagen.
      */
     public function generateImage(string $prompt, array $options = []): AIStructuredOutput
     {
@@ -384,16 +384,93 @@ class GeminiAIProvider implements AIProviderInterface
         $aspectRatio = $options['aspect_ratio'] ?? '1:1';
         $orgId = $options['org_id'] ?? 'default';
         $brandId = $options['brand_id'] ?? 'default';
-        $imageModel = $options['image_model'] ?? config('services.gemini.image_model', 'imagen-3.0-generate-002');
 
-        // Map aspect ratio to valid Imagen enum
+        // 1. Primary Strategy: Gemini Multimodal Generation via generateContent with responseModalities: ["TEXT", "IMAGE"]
+        $geminiImageModel = $options['image_model'] ?? config('services.gemini.image_model', 'gemini-2.0-flash-exp');
+
+        try {
+            $response = Http::timeout(60)
+                ->withHeaders(['Content-Type' => 'application/json'])
+                ->post("{$this->baseUrl}/models/{$geminiImageModel}:generateContent?key={$this->apiKey}", [
+                    'contents' => [
+                        [
+                            'role' => 'user',
+                            'parts' => [
+                                ['text' => $prompt],
+                            ],
+                        ],
+                    ],
+                    'generationConfig' => [
+                        'responseModalities' => ['TEXT', 'IMAGE'],
+                    ],
+                ]);
+
+            if ($response->successful()) {
+                $json = $response->json();
+                $base64Data = null;
+                $mimeType = 'image/png';
+
+                $candidates = $json['candidates'] ?? [];
+                foreach ($candidates as $candidate) {
+                    $parts = $candidate['content']['parts'] ?? [];
+                    foreach ($parts as $part) {
+                        if (!empty($part['inlineData']['data'])) {
+                            $base64Data = $part['inlineData']['data'];
+                            $mimeType = $part['inlineData']['mimeType'] ?? 'image/png';
+                            break 2;
+                        }
+                    }
+                }
+
+                if (!empty($base64Data)) {
+                    $latencyMs = (int) round((microtime(true) - $startTime) * 1000);
+                    $imageBytes = base64_decode($base64Data);
+                    $ext = str_contains($mimeType, 'jpeg') || str_contains($mimeType, 'jpg') ? 'jpg' : 'png';
+                    $fileName = 'asset_' . uniqid() . '_' . str_replace(':', 'x', $aspectRatio) . '.' . $ext;
+                    $storageDir = "creative-assets/{$orgId}/{$brandId}";
+                    $storagePath = "{$storageDir}/{$fileName}";
+
+                    \Illuminate\Support\Facades\Storage::disk('public')->put($storagePath, $imageBytes);
+                    $publicUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($storagePath);
+
+                    return new AIStructuredOutput(
+                        success: true,
+                        data: [
+                            'file_name' => $fileName,
+                            'file_path' => $storagePath,
+                            'image_url' => $publicUrl,
+                            'mime_type' => $mimeType,
+                            'file_size_bytes' => strlen($imageBytes),
+                            'aspect_ratio' => $aspectRatio,
+                            'mode' => 'ai_generated',
+                            'prompt' => $prompt,
+                        ],
+                        usage: new GenerationUsage(latencyMs: $latencyMs, meta: ['model' => $geminiImageModel])
+                    );
+                }
+            } else {
+                Log::warning('Gemini multimodal image generateContent returned non-200, attempting Imagen fallback', [
+                    'status' => $response->status(),
+                    'error' => $response->json()['error']['message'] ?? $response->body(),
+                    'model' => $geminiImageModel,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Gemini multimodal image generation exception, attempting Imagen fallback', [
+                'error' => $e->getMessage(),
+                'model' => $geminiImageModel,
+            ]);
+        }
+
+        // 2. Secondary Strategy: Imagen 3 Predict API (imagen-3.0-generate-002)
+        $imagenModel = 'imagen-3.0-generate-002';
         $validAspectRatios = ['1:1', '9:16', '16:9', '4:3', '3:4'];
         $aspectRatioParam = in_array($aspectRatio, $validAspectRatios, true) ? $aspectRatio : '1:1';
 
         try {
             $response = Http::timeout(60)
                 ->withHeaders(['Content-Type' => 'application/json'])
-                ->post("{$this->baseUrl}/models/{$imageModel}:predict?key={$this->apiKey}", [
+                ->post("{$this->baseUrl}/models/{$imagenModel}:predict?key={$this->apiKey}", [
                     'instances' => [
                         ['prompt' => $prompt],
                     ],
@@ -411,28 +488,33 @@ class GeminiAIProvider implements AIProviderInterface
             if (!$response->successful()) {
                 $errorBody = $response->json();
                 $errorMsg = $errorBody['error']['message'] ?? $response->body();
-                Log::warning('Gemini AI image generation failed', ['status' => $response->status(), 'error' => $errorMsg]);
+                Log::error('Gemini AI image generation failed across all strategies', [
+                    'status' => $response->status(),
+                    'error' => $errorMsg,
+                    'models_tried' => [$geminiImageModel, $imagenModel],
+                ]);
 
                 return new AIStructuredOutput(
                     success: false,
                     data: [],
                     usage: new GenerationUsage(latencyMs: $latencyMs),
-                    errorMessage: "Gemini Image API Error ({$response->status()}): {$errorMsg}"
+                    errorMessage: "Google AI Image Error ({$response->status()}): {$errorMsg}"
                 );
             }
 
             $json = $response->json();
             $base64Data = $json['predictions'][0]['bytesBase64Encoded']
                 ?? $json['predictions'][0]['image']['bytesBase64Encoded']
-                ?? $json['candidates'][0]['content']['parts'][0]['inlineData']['data']
                 ?? null;
 
             if (empty($base64Data)) {
+                Log::error('Google Imagen API returned successful response without base64 image data', ['response' => $json]);
+
                 return new AIStructuredOutput(
                     success: false,
                     data: [],
                     usage: new GenerationUsage(latencyMs: $latencyMs),
-                    errorMessage: 'No image data returned from Gemini Image API.'
+                    errorMessage: 'No image data returned from Google Imagen API.'
                 );
             }
 
@@ -456,11 +538,14 @@ class GeminiAIProvider implements AIProviderInterface
                     'mode' => 'ai_generated',
                     'prompt' => $prompt,
                 ],
-                usage: new GenerationUsage(latencyMs: $latencyMs, meta: ['model' => $imageModel])
+                usage: new GenerationUsage(latencyMs: $latencyMs, meta: ['model' => $imagenModel])
             );
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             $latencyMs = (int) round((microtime(true) - $startTime) * 1000);
-            Log::error('Gemini AI generateImage exception', ['error' => $e->getMessage()]);
+            Log::error('Gemini AI generateImage exception', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             return new AIStructuredOutput(
                 success: false,

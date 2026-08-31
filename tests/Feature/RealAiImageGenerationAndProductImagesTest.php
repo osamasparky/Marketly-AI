@@ -208,4 +208,46 @@ class RealAiImageGenerationAndProductImagesTest extends TestCase
         $response->assertJsonPath('data.metadata.mode', 'svg_fallback');
         $this->assertNotEmpty($response->json('data.metadata.svg_markup'));
     }
+
+    /**
+     * Test GeminiAIProvider multimodal generateContent with responseModalities ["TEXT", "IMAGE"].
+     */
+    public function test_gemini_provider_multimodal_image_generation(): void
+    {
+        Http::fake([
+            '*/models/*:generateContent*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [
+                                [
+                                    'inlineData' => [
+                                        'mimeType' => 'image/png',
+                                        'data' => base64_encode('GEMINI_MULTIMODAL_PNG_BYTES'),
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $provider = new \App\AI\Providers\GeminiAIProvider(
+            apiKey: 'test-gemini-key',
+            model: 'gemini-2.0-flash',
+            baseUrl: 'https://generativelanguage.googleapis.com/v1beta'
+        );
+
+        $result = $provider->generateImage('Create high contrast brand visual', [
+            'aspect_ratio' => '1:1',
+            'org_id' => '1',
+            'brand_id' => '1',
+        ]);
+
+        $this->assertTrue($result->success);
+        $this->assertEquals('ai_generated', $result->data['mode']);
+        $this->assertEquals('image/png', $result->data['mime_type']);
+        $this->assertTrue(Storage::disk('public')->exists($result->data['file_path']));
+    }
 }
