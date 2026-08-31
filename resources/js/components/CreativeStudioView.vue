@@ -164,7 +164,26 @@
             <!-- Actions -->
             <div class="flex items-center gap-2">
               <button 
-                v-if="selectedAsset.file_type === 'graphic_card' && selectedAsset.metadata?.svg_markup"
+                @click="handleRegenerateVariation(selectedAsset)"
+                :disabled="generating || actionLoading"
+                class="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 text-xs font-semibold transition-colors flex items-center gap-1.5"
+              >
+                <span>🔄</span>
+                <span>{{ currentLocale === 'ar' ? 'توليد نسخة مختلفة' : 'Regenerate Variation' }}</span>
+              </button>
+
+              <a 
+                v-if="selectedAsset.public_url"
+                :href="selectedAsset.public_url"
+                download
+                target="_blank"
+                class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors flex items-center gap-1.5"
+              >
+                <span>⬇️</span>
+                <span>{{ t('creativeStudio.downloadSvg') }}</span>
+              </a>
+              <button 
+                v-else-if="selectedAsset.file_type === 'graphic_card' && selectedAsset.metadata?.svg_markup"
                 @click="downloadSvg(selectedAsset)"
                 class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors flex items-center gap-1.5"
               >
@@ -191,19 +210,56 @@
             </div>
           </div>
 
-          <!-- Preview Display: SVG Card Render -->
-          <div v-if="selectedAsset.file_type === 'graphic_card' && selectedAsset.metadata?.svg_markup" class="space-y-3">
-            <div class="p-4 rounded-2xl bg-slate-950/90 border border-slate-800/80 flex items-center justify-center overflow-hidden">
+          <!-- Preview Display: AI Image or SVG Graphic -->
+          <div v-if="selectedAsset.file_type === 'image' || selectedAsset.file_type === 'graphic_card'" class="space-y-4">
+            <!-- Mode Indicator Badge -->
+            <div class="flex items-center justify-between">
               <div 
+                v-if="selectedAsset.metadata?.mode === 'ai_generated'"
+                class="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold flex items-center gap-1.5"
+              >
+                <span>✨</span>
+                <span>{{ currentLocale === 'ar' ? 'صورة حقيقية مولدة بالذكاء الاصطناعي (Imagen AI)' : 'AI-Generated Image (Imagen)' }}</span>
+              </div>
+              <div 
+                v-else
+                class="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-bold flex items-center gap-1.5"
+              >
+                <span>⚠️</span>
+                <span>{{ currentLocale === 'ar' ? 'قالب بديل عالي التباين (Fallback Mode)' : 'High-Contrast Fallback Template' }}</span>
+              </div>
+
+              <span class="text-[11px] text-slate-400 font-mono">
+                Ratio: {{ selectedAsset.aspect_ratio }} • {{ selectedAsset.visual_style }}
+              </span>
+            </div>
+
+            <!-- Main Image Render Card -->
+            <div class="p-4 rounded-3xl bg-slate-950/90 border border-slate-800/80 flex items-center justify-center overflow-hidden min-h-[360px]">
+              <!-- Real AI Image -->
+              <img 
+                v-if="selectedAsset.public_url && (selectedAsset.file_type === 'image' || selectedAsset.mime_type === 'image/jpeg' || selectedAsset.mime_type === 'image/png')"
+                :src="selectedAsset.public_url" 
+                :alt="selectedAsset.title"
+                class="max-w-xl max-h-[520px] w-auto h-auto rounded-2xl shadow-2xl object-contain border border-slate-800"
+              />
+              <!-- SVG Fallback Render -->
+              <div 
+                v-else-if="selectedAsset.metadata?.svg_markup"
                 v-html="selectedAsset.metadata.svg_markup" 
                 class="max-w-md w-full shadow-2xl rounded-2xl overflow-hidden"
               ></div>
             </div>
 
-            <!-- AI Visual Prompt Details -->
+            <!-- Visual Brief / AI Prompt Explanation -->
             <div v-if="selectedAsset.prompt_used" class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/60 text-xs space-y-1.5">
-              <span class="font-bold text-slate-400">AI Prompt Synthesis:</span>
-              <p class="text-slate-300 leading-relaxed">{{ selectedAsset.prompt_used }}</p>
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-400">{{ currentLocale === 'ar' ? 'برومبت التوليد والهوية المدمجة:' : 'Visual Synthesis & Identity Directives:' }}</span>
+                <span v-if="selectedAsset.metadata?.latency_ms" class="text-[10px] text-slate-500 font-mono">
+                  Latency: {{ selectedAsset.metadata.latency_ms }}ms
+                </span>
+              </div>
+              <p class="text-slate-300 leading-relaxed whitespace-pre-line">{{ selectedAsset.prompt_used }}</p>
             </div>
           </div>
 
@@ -330,10 +386,11 @@
                 v-model="visualForm.visual_style"
                 class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500/50"
               >
-                <option value="branded_quote">Branded Quote / Framework Card</option>
-                <option value="product_spotlight">Feature / Offer Spotlight</option>
-                <option value="metric_card">Statistics / ROI Badge</option>
-                <option value="gradient_banner">Modern Gradient Banner</option>
+                <option value="product_showcase">🛍️ Product Showcase (Commercial Studio)</option>
+                <option value="lifestyle_scene">☕ Lifestyle & Audience Environment</option>
+                <option value="promotional_banner">🏷️ Bold Promotional Campaign Banner</option>
+                <option value="quote_card">💬 Editorial Quote / Authority Framework Card</option>
+                <option value="infographic_style">📊 Modern Glassmorphism Infographic</option>
               </select>
             </div>
           </div>
@@ -643,6 +700,43 @@ async function handleGenerateVisual() {
     }
   } catch (err) {
     console.error('Visual generation error', err);
+  } finally {
+    generating.value = false;
+  }
+}
+
+async function handleRegenerateVariation(asset: any) {
+  if (!props.authToken || !asset) return;
+  generating.value = true;
+
+  try {
+    const res = await fetch('/api/v1/creative/generate', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        content_post_id: asset.content_post_id,
+        title: asset.title,
+        hook: asset.text_overlay,
+        aspect_ratio: asset.aspect_ratio,
+        visual_style: asset.visual_style || 'product_showcase',
+        is_regeneration: true,
+        avoid_prompt: asset.prompt_used || undefined,
+      }),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      await fetchAssets();
+      if (json.data) {
+        selectAsset(json.data);
+      }
+      alert(currentLocale.value === 'ar' ? 'تم توليد نسخة إبداعية جديدة بنجاح!' : 'New creative variation generated successfully!');
+    } else {
+      const err = await res.json();
+      alert(err.message || 'Regeneration failed');
+    }
+  } catch (err) {
+    console.error('Regeneration error', err);
   } finally {
     generating.value = false;
   }

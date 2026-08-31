@@ -513,4 +513,63 @@ class BrandApplicationService
 
         return true;
     }
+
+    /**
+     * Upload one or more images for a specific product/service.
+     */
+    public function uploadProductImages(TenantContext $context, int $productId, array $files): Collection
+    {
+        TenantIsolationGuard::assertPermission($context, 'brand.update');
+
+        $product = $this->productRepository->findByIdForOrganization($context->organizationId, $productId);
+        if (!$product) {
+            throw new NotFoundHttpException('Product not found.');
+        }
+
+        $results = collect();
+        foreach ($files as $file) {
+            $path = $file->store("brand-assets/{$context->organizationId}/products", 'public');
+
+            $asset = BrandAssetModel::create([
+                'organization_id' => $context->organizationId,
+                'brand_profile_id' => $context->brandId ?? $product->brand_profile_id,
+                'product_service_id' => $product->id,
+                'name' => $file->getClientOriginalName(),
+                'type' => 'product_image',
+                'file_path' => $path,
+                'mime_type' => $file->getMimeType() ?: 'image/jpeg',
+                'file_size' => $file->getSize() ?: 0,
+                'is_public' => true,
+                'metadata' => [
+                    'original_name' => $file->getClientOriginalName(),
+                ],
+            ]);
+
+            $asset->public_url = Storage::disk('public')->url($path);
+            $results->push($asset);
+        }
+
+        return $results;
+    }
+
+    /**
+     * Delete a specific product image.
+     */
+    public function deleteProductImage(TenantContext $context, int $productId, int $assetId): bool
+    {
+        TenantIsolationGuard::assertPermission($context, 'brand.update');
+
+        $asset = BrandAssetModel::where('organization_id', $context->organizationId)
+            ->where('product_service_id', $productId)
+            ->where('id', $assetId)
+            ->firstOrFail();
+
+        if ($asset->file_path && Storage::disk('public')->exists($asset->file_path)) {
+            Storage::disk('public')->delete($asset->file_path);
+        }
+
+        $asset->delete();
+
+        return true;
+    }
 }

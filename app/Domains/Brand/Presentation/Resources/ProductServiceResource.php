@@ -20,6 +20,14 @@ class ProductServiceResource extends JsonResource
             'url' => $this->url,
             'features' => $this->features ?? [],
             'status' => $this->status,
+            'images' => $this->images ? $this->images->map(function ($img) {
+                return [
+                    'id' => $img->id,
+                    'name' => $img->name,
+                    'file_path' => $img->file_path,
+                    'public_url' => $img->file_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($img->file_path) : null,
+                ];
+            }) : [],
         ];
     }
 }

@@ -79,6 +79,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/products', [BrandController::class, 'storeProduct'])->name('api.v1.brand.products.store');
             Route::patch('/products/{product}', [BrandController::class, 'updateProduct'])->name('api.v1.brand.products.update');
             Route::delete('/products/{product}', [BrandController::class, 'deleteProduct'])->name('api.v1.brand.products.destroy');
+            Route::post('/products/{product}/images', [BrandController::class, 'uploadProductImages'])->name('api.v1.brand.products.images.store');
+            Route::delete('/products/{product}/images/{asset}', [BrandController::class, 'deleteProductImage'])->name('api.v1.brand.products.images.destroy');
 
             // Target Audiences
             Route::get('/audiences', [BrandController::class, 'listAudiences'])->name('api.v1.brand.audiences.index');

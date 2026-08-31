@@ -65,9 +65,17 @@ class CreativeController extends Controller
             'content_post_id' => ['nullable', 'integer'],
             'title' => ['nullable', 'string', 'max:255'],
             'hook' => ['nullable', 'string'],
-            'visual_style' => ['nullable', 'string', Rule::in(['branded_quote', 'product_spotlight', 'metric_card', 'gradient_banner'])],
+            'visual_style' => ['nullable', 'string', Rule::in([
+                'product_showcase', 'lifestyle_scene', 'promotional_banner', 'quote_card', 
+                'infographic_style', 'branded_quote', 'product_spotlight', 'metric_card', 
+                'gradient_banner', 'card_graphic'
+            ])],
             'aspect_ratio' => ['nullable', 'string', Rule::in(['1:1', '4:5', '9:16', '16:9'])],
             'color_palette' => ['nullable', 'array'],
+            'visual_brief' => ['nullable', 'array'],
+            'product_id' => ['nullable', 'integer'],
+            'is_regeneration' => ['nullable', 'boolean'],
+            'avoid_prompt' => ['nullable', 'string', 'max:500'],
         ]);
 
         $asset = $this->creativeService->generateVisual($tenantContext, $params);

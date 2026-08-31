@@ -470,23 +470,71 @@
 
       <!-- Products Grid -->
       <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div v-for="prod in products" :key="prod.id" class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-start justify-between gap-4 hover:border-emerald-500/30 transition-all">
-          <div class="space-y-1.5 flex-1">
-            <div class="flex items-center gap-2">
-              <h4 class="font-bold text-xs text-white">{{ prod.name }}</h4>
-              <span class="px-2 py-0.5 text-[9px] font-bold rounded uppercase" :class="prod.type === 'service' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'">
-                {{ prod.type }}
-              </span>
-              <span v-if="prod.category" class="text-[10px] text-slate-500 font-mono">• {{ prod.category }}</span>
+        <div v-for="prod in products" :key="prod.id" class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3 hover:border-emerald-500/30 transition-all">
+          <div class="flex items-start justify-between gap-4">
+            <div class="space-y-1.5 flex-1">
+              <div class="flex items-center gap-2">
+                <h4 class="font-bold text-xs text-white">{{ prod.name }}</h4>
+                <span class="px-2 py-0.5 text-[9px] font-bold rounded uppercase" :class="prod.type === 'service' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'">
+                  {{ prod.type }}
+                </span>
+                <span v-if="prod.category" class="text-[10px] text-slate-500 font-mono">• {{ prod.category }}</span>
+              </div>
+              <p class="text-[11px] text-slate-400 leading-relaxed">{{ prod.description || 'No description provided.' }}</p>
+              <div v-if="prod.price" class="text-xs font-mono text-emerald-400 font-bold">
+                {{ prod.price }} {{ prod.currency || 'SAR' }}
+              </div>
             </div>
-            <p class="text-[11px] text-slate-400 leading-relaxed">{{ prod.description || 'No description provided.' }}</p>
-            <div v-if="prod.price" class="mt-2 text-xs font-mono text-emerald-400 font-bold">
-              {{ prod.price }} {{ prod.currency || 'SAR' }}
+            <button @click="deleteProduct(prod.id)" class="text-slate-500 hover:text-red-400 text-xs p-1 rounded-lg hover:bg-slate-900 transition-colors" title="Delete">
+              🗑️
+            </button>
+          </div>
+
+          <!-- Product Images Gallery & Uploader (Phase J) -->
+          <div class="pt-2 border-t border-slate-900 space-y-2">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="font-bold text-slate-300 flex items-center gap-1.5">
+                <span>🖼️</span>
+                <span>{{ currentLocale === 'ar' ? 'صور المنتج (مراجع للذكاء الاصطناعي)' : 'Product Reference Images' }}</span>
+                <span v-if="prod.images && prod.images.length" class="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] font-mono">
+                  {{ prod.images.length }}
+                </span>
+              </span>
+
+              <label class="cursor-pointer text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
+                <input 
+                  type="file" 
+                  multiple 
+                  accept="image/png,image/jpeg,image/webp" 
+                  class="hidden" 
+                  @change="handleProductImageUpload($event, prod.id)" 
+                />
+                <span v-if="uploadingProductId === prod.id">⏳ {{ currentLocale === 'ar' ? 'جاري الرفع...' : 'Uploading...' }}</span>
+                <span v-else>➕ {{ currentLocale === 'ar' ? 'رفع صور' : 'Upload Images' }}</span>
+              </label>
+            </div>
+
+            <!-- Image Thumbnails -->
+            <div v-if="prod.images && prod.images.length" class="flex flex-wrap gap-2">
+              <div 
+                v-for="img in prod.images" 
+                :key="img.id" 
+                class="relative group w-14 h-14 rounded-xl overflow-hidden border border-slate-800 bg-slate-900 flex items-center justify-center"
+              >
+                <img :src="img.public_url" :alt="img.name" class="w-full h-full object-cover" />
+                <button 
+                  @click="handleDeleteProductImage(prod.id, img.id)" 
+                  class="absolute inset-0 bg-red-950/80 text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                  title="Delete image"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div v-else class="text-[10px] text-slate-500 italic">
+              {{ currentLocale === 'ar' ? 'لا توجد صور مرفوعة بعد (ارفع صور المنتج لتوجيه توليد المنشورات البصرية بدقة).' : 'No images uploaded yet. Upload product photos for grounded visual generation.' }}
             </div>
           </div>
-          <button @click="deleteProduct(prod.id)" class="text-slate-500 hover:text-red-400 text-xs p-1 rounded-lg hover:bg-slate-900 transition-colors" title="Delete">
-            🗑️
-          </button>
         </div>
       </div>
     </div>
@@ -1062,6 +1110,44 @@ const createAudience = async () => {
     alert(err.response?.data?.message || 'Failed to create audience persona.');
   } finally {
     modalSaving.value = false;
+  }
+};
+
+const uploadingProductId = ref<number | null>(null);
+
+const handleProductImageUpload = async (event: Event, productId: number) => {
+  const target = event.target as HTMLInputElement;
+  if (!target.files || target.files.length === 0) return;
+
+  const formData = new FormData();
+  for (let i = 0; i < target.files.length; i++) {
+    formData.append('images[]', target.files[i]);
+  }
+
+  uploadingProductId.value = productId;
+  try {
+    await axios.post(`/api/v1/brand/products/${productId}/images`, formData, {
+      headers: {
+        ...getHeaders(),
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    await fetchBrandBrain();
+  } catch (err: any) {
+    alert(err.response?.data?.message || 'Failed to upload product image(s).');
+  } finally {
+    uploadingProductId.value = null;
+    target.value = '';
+  }
+};
+
+const handleDeleteProductImage = async (productId: number, assetId: number) => {
+  if (!confirm('Delete this product image reference?')) return;
+  try {
+    await axios.delete(`/api/v1/brand/products/${productId}/images/${assetId}`, { headers: getHeaders() });
+    await fetchBrandBrain();
+  } catch (err) {
+    console.error('Failed to delete product image', err);
   }
 };
 

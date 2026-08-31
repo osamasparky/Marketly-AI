@@ -367,6 +367,110 @@ class GeminiAIProvider implements AIProviderInterface
         }
     }
 
+    /**
+     * Generate visual marketing image using Imagen / Gemini image generation.
+     */
+    public function generateImage(string $prompt, array $options = []): AIStructuredOutput
+    {
+        if (!$this->isConfigured()) {
+            return new AIStructuredOutput(
+                success: false,
+                data: [],
+                errorMessage: 'Gemini API key is not configured.'
+            );
+        }
+
+        $startTime = microtime(true);
+        $aspectRatio = $options['aspect_ratio'] ?? '1:1';
+        $orgId = $options['org_id'] ?? 'default';
+        $brandId = $options['brand_id'] ?? 'default';
+        $imageModel = $options['image_model'] ?? config('services.gemini.image_model', 'imagen-3.0-generate-002');
+
+        // Map aspect ratio to valid Imagen enum
+        $validAspectRatios = ['1:1', '9:16', '16:9', '4:3', '3:4'];
+        $aspectRatioParam = in_array($aspectRatio, $validAspectRatios, true) ? $aspectRatio : '1:1';
+
+        try {
+            $response = Http::timeout(60)
+                ->withHeaders(['Content-Type' => 'application/json'])
+                ->post("{$this->baseUrl}/models/{$imageModel}:predict?key={$this->apiKey}", [
+                    'instances' => [
+                        ['prompt' => $prompt],
+                    ],
+                    'parameters' => [
+                        'sampleCount' => 1,
+                        'aspectRatio' => $aspectRatioParam,
+                        'outputOptions' => [
+                            'mimeType' => 'image/jpeg',
+                        ],
+                    ],
+                ]);
+
+            $latencyMs = (int) round((microtime(true) - $startTime) * 1000);
+
+            if (!$response->successful()) {
+                $errorBody = $response->json();
+                $errorMsg = $errorBody['error']['message'] ?? $response->body();
+                Log::warning('Gemini AI image generation failed', ['status' => $response->status(), 'error' => $errorMsg]);
+
+                return new AIStructuredOutput(
+                    success: false,
+                    data: [],
+                    usage: new GenerationUsage(latencyMs: $latencyMs),
+                    errorMessage: "Gemini Image API Error ({$response->status()}): {$errorMsg}"
+                );
+            }
+
+            $json = $response->json();
+            $base64Data = $json['predictions'][0]['bytesBase64Encoded']
+                ?? $json['predictions'][0]['image']['bytesBase64Encoded']
+                ?? $json['candidates'][0]['content']['parts'][0]['inlineData']['data']
+                ?? null;
+
+            if (empty($base64Data)) {
+                return new AIStructuredOutput(
+                    success: false,
+                    data: [],
+                    usage: new GenerationUsage(latencyMs: $latencyMs),
+                    errorMessage: 'No image data returned from Gemini Image API.'
+                );
+            }
+
+            $imageBytes = base64_decode($base64Data);
+            $fileName = 'asset_' . uniqid() . '_' . str_replace(':', 'x', $aspectRatio) . '.jpg';
+            $storageDir = "creative-assets/{$orgId}/{$brandId}";
+            $storagePath = "{$storageDir}/{$fileName}";
+
+            \Illuminate\Support\Facades\Storage::disk('public')->put($storagePath, $imageBytes);
+            $publicUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($storagePath);
+
+            return new AIStructuredOutput(
+                success: true,
+                data: [
+                    'file_name' => $fileName,
+                    'file_path' => $storagePath,
+                    'image_url' => $publicUrl,
+                    'mime_type' => 'image/jpeg',
+                    'file_size_bytes' => strlen($imageBytes),
+                    'aspect_ratio' => $aspectRatio,
+                    'mode' => 'ai_generated',
+                    'prompt' => $prompt,
+                ],
+                usage: new GenerationUsage(latencyMs: $latencyMs, meta: ['model' => $imageModel])
+            );
+        } catch (Throwable $e) {
+            $latencyMs = (int) round((microtime(true) - $startTime) * 1000);
+            Log::error('Gemini AI generateImage exception', ['error' => $e->getMessage()]);
+
+            return new AIStructuredOutput(
+                success: false,
+                data: [],
+                usage: new GenerationUsage(latencyMs: $latencyMs),
+                errorMessage: $e->getMessage()
+            );
+        }
+    }
+
     private function extractUsage(array $json, int $latencyMs): GenerationUsage
     {
         $usageMeta = $json['usageMetadata'] ?? [];

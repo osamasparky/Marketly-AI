@@ -43,4 +43,9 @@ class BrandProductServiceModel extends Model
     {
         return $this->belongsTo(BrandProfileModel::class, 'brand_profile_id');
     }
+
+    public function images(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(BrandAssetModel::class, 'product_service_id')->where('type', 'product_image');
+    }
 }

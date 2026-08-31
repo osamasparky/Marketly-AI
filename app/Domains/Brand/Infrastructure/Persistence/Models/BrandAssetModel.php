@@ -16,6 +16,7 @@ class BrandAssetModel extends Model
     protected $fillable = [
         'organization_id',
         'brand_profile_id',
+        'product_service_id',
         'name',
         'type',
         'file_path',
@@ -39,5 +40,10 @@ class BrandAssetModel extends Model
     public function brandProfile(): BelongsTo
     {
         return $this->belongsTo(BrandProfileModel::class, 'brand_profile_id');
+    }
+
+    public function productService(): BelongsTo
+    {
+        return $this->belongsTo(BrandProductServiceModel::class, 'product_service_id');
     }
 }

@@ -59,4 +59,13 @@ interface AIProviderInterface
      * @return AIStructuredOutput
      */
     public function callWithTools(string $prompt, array $tools, array $options = []): AIStructuredOutput;
+
+    /**
+     * Generate visual marketing image from prompt.
+     *
+     * @param string $prompt
+     * @param array<string, mixed> $options
+     * @return AIStructuredOutput
+     */
+    public function generateImage(string $prompt, array $options = []): AIStructuredOutput;
 }

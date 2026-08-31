@@ -193,6 +193,40 @@ class BrandController extends Controller
         return ApiResponse::success(null, ['message' => 'Product deleted successfully.']);
     }
 
+    public function uploadProductImages(Request $request, int $product): JsonResponse
+    {
+        $request->validate([
+            'images' => 'required|array|min:1|max:5',
+            'images.*' => 'required|file|mimes:jpg,jpeg,png,webp|max:5120',
+        ]);
+
+        $uploaded = $this->brandService->uploadProductImages(
+            $this->getContext($request),
+            $product,
+            $request->file('images')
+        );
+
+        return ApiResponse::success(
+            data: ['images' => $uploaded],
+            meta: ['message' => 'Product image(s) uploaded successfully.'],
+            status: 201
+        );
+    }
+
+    public function deleteProductImage(Request $request, int $product, int $asset): JsonResponse
+    {
+        $this->brandService->deleteProductImage(
+            $this->getContext($request),
+            $product,
+            $asset
+        );
+
+        return ApiResponse::success(
+            data: null,
+            meta: ['message' => 'Product image deleted.']
+        );
+    }
+
     /**
      * Target Audience CRUD
      */

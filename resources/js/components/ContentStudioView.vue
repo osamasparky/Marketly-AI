@@ -283,23 +283,65 @@
               </div>
             </div>
 
-            <!-- Visual Brief & Design Prompt -->
-            <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-2">
-              <div class="flex items-center justify-between text-xs">
-                <span class="font-bold text-slate-300 flex items-center gap-1.5">
-                  <span>🎨</span> {{ t('contentStudio.editor.visualBriefLabel') }}
-                </span>
-                <button 
-                  @click="regenerateComponent('visual_brief')"
-                  :disabled="actionLoading"
-                  class="text-[11px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
-                >
-                  <span>🔄</span> {{ t('contentStudio.editor.regenerateVisual') }}
-                </button>
+            <!-- Visual Brief & Direct AI Image Generator (Phase I) -->
+            <div v-if="selectedPost.visual_brief" class="p-4 rounded-2xl bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">🎨</span>
+                  <span class="text-xs font-bold text-white">{{ currentLocale === 'ar' ? 'الموجه البصري المقترح (Visual Brief)' : 'AI Visual Brief' }}</span>
+                  <span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                    {{ selectedPost.visual_brief.type || 'product_showcase' }}
+                  </span>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                  <button 
+                    @click="regenerateComponent('visual_brief')"
+                    :disabled="actionLoading"
+                    class="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1"
+                  >
+                    <span>🔄</span>
+                  </button>
+                  <button 
+                    @click="handleGenerateVisualForPost(selectedPost)"
+                    :disabled="generatingVisualPostId === selectedPost.id"
+                    class="tactile-btn tactile-btn-primary px-3 py-1.5 text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-950/40"
+                  >
+                    <span v-if="generatingVisualPostId === selectedPost.id" class="animate-spin">⏳</span>
+                    <span v-else>✨</span>
+                    <span>{{ generatingVisualPostId === selectedPost.id ? (currentLocale === 'ar' ? 'جاري التوليد...' : 'Generating...') : (currentLocale === 'ar' ? 'ولّد الصورة المقترحة' : 'Generate Proposed Image') }}</span>
+                  </button>
+                </div>
               </div>
-              <p class="text-xs text-slate-300 leading-relaxed">{{ selectedPost.visual_brief?.description }}</p>
-              <div v-if="selectedPost.visual_brief?.suggested_text_overlay" class="text-[11px] text-amber-300 bg-amber-950/30 p-2 rounded-lg border border-amber-500/20">
-                📌 <strong>Text Overlay:</strong> {{ selectedPost.visual_brief.suggested_text_overlay }}
+
+              <p class="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-3 rounded-xl border border-slate-800/60">
+                {{ selectedPost.visual_brief.description }}
+              </p>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                <div class="p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/40 space-y-0.5">
+                  <span class="text-slate-400 font-bold">Text Overlay:</span>
+                  <p class="text-slate-200 font-medium truncate">{{ selectedPost.visual_brief.suggested_text_overlay || selectedPost.title }}</p>
+                </div>
+                <div class="p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/40 space-y-0.5">
+                  <span class="text-slate-400 font-bold">Color Notes:</span>
+                  <p class="text-slate-200 font-medium truncate">{{ selectedPost.visual_brief.color_notes || 'Brand Palette' }}</p>
+                </div>
+              </div>
+
+              <!-- Attached Visual Preview -->
+              <div v-if="postVisualAssets[selectedPost.id]" class="pt-3 border-t border-slate-800/80 flex items-center gap-3 bg-slate-950/40 p-3 rounded-xl">
+                <div class="w-16 h-16 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 flex-shrink-0 flex items-center justify-center">
+                  <img v-if="postVisualAssets[selectedPost.id].public_url" :src="postVisualAssets[selectedPost.id].public_url" class="w-full h-full object-cover" />
+                  <div v-else-if="postVisualAssets[selectedPost.id].metadata?.svg_markup" v-html="postVisualAssets[selectedPost.id].metadata.svg_markup" class="w-full h-full scale-50"></div>
+                </div>
+                <div class="space-y-1 flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-emerald-400">✓ {{ currentLocale === 'ar' ? 'تم توليد الصورة وربطها' : 'Visual Asset Attached' }}</span>
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-slate-800 text-slate-300">{{ postVisualAssets[selectedPost.id].aspect_ratio }}</span>
+                  </div>
+                  <p class="text-[10px] text-slate-400 truncate">{{ postVisualAssets[selectedPost.id].title }}</p>
+                </div>
               </div>
             </div>
 
@@ -882,6 +924,42 @@ async function fetchPostDetails(postId: number) {
   if (res.ok) {
     const json = await res.json();
     selectPost(json.data);
+  }
+}
+
+const generatingVisualPostId = ref<number | null>(null);
+const postVisualAssets = ref<Record<number, any>>({});
+
+async function handleGenerateVisualForPost(post: any) {
+  if (!props.authToken || !post) return;
+  generatingVisualPostId.value = post.id;
+
+  try {
+    const res = await fetch('/api/v1/creative/generate', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        content_post_id: post.id,
+        title: post.title,
+        hook: post.hook,
+        visual_style: post.visual_brief?.type || 'product_showcase',
+        aspect_ratio: post.primary_platform === 'instagram' ? '1:1' : (post.primary_platform === 'tiktok' ? '9:16' : '16:9'),
+        visual_brief: post.visual_brief,
+      }),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      postVisualAssets.value[post.id] = json.data;
+      alert(currentLocale.value === 'ar' ? 'تم توليد وتصميم الصورة المقترحة وربطها بالمنشور بنجاح!' : 'Proposed visual asset generated and attached successfully!');
+    } else {
+      const err = await res.json();
+      alert(err.message || 'Failed to generate visual asset.');
+    }
+  } catch (err: any) {
+    alert(err.message || 'Error communicating with visual generator.');
+  } finally {
+    generatingVisualPostId.value = null;
   }
 }
 

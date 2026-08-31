@@ -13,6 +13,7 @@ use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Services\TenantIsolationGuard;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CreativeApplicationService
 {
@@ -98,8 +99,12 @@ class CreativeApplicationService
         $postId = isset($params['content_post_id']) ? (int) $params['content_post_id'] : null;
         $title = $params['title'] ?? null;
         $hook = $params['hook'] ?? null;
+        $visualBrief = $params['visual_brief'] ?? null;
+        $productId = isset($params['product_id']) ? (int) $params['product_id'] : null;
+        $isRegeneration = !empty($params['is_regeneration']);
+        $avoidPrompt = $params['avoid_prompt'] ?? null;
 
-        // If grounded in a content post, pull title & hook from post
+        // If grounded in a content post, pull title, hook, and visual_brief from post
         if ($postId) {
             $post = ContentPostModel::where('organization_id', $context->organizationId)
                 ->where('id', $postId)
@@ -107,15 +112,26 @@ class CreativeApplicationService
 
             $title = $title ?: $post->title;
             $hook = $hook ?: ($post->hook ?: mb_substr($post->caption, 0, 100));
+            $visualBrief = $visualBrief ?: $post->visual_brief;
+            if (!$productId && !empty($post->metadata['product_id'])) {
+                $productId = (int) $post->metadata['product_id'];
+            }
         }
+
+        $visualStyle = $params['visual_style'] ?? ($visualBrief['type'] ?? 'product_showcase');
 
         $visualParams = $this->promptBuilder->build(
             organizationId: $context->organizationId,
+            brandProfileId: $context->brandId,
             title: $title,
             hook: $hook,
-            visualStyle: $params['visual_style'] ?? 'branded_quote',
+            visualStyle: $visualStyle,
             aspectRatio: $params['aspect_ratio'] ?? '1:1',
-            customPalette: $params['color_palette'] ?? null
+            customPalette: $params['color_palette'] ?? null,
+            visualBrief: $visualBrief,
+            productId: $productId,
+            isRegeneration: $isRegeneration,
+            avoidPrompt: $avoidPrompt
         );
 
         $generated = $this->visualGenerator->generate($visualParams);
@@ -129,7 +145,7 @@ class CreativeApplicationService
                 'title' => $visualParams['title'] ?: 'Generated Graphic',
                 'file_name' => $generated['file_name'],
                 'file_path' => $generated['file_path'] ?? ('media/' . $generated['file_name']),
-                'file_type' => $generated['file_type'] ?? 'graphic_card',
+                'file_type' => $generated['file_type'] ?? 'image',
                 'mime_type' => $generated['mime_type'],
                 'file_size_bytes' => $generated['file_size_bytes'],
                 'width' => $generated['width'],
@@ -150,6 +166,8 @@ class CreativeApplicationService
                 entityType: 'media_asset',
                 entityId: (string) $asset->id
             );
+
+            $asset->public_url = Storage::disk('public')->url($asset->file_path);
 
             return $asset;
         });

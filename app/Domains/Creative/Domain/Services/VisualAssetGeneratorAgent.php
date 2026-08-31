@@ -2,10 +2,18 @@
 
 namespace App\Domains\Creative\Domain\Services;
 
+use App\AI\Contracts\AIProviderInterface;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+
 class VisualAssetGeneratorAgent
 {
+    public function __construct(
+        private readonly ?AIProviderInterface $aiProvider = null
+    ) {}
+
     /**
-     * Generate structured visual graphic asset with SVG markup and AI prompt payload.
+     * Generate visual marketing asset using AI generation with declared SVG fallback.
      */
     public function generate(array $parameters): array
     {
@@ -14,8 +22,11 @@ class VisualAssetGeneratorAgent
         $hook = htmlspecialchars($parameters['hook'] ?? 'Key takeaways to scale faster.');
         $palette = $parameters['color_palette'] ?? [];
         $dims = $parameters['dimensions'] ?? ['width' => 1080, 'height' => 1080];
-        $style = $parameters['visual_style'] ?? 'branded_quote';
+        $style = $parameters['visual_style'] ?? 'product_showcase';
         $aspectRatio = $parameters['aspect_ratio'] ?? '1:1';
+        $orgId = $parameters['organization_id'] ?? 'default';
+        $brandId = $parameters['brand_profile_id'] ?? 'default';
+        $aiPrompt = $parameters['ai_prompt'] ?? '';
 
         $w = (int) $dims['width'];
         $h = (int) $dims['height'];
@@ -26,7 +37,56 @@ class VisualAssetGeneratorAgent
         $textPrimary = $palette['text_primary'] ?? '#ffffff';
         $textMuted = $palette['text_muted'] ?? '#94a3b8';
 
-        // Render crisp SVG graphic based on visual style
+        // 1. Attempt Real AI Image Generation via connected Provider
+        if ($this->aiProvider?->isConfigured() && !empty($aiPrompt)) {
+            try {
+                $aiResult = $this->aiProvider->generateImage($aiPrompt, [
+                    'aspect_ratio' => $aspectRatio,
+                    'org_id' => $orgId,
+                    'brand_id' => $brandId,
+                    'temperature' => 0.85,
+                ]);
+
+                if ($aiResult->success && !empty($aiResult->data['file_path'])) {
+                    return [
+                        'file_name' => $aiResult->data['file_name'],
+                        'file_path' => $aiResult->data['file_path'],
+                        'file_type' => 'image',
+                        'mime_type' => $aiResult->data['mime_type'] ?? 'image/jpeg',
+                        'file_size_bytes' => $aiResult->data['file_size_bytes'] ?? 0,
+                        'width' => $w,
+                        'height' => $h,
+                        'aspect_ratio' => $aspectRatio,
+                        'visual_style' => $style,
+                        'prompt_used' => $aiPrompt,
+                        'text_overlay' => $hook,
+                        'color_palette' => $palette,
+                        'metadata' => [
+                            'mode' => 'ai_generated',
+                            'image_url' => $aiResult->data['image_url'] ?? null,
+                            'visual_brief' => $parameters['visual_brief'] ?? null,
+                            'latency_ms' => $aiResult->usage?->latencyMs,
+                            'negative_prompt' => $parameters['negative_prompt'] ?? null,
+                        ],
+                        'status' => 'ready',
+                    ];
+                }
+
+                Log::warning('VisualAssetGeneratorAgent: AI image generation failed, using declared fallback', [
+                    'error' => $aiResult->errorMessage,
+                ]);
+                $fallbackReason = $aiResult->errorMessage;
+            } catch (\Throwable $e) {
+                Log::warning('VisualAssetGeneratorAgent: Exception during AI image generation', [
+                    'error' => $e->getMessage(),
+                ]);
+                $fallbackReason = $e->getMessage();
+            }
+        } else {
+            $fallbackReason = 'AI image provider is not configured. Generated using high-contrast branded SVG template.';
+        }
+
+        // 2. Declared Fallback: Render crisp SVG Card
         $svgMarkup = $this->renderSvgCard(
             width: $w,
             height: $h,
@@ -42,9 +102,19 @@ class VisualAssetGeneratorAgent
         );
 
         $fileName = 'asset_' . uniqid() . '_' . str_replace(':', 'x', $aspectRatio) . '.svg';
+        $storageDir = "creative-assets/{$orgId}/{$brandId}";
+        $storagePath = "{$storageDir}/{$fileName}";
+
+        try {
+            Storage::disk('public')->put($storagePath, $svgMarkup);
+            $publicUrl = Storage::disk('public')->url($storagePath);
+        } catch (\Throwable $e) {
+            $publicUrl = null;
+        }
 
         return [
             'file_name' => $fileName,
+            'file_path' => $storagePath,
             'file_type' => 'graphic_card',
             'mime_type' => 'image/svg+xml',
             'file_size_bytes' => strlen($svgMarkup),
@@ -52,11 +122,15 @@ class VisualAssetGeneratorAgent
             'height' => $h,
             'aspect_ratio' => $aspectRatio,
             'visual_style' => $style,
-            'prompt_used' => $parameters['ai_prompt'] ?? null,
+            'prompt_used' => $aiPrompt,
             'text_overlay' => $hook,
             'color_palette' => $palette,
             'metadata' => [
+                'mode' => 'svg_fallback',
+                'fallback_reason' => $fallbackReason ?? 'AI Provider offline / fallback mode',
                 'svg_markup' => $svgMarkup,
+                'image_url' => $publicUrl,
+                'visual_brief' => $parameters['visual_brief'] ?? null,
                 'layers' => [
                     ['name' => 'Background', 'type' => 'gradient_fill', 'colors' => [$bgColor, $cardBg]],
                     ['name' => 'Brand Header', 'type' => 'text_badge', 'content' => $businessName],
