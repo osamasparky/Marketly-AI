@@ -60,6 +60,8 @@ class SocialPublishingApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'social.connect');
 
+        $this->assertCanConnectSocialAccount($context, $platform);
+
         $adapter = $this->publisherFactory->make($platform);
         $state = base64_encode(json_encode([
             'org_id' => $context->organizationId,
@@ -78,6 +80,8 @@ class SocialPublishingApplicationService
     public function handleOAuthCallback(TenantContext $context, string $platform, string $code, string $callbackUrl): SocialAccountModel
     {
         TenantIsolationGuard::assertPermission($context, 'social.connect');
+
+        $this->assertCanConnectSocialAccount($context, $platform);
 
         $adapter = $this->publisherFactory->make($platform);
         $tokenData = $adapter->exchangeAuthorizationCode($code, $callbackUrl);
@@ -322,5 +326,43 @@ class SocialPublishingApplicationService
             'current_page' => $jobs->currentPage(),
             'last_page' => $jobs->lastPage(),
         ];
+    }
+
+    /**
+     * Assert that the organization subscription allows connecting social accounts.
+     */
+    private function assertCanConnectSocialAccount(TenantContext $context, string $platform, ?string $accountId = null): void
+    {
+        // Check if an account for this platform is already connected (re-authenticating/refreshing existing account)
+        $existingQuery = SocialAccountModel::where('organization_id', $context->organizationId)
+            ->where('platform', strtolower($platform))
+            ->where('is_active', true);
+
+        if ($accountId) {
+            $existingQuery->where('account_id', $accountId);
+        }
+
+        $existing = $existingQuery->first();
+        if ($existing) {
+            // Updating existing active account is allowed
+            return;
+        }
+
+        $subscription = $this->entitlementService->getOrCreateDefaultSubscription($context->organizationId);
+        $entitlement = $subscription->plan->entitlements()->where('feature_key', 'social_accounts')->first();
+
+        if (!$entitlement || !$entitlement->is_enabled) {
+            throw new HttpException(403, "Your current subscription plan ({$subscription->plan->name}) does not support connecting social media accounts. Please upgrade your plan.");
+        }
+
+        if ($entitlement->limit_count !== -1) {
+            $activeCount = SocialAccountModel::where('organization_id', $context->organizationId)
+                ->where('is_active', true)
+                ->count();
+
+            if ($activeCount >= $entitlement->limit_count) {
+                throw new HttpException(403, "You have reached your plan limit of {$entitlement->limit_count} connected social account(s). Please upgrade your subscription to connect more channels.");
+            }
+        }
     }
 }
