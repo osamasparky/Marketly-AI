@@ -308,7 +308,7 @@ class VisualAssetGeneratorAgent
     }
 
     /**
-     * Render modern, high-contrast SVG banner card with brand assets and luxury layout.
+     * Render modern, high-contrast SVG banner card with brand assets and 4-color palette harmony.
      */
     private function renderSvgCard(
         int $width,
@@ -325,6 +325,12 @@ class VisualAssetGeneratorAgent
         int|string $orgId = 'default',
         int|string $brandId = 'default'
     ): string {
+        $secondaryColor = $cardBg ?: '#064e3b';
+        $accentColor = '#34d399';
+        if (!empty($primaryColor) && $primaryColor !== '#10b981') {
+            $accentColor = $primaryColor;
+        }
+
         $cardWidth = (int) ($width * 0.90);
         $cardHeight = (int) ($height * 0.82);
         $cardX = (int) (($width - $cardWidth) / 2);
@@ -356,6 +362,7 @@ class VisualAssetGeneratorAgent
 
         // Try to get base64 encoded brand logo if available
         $logoSvgTag = '';
+        $hasLogo = false;
         if (is_numeric($orgId)) {
             try {
                 $logoQuery = \App\Domains\Brand\Infrastructure\Persistence\Models\BrandAssetModel::where('organization_id', (int) $orgId)
@@ -368,10 +375,22 @@ class VisualAssetGeneratorAgent
                     $logoBytes = Storage::disk('public')->get($logo->file_path);
                     $mime = $logo->mime_type ?: 'image/png';
                     $base64Logo = base64_encode($logoBytes);
-                    $logoX = $cardX + $cardWidth - 190;
-                    $logoSvgTag = "<image x=\"{$logoX}\" y=\"{$badgeY}\" width=\"140\" height=\"48\" href=\"data:{$mime};base64,{$base64Logo}\" preserveAspectRatio=\"xMidYMid meet\" />";
+                    $logoX = $cardX + $cardWidth - 200;
+                    $logoSvgTag = "<image x=\"{$logoX}\" y=\"{$badgeY}\" width=\"160\" height=\"52\" href=\"data:{$mime};base64,{$base64Logo}\" preserveAspectRatio=\"xMidYMid meet\" />";
+                    $hasLogo = true;
                 }
             } catch (\Throwable $e) {}
+        }
+
+        // Header element: Only show text badge if NO logo exists
+        $headerElement = '';
+        if (!$hasLogo) {
+            $headerElement = <<<HEADER
+  <g transform="translate({$badgeX}, {$badgeY})">
+    <rect width="200" height="44" rx="22" fill="{$secondaryColor}" fill-opacity="0.8" stroke="{$accentColor}" stroke-opacity="0.6" stroke-width="1.5" />
+    <text x="100" y="27" fill="{$textPrimary}" font-family="'Cairo', 'Inter', system-ui, sans-serif" font-size="15" font-weight="800" text-anchor="middle">{$businessName}</text>
+  </g>
+HEADER;
         }
 
         $tspanLines = '';
@@ -380,53 +399,70 @@ class VisualAssetGeneratorAgent
             $tspanLines .= "<tspan x=\"{$centerX}\" y=\"{$tspanY}\">{$line}</tspan>";
         }
 
+        $pillX = $centerX - 130;
+        $pillY = $titleY - 24;
+
         return <<<SVG
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {$width} {$height}" width="{$width}" height="{$height}">
   <defs>
+    <!-- Background Canvas Gradient: Blending Background (60%) with Secondary (30%) -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="{$bgColor}" />
-      <stop offset="50%" stop-color="{$cardBg}" />
+      <stop offset="60%" stop-color="{$secondaryColor}" />
       <stop offset="100%" stop-color="{$bgColor}" />
     </linearGradient>
-    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="{$primaryColor}" />
-      <stop offset="100%" stop-color="#34d399" />
+
+    <!-- Border Accent Gradient: Blending Primary and Accent (10%) -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="{$primaryColor}" stop-opacity="0.7" />
+      <stop offset="50%" stop-color="{$accentColor}" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="{$primaryColor}" stop-opacity="0.4" />
     </linearGradient>
-    <filter id="cardGlow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="{$primaryColor}" flood-opacity="0.2" />
+
+    <!-- Accent Pill Gradient -->
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="{$primaryColor}" />
+      <stop offset="100%" stop-color="{$accentColor}" />
+    </linearGradient>
+
+    <!-- 3D Specular Shadow Filter -->
+    <filter id="cardGlow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="28" stdDeviation="36" flood-color="{$primaryColor}" flood-opacity="0.22" />
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="{$accentColor}" flood-opacity="0.15" />
     </filter>
   </defs>
 
-  <!-- Background Base -->
+  <!-- Background Base Canvas -->
   <rect width="{$width}" height="{$height}" fill="url(#bgGrad)" />
 
-  <!-- Ambient Glow Circles -->
-  <circle cx="{$width}" cy="0" r="400" fill="{$primaryColor}" opacity="0.16" filter="blur(80px)" />
-  <circle cx="0" cy="{$height}" r="400" fill="{$primaryColor}" opacity="0.10" filter="blur(80px)" />
+  <!-- Multi-Color Ambient Radial Glows (Primary + Accent + Secondary) -->
+  <circle cx="{$width}" cy="0" r="420" fill="{$primaryColor}" opacity="0.18" filter="blur(90px)" />
+  <circle cx="0" cy="{$height}" r="420" fill="{$accentColor}" opacity="0.14" filter="blur(90px)" />
+  <circle cx="{$centerX}" cy="{$cardY}" r="260" fill="{$secondaryColor}" opacity="0.25" filter="blur(60px)" />
 
-  <!-- Central Card Box -->
-  <rect x="{$cardX}" y="{$cardY}" width="{$cardWidth}" height="{$cardHeight}" rx="36" fill="{$cardBg}" fill-opacity="0.85" stroke="{$primaryColor}" stroke-opacity="0.35" stroke-width="2" filter="url(#cardGlow)" />
+  <!-- Central Glassmorphism Card Box -->
+  <rect x="{$cardX}" y="{$cardY}" width="{$cardWidth}" height="{$cardHeight}" rx="36" fill="{$bgColor}" fill-opacity="0.78" stroke="url(#borderGrad)" stroke-width="2" filter="url(#cardGlow)" />
 
-  <!-- Brand Badge Top -->
-  <g transform="translate({$badgeX}, {$badgeY})">
-    <rect width="200" height="44" rx="22" fill="{$primaryColor}" fill-opacity="0.15" stroke="{$primaryColor}" stroke-opacity="0.45" stroke-width="1.5" />
-    <text x="100" y="27" fill="{$primaryColor}" font-family="'Cairo', 'Inter', system-ui, sans-serif" font-size="15" font-weight="800" text-anchor="middle">{$businessName}</text>
-  </g>
-
+  <!-- Brand Logo (or Fallback Text Badge if no logo) -->
+  {$headerElement}
   {$logoSvgTag}
 
-  <!-- Category Title -->
-  <text x="{$centerX}" y="{$titleY}" fill="{$textMuted}" font-family="'Cairo', 'Inter', system-ui, sans-serif" font-size="16" font-weight="600" text-anchor="middle" letter-spacing="1">{$title}</text>
+  <!-- Category Tag Pill (Secondary BG + Accent Text) -->
+  <g transform="translate({$pillX}, {$pillY})">
+    <rect width="260" height="34" rx="17" fill="{$secondaryColor}" fill-opacity="0.7" stroke="{$accentColor}" stroke-opacity="0.4" stroke-width="1.2" />
+    <text x="130" y="22" fill="{$accentColor}" font-family="'Cairo', 'Inter', system-ui, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0.5">{$title}</text>
+  </g>
 
-  <!-- Central Hook / Quote Text -->
+  <!-- Central Hook / Headline Text -->
   <text font-family="'Cairo', 'Alexandria', 'Inter', system-ui, sans-serif" font-size="38" font-weight="800" fill="{$textPrimary}" text-anchor="middle" letter-spacing="-0.5">
     {$tspanLines}
   </text>
 
-  <!-- Bottom Accent / CTA Bar -->
+  <!-- Bottom Visual Anchor & CTA Bar -->
   <g transform="translate({$badgeX}, {$footerY})">
-    <circle cx="16" cy="16" r="16" fill="url(#primaryGrad)" />
-    <text x="44" y="21" fill="{$textMuted}" font-family="'Cairo', 'Inter', system-ui, sans-serif" font-size="13" font-weight="600">هوية معتمدة • {$businessName}</text>
+    <circle cx="16" cy="16" r="14" fill="url(#accentGrad)" />
+    <line x1="42" y1="16" x2="160" y2="16" stroke="url(#borderGrad)" stroke-width="2.5" stroke-linecap="round" />
+    <text x="175" y="21" fill="{$textMuted}" font-family="'Cairo', 'Inter', system-ui, sans-serif" font-size="13" font-weight="600">تصميم معتمد بالهوية</text>
   </g>
 </svg>
 SVG;

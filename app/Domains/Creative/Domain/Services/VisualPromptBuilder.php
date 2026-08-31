@@ -114,19 +114,20 @@ class VisualPromptBuilder
         // 8. Assemble Ultra-High-Fidelity Prompt with Structural Brand Locking
         $lockedIdentity = "=== LOCKED BRAND IDENTITY (STRICT CONSTRAINTS) ===\n"
             . "- Brand: {$businessName} | Industry: {$industry}\n"
-            . "- Mandatory Palette: Primary ({$primaryColor} - {$primaryDesc}), Secondary ({$secondaryColor} - {$secondaryDesc}), Accent ({$accentColor} - {$accentDesc}), Background ({$bgColor} - {$bgDesc}).\n"
+            . "- Mandatory 4-Color Harmonic Palette: Primary ({$primaryColor} - {$primaryDesc}), Secondary ({$secondaryColor} - {$secondaryDesc}), Accent ({$accentColor} - {$accentDesc}), Background ({$bgColor} - {$bgDesc}).\n"
+            . "- Color Distribution Rule (60-30-10): 60% base deep atmosphere in {$bgDesc} and {$secondaryDesc}, 30% structural 3D objects and reflections in {$primaryDesc}, 10% radiant neon specular highlights in {$accentDesc}.\n"
             . "- Brand Tone: {$toneVibe} (Formality: {$formality}/5).\n"
             . "- Logo & Placement: " . ($logoAsset ? "Incorporate designated top/corner clean zone for {$businessName} logo." : "Reserve minimalist branding zone.") . "\n"
-            . "RULE: These brand colors and identity elements MUST appear consistently and harmoniously. Do not deviate from the brand palette.";
+            . "RULE: Blend all four brand colors harmoniously across lighting, shadows, and surfaces. Do not use a single monochrome color.";
 
         $variableComposition = "=== VARIABLE CREATIVE COMPOSITION (CREATIVE FREEDOM) ===\n"
             . "- Visual Concept & Style: {$styleDirective}\n"
             . "- Scene Description: {$briefDescription}\n"
             . "- Key Visual Focus & Text Focal: {$textOverlay}\n"
-            . "- Color Atmosphere: Dominant {$primaryDesc} paired with {$secondaryDesc} and radiant {$accentDesc} accents on {$bgDesc} background.\n"
+            . "- Color Atmosphere: Rich multi-color blending of {$primaryDesc}, {$secondaryDesc}, and {$accentDesc} upon {$bgDesc}.\n"
             . "{$productContext}\n"
             . "- Technical Specifications: Aspect ratio {$aspectRatio} ({$dimensions['label']}), 8K resolution, octane 3D render, Hasselblad studio lighting, award-winning social media art direction, clean negative space for branding.\n"
-            . "- STRICT NEGATIVE PROMPT: Do not generate distorted or misspelled text, avoid cluttered amateur clip art, no low-resolution artifacts.";
+            . "- STRICT NEGATIVE PROMPT: Do not generate distorted text, DO NOT write or paint the brand name '{$businessName}' as text (the official logo will be watermarked directly), avoid cluttered clip art, no low-resolution artifacts.";
 
         if ($isRegeneration) {
             $variableComposition .= "\n- REGENERATION DIRECTIVE: Alternate dynamic perspective, distinct camera focal depth, and fresh artistic staging. "
