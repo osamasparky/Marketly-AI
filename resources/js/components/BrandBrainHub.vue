@@ -1110,15 +1110,16 @@ const createProduct = async () => {
 
     await axios.post('/api/v1/brand/products', {
       name: productForm.value.name,
-      type: productForm.value.type,
+      type: productForm.value.type || 'product',
       category: productForm.value.category || null,
-      price: productForm.value.price || null,
+      price: productForm.value.price !== null && productForm.value.price !== '' ? Number(productForm.value.price) : null,
       currency: productForm.value.currency || 'SAR',
       description: productForm.value.description || null,
       features: features.length ? features : null,
     }, { headers: getHeaders() });
 
     showProductModal.value = false;
+    alert(currentLocale.value === 'ar' ? 'تمت إضافة المنتج/الخدمة بنجاح.' : 'Product/Service added successfully.');
     await fetchBrandBrain();
   } catch (err: any) {
     alert(err.response?.data?.message || 'Failed to create product.');

@@ -11,12 +11,12 @@ class EloquentBrandProductServiceRepository implements BrandProductServiceReposi
 {
     public function listByOrganizationId(int $organizationId): Collection
     {
-        return BrandProductServiceModel::where('organization_id', $organizationId)->get();
+        return BrandProductServiceModel::with('images')->where('organization_id', $organizationId)->get();
     }
 
     public function findByIdForOrganization(int $organizationId, int $id): ?BrandProductServiceModel
     {
-        return BrandProductServiceModel::where('organization_id', $organizationId)
+        return BrandProductServiceModel::with('images')->where('organization_id', $organizationId)
             ->where('id', $id)
             ->first();
     }

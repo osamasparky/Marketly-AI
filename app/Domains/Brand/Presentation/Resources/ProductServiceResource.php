@@ -20,7 +20,7 @@ class ProductServiceResource extends JsonResource
             'url' => $this->url,
             'features' => $this->features ?? [],
             'status' => $this->status,
-            'images' => $this->images ? $this->images->map(function ($img) {
+            'images' => $this->relationLoaded('images') ? $this->images->map(function ($img) {
                 return [
                     'id' => $img->id,
                     'name' => $img->name,

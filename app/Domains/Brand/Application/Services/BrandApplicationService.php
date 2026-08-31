@@ -145,6 +145,7 @@ class BrandApplicationService
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
         $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
+        $brandProfileId = $context->brandId ?? $profile->id;
 
         if ($productId) {
             $existing = $this->productRepository->findByIdForOrganization($context->organizationId, $productId);
@@ -153,8 +154,10 @@ class BrandApplicationService
             }
             $model = $this->productRepository->updateForOrganization($context->organizationId, $productId, $data);
         } else {
-            $model = $this->productRepository->createForOrganization($context->organizationId, $profile->id, $data);
+            $model = $this->productRepository->createForOrganization($context->organizationId, $brandProfileId, $data);
         }
+
+        $model->load('images');
 
         $this->auditService->log(
             action: $productId ? 'brand.product_updated' : 'brand.product_created',
