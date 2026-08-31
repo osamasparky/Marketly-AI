@@ -72,10 +72,20 @@ class SuperAdminController extends Controller
     public function updatePlan(Request $request, int $id): JsonResponse
     {
         $validated = $request->validate([
-            'plan_id' => 'required|integer|exists:plans,id',
+            'plan_id' => 'nullable|integer|exists:plans,id',
+            'plan_slug' => 'nullable|string|exists:plans,slug',
         ]);
 
-        $subscription = $this->adminService->updateOrganizationPlan($id, $validated['plan_id'], $request->user());
+        $planId = $validated['plan_id'] ?? null;
+        if (!$planId && !empty($validated['plan_slug'])) {
+            $planId = \App\Domains\Billing\Infrastructure\Persistence\Models\PlanModel::where('slug', $validated['plan_slug'])->value('id');
+        }
+
+        if (!$planId) {
+            return ApiResponse::error('A valid plan_id or plan_slug is required.', 422);
+        }
+
+        $subscription = $this->adminService->updateOrganizationPlan($id, (int) $planId, $request->user());
 
         return ApiResponse::success(
             data: ['subscription' => $subscription],

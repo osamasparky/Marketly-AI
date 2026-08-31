@@ -859,11 +859,14 @@ const openOrgPlanModal = (org: any) => {
 
 const submitOrgPlanChange = async () => {
   if (!selectedOrgForPlan.value) return;
+  const targetPlan = adminPlans.value.find((p: any) => p.slug === selectedPlanSlug.value);
   try {
     await axios.patch(`/api/v1/super-admin/organizations/${selectedOrgForPlan.value.id}/plan`, {
+      plan_id: targetPlan ? targetPlan.id : undefined,
       plan_slug: selectedPlanSlug.value,
     }, { headers: getHeaders() });
     showOrgPlanModal.value = false;
+    alert(currentLocale.value === 'ar' ? 'تم تحديث باقة الشركة بنجاح.' : 'Organization plan updated successfully.');
     await fetchOrganizations();
     await fetchKpis();
   } catch (err: any) {

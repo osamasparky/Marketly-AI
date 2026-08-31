@@ -39,6 +39,13 @@
           <span>{{ t('navigation.billing') }}</span>
         </button>
         <button 
+          @click="$emit('create-brand')" 
+          class="px-4 py-2 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-300 text-xs font-bold hover:bg-teal-500/20 transition-all flex items-center gap-1.5"
+        >
+          <span>🏷️</span>
+          <span>{{ currentLocale === 'ar' ? '+ إضافة براند جديد' : '+ Add New Brand' }}</span>
+        </button>
+        <button 
           @click="$emit('start-onboarding')" 
           class="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all"
         >
@@ -152,7 +159,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
-import { t } from '../i18n';
+import { t, currentLocale } from '../i18n';
 
 const props = defineProps<{
   authToken: string;
@@ -160,7 +167,7 @@ const props = defineProps<{
   currentOrg: any;
 }>();
 
-defineEmits(['navigate', 'start-onboarding']);
+defineEmits(['navigate', 'start-onboarding', 'create-brand']);
 
 const completenessScore = ref(0);
 const activeStrategy = ref<any>(null);

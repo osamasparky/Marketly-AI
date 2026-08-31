@@ -346,8 +346,11 @@
               :organization-id="currentOrg?.id"
               :brand-id="activeBrandId || undefined"
               :current-org="currentOrg"
+              :brands="orgBrands"
               @navigate="activeNav = $event"
               @start-onboarding="currentMode = 'onboarding'"
+              @create-brand="showNewBrandModal = true"
+              @switch-brand="handleBrandSwitch($event)"
             />
           </div>
 
@@ -357,7 +360,10 @@
               :auth-token="authToken" 
               :organization-id="currentOrg?.id"
               :brand-id="activeBrandId || undefined"
+              :brands="orgBrands"
               @brand-updated="fetchBrands"
+              @create-brand="showNewBrandModal = true"
+              @switch-brand="handleBrandSwitch($event)"
             />
           </div>
 

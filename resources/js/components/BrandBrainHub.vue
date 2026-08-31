@@ -1,5 +1,41 @@
 <template>
   <div class="space-y-6">
+    <!-- Active Brand Manager Banner (Multi-Brand Switcher) -->
+    <div class="p-4 rounded-2xl bg-slate-900/80 border border-teal-500/30 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-lg text-teal-400">
+          🏷️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400 font-bold uppercase">{{ currentLocale === 'ar' ? 'العلامة التجارية الحالية' : 'Active Brand' }}:</span>
+            <select 
+              v-if="brands && brands.length > 0"
+              :value="brandId" 
+              @change="$emit('switch-brand', Number(($event.target as HTMLSelectElement).value))"
+              class="px-3 py-1 rounded-xl bg-slate-950 border border-teal-500/40 text-teal-300 font-bold text-xs focus:outline-none cursor-pointer"
+            >
+              <option v-for="b in brands" :key="b.id" :value="b.id">
+                {{ b.business_name }}
+              </option>
+            </select>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-0.5">
+            {{ currentLocale === 'ar' ? 'لكل علامة تجارية عقل ونبرة وهوية بصرية وحسابات نشر مستقلة تماماً.' : 'Each brand maintains isolated identity, voice, products, and social media accounts.' }}
+          </p>
+        </div>
+      </div>
+
+      <button 
+        @click="$emit('create-brand')" 
+        type="button" 
+        class="tactile-btn tactile-btn-primary px-4 py-2 text-xs font-bold flex items-center gap-2 shadow-lg shadow-teal-950/30"
+      >
+        <span>➕</span>
+        <span>{{ currentLocale === 'ar' ? 'إضافة براند جديد داخل الشركة' : 'Create New Brand' }}</span>
+      </button>
+    </div>
+
     <!-- Brand Brain Header Banner -->
     <div class="p-6 md:p-8 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-6">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
@@ -795,10 +831,13 @@ const props = defineProps<{
   authToken: string;
   organizationId?: number;
   brandId?: number;
+  brands?: any[];
 }>();
 
 const emit = defineEmits<{
   (e: 'brand-updated'): void;
+  (e: 'create-brand'): void;
+  (e: 'switch-brand', id: number): void;
 }>();
 
 const activeTab = ref('identity');
