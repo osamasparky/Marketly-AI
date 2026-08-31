@@ -29,7 +29,37 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(AuthorizationService::class);
-        $this->app->singleton(AIProviderInterface::class, GeminiAIProvider::class);
+        $this->app->bind(AIProviderInterface::class, function ($app) {
+            $apiKey = (string) config('services.gemini.api_key', '');
+            $model = (string) config('services.gemini.model', 'gemini-2.0-flash');
+
+            // If active tenant context has custom BYOK Gemini key, use tenant's key
+            try {
+                if ($app->bound(\App\Domains\Tenancy\Domain\Entities\TenantContext::class)) {
+                    $context = $app->make(\App\Domains\Tenancy\Domain\Entities\TenantContext::class);
+                    if ($context && $context->organizationId) {
+                        $org = \App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationModel::find($context->organizationId);
+                        if ($org && !empty($org->ai_config_json['gemini_api_key'])) {
+                            $apiKey = $org->ai_config_json['gemini_api_key'];
+                        }
+                    }
+                } elseif (request()?->attributes->has('tenant_context')) {
+                    $context = request()->attributes->get('tenant_context');
+                    if ($context && $context->organizationId) {
+                        $org = \App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationModel::find($context->organizationId);
+                        if ($org && !empty($org->ai_config_json['gemini_api_key'])) {
+                            $apiKey = $org->ai_config_json['gemini_api_key'];
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            return new GeminiAIProvider(
+                apiKey: $apiKey,
+                model: $model,
+                baseUrl: 'https://generativelanguage.googleapis.com/v1beta'
+            );
+        });
 
         // Brand Domain Repository Bindings
         $this->app->bind(BrandProfileRepositoryInterface::class, EloquentBrandProfileRepository::class);

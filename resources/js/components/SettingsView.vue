@@ -47,20 +47,36 @@
             <label class="text-xs font-semibold text-slate-300 flex items-center gap-1">
               <span>✨</span> {{ t('aiSettings.geminiKey') }}
             </label>
-            <span v-if="aiConfigMasked.gemini_api_key_configured" class="text-[10px] font-bold text-emerald-400">
-              Configured ({{ aiConfigMasked.gemini_api_key_preview }})
-            </span>
+            <div class="flex items-center gap-1.5">
+              <span v-if="aiConfigMasked.gemini_api_key_configured && !aiForm.gemini_api_key" class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                ✓ محفوظ ({{ aiConfigMasked.gemini_api_key_preview }})
+              </span>
+              <span v-else-if="aiForm.gemini_api_key && aiForm.gemini_api_key !== '__CLEAR__'" class="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                ✏️ قيد التعديل
+              </span>
+              <span v-else-if="aiForm.gemini_api_key === '__CLEAR__'" class="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                🗑️ سيتم الحذف
+              </span>
+            </div>
           </div>
           <div class="relative">
             <input 
               v-model="aiForm.gemini_api_key" 
               :type="showKeys.gemini ? 'text' : 'password'" 
-              placeholder="AIzaSy..." 
-              class="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:border-purple-500 outline-none" 
+              :placeholder="aiConfigMasked.gemini_api_key_configured ? `•••••••••••••••• (محفوظ: ${aiConfigMasked.gemini_api_key_preview})` : 'AIzaSy...'" 
+              class="w-full px-3.5 py-2.5 pr-16 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-500 focus:border-purple-500 outline-none" 
             />
-            <button type="button" @click="showKeys.gemini = !showKeys.gemini" class="absolute inset-y-0 right-0 pr-3 flex items-center text-xs text-slate-400">
-              {{ showKeys.gemini ? '🙈' : '👁️' }}
-            </button>
+            <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1.5 text-xs text-slate-400">
+              <button v-if="aiConfigMasked.gemini_api_key_configured && !aiForm.gemini_api_key" type="button" @click="aiForm.gemini_api_key = '__CLEAR__'" title="حذف المفتاح" class="hover:text-red-400">
+                🗑️
+              </button>
+              <button v-if="aiForm.gemini_api_key === '__CLEAR__'" type="button" @click="aiForm.gemini_api_key = ''" title="إلغاء الحذف" class="hover:text-slate-200">
+                ↩️
+              </button>
+              <button type="button" @click="showKeys.gemini = !showKeys.gemini" class="hover:text-slate-200">
+                {{ showKeys.gemini ? '🙈' : '👁️' }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -70,20 +86,36 @@
             <label class="text-xs font-semibold text-slate-300 flex items-center gap-1">
               <span>🟢</span> {{ t('aiSettings.openaiKey') }}
             </label>
-            <span v-if="aiConfigMasked.openai_api_key_configured" class="text-[10px] font-bold text-emerald-400">
-              Configured ({{ aiConfigMasked.openai_api_key_preview }})
-            </span>
+            <div class="flex items-center gap-1.5">
+              <span v-if="aiConfigMasked.openai_api_key_configured && !aiForm.openai_api_key" class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                ✓ محفوظ ({{ aiConfigMasked.openai_api_key_preview }})
+              </span>
+              <span v-else-if="aiForm.openai_api_key && aiForm.openai_api_key !== '__CLEAR__'" class="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                ✏️ قيد التعديل
+              </span>
+              <span v-else-if="aiForm.openai_api_key === '__CLEAR__'" class="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                🗑️ سيتم الحذف
+              </span>
+            </div>
           </div>
           <div class="relative">
             <input 
               v-model="aiForm.openai_api_key" 
               :type="showKeys.openai ? 'text' : 'password'" 
-              placeholder="sk-proj-..." 
-              class="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:border-purple-500 outline-none" 
+              :placeholder="aiConfigMasked.openai_api_key_configured ? `•••••••••••••••• (محفوظ: ${aiConfigMasked.openai_api_key_preview})` : 'sk-proj-...'" 
+              class="w-full px-3.5 py-2.5 pr-16 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-500 focus:border-purple-500 outline-none" 
             />
-            <button type="button" @click="showKeys.openai = !showKeys.openai" class="absolute inset-y-0 right-0 pr-3 flex items-center text-xs text-slate-400">
-              {{ showKeys.openai ? '🙈' : '👁️' }}
-            </button>
+            <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1.5 text-xs text-slate-400">
+              <button v-if="aiConfigMasked.openai_api_key_configured && !aiForm.openai_api_key" type="button" @click="aiForm.openai_api_key = '__CLEAR__'" title="حذف المفتاح" class="hover:text-red-400">
+                🗑️
+              </button>
+              <button v-if="aiForm.openai_api_key === '__CLEAR__'" type="button" @click="aiForm.openai_api_key = ''" title="إلغاء الحذف" class="hover:text-slate-200">
+                ↩️
+              </button>
+              <button type="button" @click="showKeys.openai = !showKeys.openai" class="hover:text-slate-200">
+                {{ showKeys.openai ? '🙈' : '👁️' }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -93,20 +125,36 @@
             <label class="text-xs font-semibold text-slate-300 flex items-center gap-1">
               <span>🟣</span> {{ t('aiSettings.claudeKey') }}
             </label>
-            <span v-if="aiConfigMasked.anthropic_api_key_configured" class="text-[10px] font-bold text-emerald-400">
-              Configured ({{ aiConfigMasked.anthropic_api_key_preview }})
-            </span>
+            <div class="flex items-center gap-1.5">
+              <span v-if="aiConfigMasked.anthropic_api_key_configured && !aiForm.anthropic_api_key" class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                ✓ محفوظ ({{ aiConfigMasked.anthropic_api_key_preview }})
+              </span>
+              <span v-else-if="aiForm.anthropic_api_key && aiForm.anthropic_api_key !== '__CLEAR__'" class="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                ✏️ قيد التعديل
+              </span>
+              <span v-else-if="aiForm.anthropic_api_key === '__CLEAR__'" class="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                🗑️ سيتم الحذف
+              </span>
+            </div>
           </div>
           <div class="relative">
             <input 
               v-model="aiForm.anthropic_api_key" 
               :type="showKeys.claude ? 'text' : 'password'" 
-              placeholder="sk-ant-api..." 
-              class="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:border-purple-500 outline-none" 
+              :placeholder="aiConfigMasked.anthropic_api_key_configured ? `•••••••••••••••• (محفوظ: ${aiConfigMasked.anthropic_api_key_preview})` : 'sk-ant-api...'" 
+              class="w-full px-3.5 py-2.5 pr-16 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-500 focus:border-purple-500 outline-none" 
             />
-            <button type="button" @click="showKeys.claude = !showKeys.claude" class="absolute inset-y-0 right-0 pr-3 flex items-center text-xs text-slate-400">
-              {{ showKeys.claude ? '🙈' : '👁️' }}
-            </button>
+            <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1.5 text-xs text-slate-400">
+              <button v-if="aiConfigMasked.anthropic_api_key_configured && !aiForm.anthropic_api_key" type="button" @click="aiForm.anthropic_api_key = '__CLEAR__'" title="حذف المفتاح" class="hover:text-red-400">
+                🗑️
+              </button>
+              <button v-if="aiForm.anthropic_api_key === '__CLEAR__'" type="button" @click="aiForm.anthropic_api_key = ''" title="إلغاء الحذف" class="hover:text-slate-200">
+                ↩️
+              </button>
+              <button type="button" @click="showKeys.claude = !showKeys.claude" class="hover:text-slate-200">
+                {{ showKeys.claude ? '🙈' : '👁️' }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -116,20 +164,36 @@
             <label class="text-xs font-semibold text-slate-300 flex items-center gap-1">
               <span>🔵</span> {{ t('aiSettings.deepseekKey') }}
             </label>
-            <span v-if="aiConfigMasked.deepseek_api_key_configured" class="text-[10px] font-bold text-emerald-400">
-              Configured ({{ aiConfigMasked.deepseek_api_key_preview }})
-            </span>
+            <div class="flex items-center gap-1.5">
+              <span v-if="aiConfigMasked.deepseek_api_key_configured && !aiForm.deepseek_api_key" class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                ✓ محفوظ ({{ aiConfigMasked.deepseek_api_key_preview }})
+              </span>
+              <span v-else-if="aiForm.deepseek_api_key && aiForm.deepseek_api_key !== '__CLEAR__'" class="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                ✏️ قيد التعديل
+              </span>
+              <span v-else-if="aiForm.deepseek_api_key === '__CLEAR__'" class="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                🗑️ سيتم الحذف
+              </span>
+            </div>
           </div>
           <div class="relative">
             <input 
               v-model="aiForm.deepseek_api_key" 
               :type="showKeys.deepseek ? 'text' : 'password'" 
-              placeholder="sk-deepseek-..." 
-              class="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:border-purple-500 outline-none" 
+              :placeholder="aiConfigMasked.deepseek_api_key_configured ? `•••••••••••••••• (محفوظ: ${aiConfigMasked.deepseek_api_key_preview})` : 'sk-deepseek-...'" 
+              class="w-full px-3.5 py-2.5 pr-16 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-500 focus:border-purple-500 outline-none" 
             />
-            <button type="button" @click="showKeys.deepseek = !showKeys.deepseek" class="absolute inset-y-0 right-0 pr-3 flex items-center text-xs text-slate-400">
-              {{ showKeys.deepseek ? '🙈' : '👁️' }}
-            </button>
+            <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1.5 text-xs text-slate-400">
+              <button v-if="aiConfigMasked.deepseek_api_key_configured && !aiForm.deepseek_api_key" type="button" @click="aiForm.deepseek_api_key = '__CLEAR__'" title="حذف المفتاح" class="hover:text-red-400">
+                🗑️
+              </button>
+              <button v-if="aiForm.deepseek_api_key === '__CLEAR__'" type="button" @click="aiForm.deepseek_api_key = ''" title="إلغاء الحذف" class="hover:text-slate-200">
+                ↩️
+              </button>
+              <button type="button" @click="showKeys.deepseek = !showKeys.deepseek" class="hover:text-slate-200">
+                {{ showKeys.deepseek ? '🙈' : '👁️' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -316,7 +380,11 @@ const handleSaveAiConfig = async () => {
   savingAi.value = true;
   try {
     const res = await axios.patch(`/api/v1/organizations/${props.organizationId}/ai-config`, aiForm.value, { headers: getHeaders() });
-    alert('AI model settings & company profile saved successfully.');
+    aiForm.value.gemini_api_key = '';
+    aiForm.value.openai_api_key = '';
+    aiForm.value.anthropic_api_key = '';
+    aiForm.value.deepseek_api_key = '';
+    alert('تم حفظ إعدادات نماذج الذكاء الاصطناعي والمفاتيح المشفرة بنجاح.');
     await loadAiConfig();
   } catch (err: any) {
     alert(err.response?.data?.message || 'Failed to update AI settings.');

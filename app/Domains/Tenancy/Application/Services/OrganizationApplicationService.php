@@ -220,23 +220,23 @@ class OrganizationApplicationService
         $org = OrganizationModel::findOrFail($organizationId);
         $currentConfig = $org->ai_config_json ?? [];
 
-        // Update keys only if provided, preserving existing keys if empty/masked
+        // Update keys only if provided, preserving existing keys if empty/masked, or removing if __CLEAR__
         $newConfig = $currentConfig;
         if (!empty($data['preferred_model'])) {
             $newConfig['preferred_model'] = $data['preferred_model'];
         }
-        if (!empty($data['gemini_api_key']) && !str_contains($data['gemini_api_key'], '...')) {
-            $newConfig['gemini_api_key'] = trim($data['gemini_api_key']);
+
+        foreach (['gemini_api_key', 'openai_api_key', 'anthropic_api_key', 'deepseek_api_key'] as $keyName) {
+            if (isset($data[$keyName])) {
+                $val = trim($data[$keyName]);
+                if ($val === '__CLEAR__') {
+                    unset($newConfig[$keyName]);
+                } elseif (!empty($val) && !str_contains($val, '...')) {
+                    $newConfig[$keyName] = $val;
+                }
+            }
         }
-        if (!empty($data['openai_api_key']) && !str_contains($data['openai_api_key'], '...')) {
-            $newConfig['openai_api_key'] = trim($data['openai_api_key']);
-        }
-        if (!empty($data['anthropic_api_key']) && !str_contains($data['anthropic_api_key'], '...')) {
-            $newConfig['anthropic_api_key'] = trim($data['anthropic_api_key']);
-        }
-        if (!empty($data['deepseek_api_key']) && !str_contains($data['deepseek_api_key'], '...')) {
-            $newConfig['deepseek_api_key'] = trim($data['deepseek_api_key']);
-        }
+
         if (isset($data['custom_instructions'])) {
             $newConfig['custom_instructions'] = trim($data['custom_instructions']);
         }
