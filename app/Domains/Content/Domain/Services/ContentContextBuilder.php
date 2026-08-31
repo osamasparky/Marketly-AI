@@ -14,7 +14,7 @@ use App\Domains\Strategy\Infrastructure\Persistence\Models\MarketingStrategyMode
 class ContentContextBuilder
 {
     /**
-     * Build bounded, sanitized context for content generation.
+     * Build bounded, sanitized context for content generation scoped strictly per brand.
      */
     public function build(
         int $organizationId,
@@ -25,18 +25,27 @@ class ContentContextBuilder
         ?string $platform = 'linkedin',
         ?string $tone = null,
         ?string $dialect = null,
-        ?string $language = 'ar'
+        ?string $language = 'ar',
+        ?int $brandId = null
     ): array {
-        $profile = BrandProfileModel::where('organization_id', $organizationId)->first();
-        $voice = BrandVoiceModel::where('organization_id', $organizationId)->first();
+        $profile = $brandId
+            ? BrandProfileModel::where('id', $brandId)->where('organization_id', $organizationId)->first()
+            : BrandProfileModel::where('organization_id', $organizationId)->first();
+
+        $voice = $brandId
+            ? BrandVoiceModel::where('brand_profile_id', $brandId)->first()
+            : BrandVoiceModel::where('organization_id', $organizationId)->first();
 
         // Selected or default product
         $product = null;
         if ($productId) {
             $product = BrandProductServiceModel::where('organization_id', $organizationId)->where('id', $productId)->first();
         }
+        if (!$product && $brandId) {
+            $product = BrandProductServiceModel::where('organization_id', $organizationId)->where('brand_profile_id', $brandId)->where('status', 'active')->first();
+        }
         if (!$product) {
-            $product = BrandProductServiceModel::where('organization_id', $organizationId)->where('active', true)->first();
+            $product = BrandProductServiceModel::where('organization_id', $organizationId)->where('status', 'active')->first();
         }
 
         // Selected or default audience
@@ -44,8 +53,11 @@ class ContentContextBuilder
         if ($audienceId) {
             $audience = BrandAudienceModel::where('organization_id', $organizationId)->where('id', $audienceId)->first();
         }
+        if (!$audience && $brandId) {
+            $audience = BrandAudienceModel::where('organization_id', $organizationId)->where('brand_profile_id', $brandId)->where('status', 'active')->first();
+        }
         if (!$audience) {
-            $audience = BrandAudienceModel::where('organization_id', $organizationId)->where('active', true)->first();
+            $audience = BrandAudienceModel::where('organization_id', $organizationId)->where('status', 'active')->first();
         }
 
         // Selected or active strategy & pillar
@@ -57,10 +69,14 @@ class ContentContextBuilder
         }
 
         if (!$pillar) {
-            $strategy = MarketingStrategyModel::where('organization_id', $organizationId)
-                ->where('status', 'active')
-                ->latest()
-                ->first();
+            $strategyQuery = MarketingStrategyModel::where('organization_id', $organizationId)
+                ->where('status', 'active');
+
+            if ($brandId) {
+                $strategyQuery->where('brand_profile_id', $brandId);
+            }
+
+            $strategy = $strategyQuery->latest()->first();
 
             $pillar = $strategy?->pillars()->where('status', 'active')->first();
         }
@@ -80,6 +96,7 @@ class ContentContextBuilder
 
         return [
             'brand' => [
+                'id' => $profile?->id,
                 'business_name' => $profile?->business_name ?? 'Our Brand',
                 'industry' => $profile?->industry ?? 'Business & Technology',
                 'description' => $profile?->description ?? '',

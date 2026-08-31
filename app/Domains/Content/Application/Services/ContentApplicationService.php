@@ -117,7 +117,8 @@ class ContentApplicationService
             platform: $params['primary_platform'] ?? 'linkedin',
             tone: $params['tone'] ?? null,
             dialect: $params['dialect'] ?? null,
-            language: $params['language'] ?? 'ar'
+            language: $params['language'] ?? 'ar',
+            brandId: $context->brandId
         );
 
         // 3. Generate structured post

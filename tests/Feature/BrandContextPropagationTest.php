@@ -272,4 +272,109 @@ class BrandContextPropagationTest extends TestCase
         $this->assertEquals('Brand Alpha Tech', $brandBrainResA->json('data.profile.business_name'));
         $this->assertEquals('Technology', $brandBrainResA->json('data.profile.industry'));
     }
+
+    public function test_content_generation_uses_strictly_isolated_brand_context_and_prompts(): void
+    {
+        // 1. Setup Brand A Voice & Product
+        \App\Domains\Brand\Infrastructure\Persistence\Models\BrandVoiceModel::create([
+            'organization_id' => $this->organization->id,
+            'brand_profile_id' => $this->brandA->id,
+            'primary_tones' => ['authoritative'],
+            'formality_scale' => 5,
+            'dialect' => 'saudi',
+        ]);
+
+        \App\Domains\Brand\Infrastructure\Persistence\Models\BrandProductServiceModel::create([
+            'organization_id' => $this->organization->id,
+            'brand_profile_id' => $this->brandA->id,
+            'name' => 'Alpha Enterprise Cloud Engine',
+            'type' => 'service',
+            'active' => true,
+        ]);
+
+        // 2. Setup Brand B Voice & Product
+        \App\Domains\Brand\Infrastructure\Persistence\Models\BrandVoiceModel::create([
+            'organization_id' => $this->organization->id,
+            'brand_profile_id' => $this->brandB->id,
+            'primary_tones' => ['playful'],
+            'formality_scale' => 1,
+            'dialect' => 'egyptian',
+        ]);
+
+        \App\Domains\Brand\Infrastructure\Persistence\Models\BrandProductServiceModel::create([
+            'organization_id' => $this->organization->id,
+            'brand_profile_id' => $this->brandB->id,
+            'name' => 'Beta Oversized Summer Hoodie',
+            'type' => 'product',
+            'active' => true,
+        ]);
+
+        // 3. Mock AIProviderInterface to inspect actual prompt sent to AI
+        $capturedPrompts = [];
+        $mockAi = \Mockery::mock(\App\AI\Contracts\AIProviderInterface::class);
+        $mockAi->shouldReceive('isConfigured')->andReturn(true);
+        $mockAi->shouldReceive('generateStructured')->andReturnUsing(function ($prompt, $schema, $options) use (&$capturedPrompts) {
+            $capturedPrompts[] = $prompt;
+            return new \App\AI\DTOs\AIStructuredOutput(
+                success: true,
+                data: [
+                    'title' => 'AI Generated Brand Post',
+                    'hook' => 'Arresting Hook Line Exceeding Standard Length Here',
+                    'caption' => 'Comprehensive engaging content caption that comfortably satisfies twenty character threshold.',
+                    'cta' => 'Join the conversation below! 👇',
+                    'hashtags' => ['#Marketly', '#AI'],
+                    'visual_brief' => [
+                        'type' => 'card_graphic',
+                        'description' => 'High quality minimal graphic',
+                        'suggested_text_overlay' => 'Overlay text',
+                        'color_notes' => 'Modern brand gradient',
+                    ],
+                ]
+            );
+        });
+
+        $this->app->instance(\App\AI\Contracts\AIProviderInterface::class, $mockAi);
+
+        // 4. Generate post for Brand A
+        $resA = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->organization->id,
+            'X-Brand-Id' => (string) $this->brandA->id,
+        ])->postJson('/api/v1/content/generate', [
+            'prompt' => 'Announce our newest quarterly release',
+            'primary_platform' => 'linkedin',
+        ]);
+
+        $resA->assertStatus(201);
+        $this->assertCount(1, $capturedPrompts);
+        $promptA = $capturedPrompts[0];
+
+        $this->assertStringContainsString('Brand Alpha Tech', $promptA);
+        $this->assertStringContainsString('Technology', $promptA);
+        $this->assertStringContainsString('Alpha Enterprise Cloud Engine', $promptA);
+        $this->assertStringContainsString('authoritative', $promptA);
+        $this->assertStringNotContainsString('Brand Beta Fashion', $promptA);
+        $this->assertStringNotContainsString('Beta Oversized Summer Hoodie', $promptA);
+
+        // 5. Generate post for Brand B
+        $resB = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->organization->id,
+            'X-Brand-Id' => (string) $this->brandB->id,
+        ])->postJson('/api/v1/content/generate', [
+            'prompt' => 'Announce our newest quarterly release',
+            'primary_platform' => 'instagram',
+        ]);
+
+        $resB->assertStatus(201);
+        $this->assertCount(2, $capturedPrompts);
+        $promptB = $capturedPrompts[1];
+
+        $this->assertStringContainsString('Brand Beta Fashion', $promptB);
+        $this->assertStringContainsString('Fashion', $promptB);
+        $this->assertStringContainsString('Beta Oversized Summer Hoodie', $promptB);
+        $this->assertStringContainsString('playful', $promptB);
+        $this->assertStringNotContainsString('Brand Alpha Tech', $promptB);
+        $this->assertStringNotContainsString('Alpha Enterprise Cloud Engine', $promptB);
+    }
 }
