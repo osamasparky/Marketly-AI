@@ -45,6 +45,19 @@ class MediaAssetModel extends Model
         'metadata' => 'array',
     ];
 
+    protected $appends = [
+        'public_url',
+    ];
+
+    public function getPublicUrlAttribute(): ?string
+    {
+        if (empty($this->file_path)) {
+            return null;
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->file_path);
+    }
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(OrganizationModel::class, 'organization_id');

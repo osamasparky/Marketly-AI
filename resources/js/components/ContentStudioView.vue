@@ -332,7 +332,7 @@
               <!-- Attached Visual Preview -->
               <div v-if="postVisualAssets[selectedPost.id]" class="pt-3 border-t border-slate-800/80 flex items-center gap-3 bg-slate-950/40 p-3 rounded-xl">
                 <div class="w-16 h-16 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 flex-shrink-0 flex items-center justify-center">
-                  <img v-if="postVisualAssets[selectedPost.id].public_url" :src="postVisualAssets[selectedPost.id].public_url" class="w-full h-full object-cover" />
+                  <img v-if="getAssetUrl(postVisualAssets[selectedPost.id]) && (postVisualAssets[selectedPost.id].file_type === 'image' || postVisualAssets[selectedPost.id].metadata?.mode === 'ai_generated' || postVisualAssets[selectedPost.id].mime_type?.startsWith('image/'))" :src="getAssetUrl(postVisualAssets[selectedPost.id])" class="w-full h-full object-cover" />
                   <div v-else-if="postVisualAssets[selectedPost.id].metadata?.svg_markup" v-html="postVisualAssets[selectedPost.id].metadata.svg_markup" class="w-full h-full scale-50"></div>
                 </div>
                 <div class="space-y-1 flex-1 min-w-0">
@@ -744,6 +744,18 @@ function formatDate(dateStr?: string) {
     month: 'short',
     day: 'numeric',
   });
+}
+
+function getAssetUrl(asset: any): string {
+  if (!asset) return '';
+  if (asset.public_url) return asset.public_url;
+  if (asset.metadata?.image_url) return asset.metadata.image_url;
+  if (asset.file_path) {
+    const path = asset.file_path.startsWith('/') ? asset.file_path.substring(1) : asset.file_path;
+    return `/storage/${path}`;
+  }
+  if (asset.file_name) return `/storage/creative-assets/${asset.file_name}`;
+  return '';
 }
 
 function openGeneratorWizard() {

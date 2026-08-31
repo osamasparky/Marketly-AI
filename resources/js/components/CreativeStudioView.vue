@@ -173,14 +173,14 @@
               </button>
 
               <a 
-                v-if="selectedAsset.public_url"
-                :href="selectedAsset.public_url"
+                v-if="getAssetUrl(selectedAsset)"
+                :href="getAssetUrl(selectedAsset)"
                 download
                 target="_blank"
                 class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors flex items-center gap-1.5"
               >
                 <span>⬇️</span>
-                <span>{{ t('creativeStudio.downloadSvg') }}</span>
+                <span>{{ selectedAsset.file_type === 'image' || selectedAsset.metadata?.mode === 'ai_generated' ? (currentLocale === 'ar' ? 'تحميل الصورة' : 'Download Image') : t('creativeStudio.downloadSvg') }}</span>
               </a>
               <button 
                 v-else-if="selectedAsset.file_type === 'graphic_card' && selectedAsset.metadata?.svg_markup"
@@ -219,7 +219,7 @@
                 class="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold flex items-center gap-1.5"
               >
                 <span>✨</span>
-                <span>{{ currentLocale === 'ar' ? 'صورة حقيقية مولدة بالذكاء الاصطناعي (Imagen AI)' : 'AI-Generated Image (Imagen)' }}</span>
+                <span>{{ currentLocale === 'ar' ? 'صورة حقيقية مولدة بالذكاء الاصطناعي (AI Generated)' : 'AI-Generated Image' }}</span>
               </div>
               <div 
                 v-else
@@ -238,8 +238,8 @@
             <div class="p-4 rounded-3xl bg-slate-950/90 border border-slate-800/80 flex items-center justify-center overflow-hidden min-h-[360px]">
               <!-- Real AI Image -->
               <img 
-                v-if="selectedAsset.public_url && (selectedAsset.file_type === 'image' || selectedAsset.mime_type === 'image/jpeg' || selectedAsset.mime_type === 'image/png')"
-                :src="selectedAsset.public_url" 
+                v-if="getAssetUrl(selectedAsset) && (selectedAsset.file_type === 'image' || selectedAsset.metadata?.mode === 'ai_generated' || selectedAsset.mime_type?.startsWith('image/') || selectedAsset.file_name?.match(/\.(png|jpg|jpeg|webp)$/i))"
+                :src="getAssetUrl(selectedAsset)" 
                 :alt="selectedAsset.title"
                 class="max-w-xl max-h-[520px] w-auto h-auto rounded-2xl shadow-2xl object-contain border border-slate-800"
               />
@@ -579,6 +579,18 @@ function getAuthHeaders() {
     'X-Organization-Id': String(props.organizationId || ''),
     ...(props.brandId ? { 'X-Brand-Id': String(props.brandId) } : {}),
   };
+}
+
+function getAssetUrl(asset: any): string {
+  if (!asset) return '';
+  if (asset.public_url) return asset.public_url;
+  if (asset.metadata?.image_url) return asset.metadata.image_url;
+  if (asset.file_path) {
+    const path = asset.file_path.startsWith('/') ? asset.file_path.substring(1) : asset.file_path;
+    return `/storage/${path}`;
+  }
+  if (asset.file_name) return `/storage/creative-assets/${asset.file_name}`;
+  return '';
 }
 
 async function fetchAssets() {
