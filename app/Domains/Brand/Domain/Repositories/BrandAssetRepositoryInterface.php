@@ -7,7 +7,7 @@ use Illuminate\Support\Collection;
 
 interface BrandAssetRepositoryInterface
 {
-    public function listByOrganizationId(int $organizationId, ?string $type = null): Collection;
+    public function listByOrganizationId(int $organizationId, ?string $type = null, ?int $brandProfileId = null): Collection;
 
     public function findByIdForOrganization(int $organizationId, int $id): ?BrandAssetModel;
 

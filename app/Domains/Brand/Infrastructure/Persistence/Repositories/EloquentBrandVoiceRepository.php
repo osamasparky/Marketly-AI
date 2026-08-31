@@ -8,17 +8,23 @@ use App\Domains\Brand\Infrastructure\Persistence\Models\BrandVoiceModel;
 
 class EloquentBrandVoiceRepository implements BrandVoiceRepositoryInterface
 {
-    public function findByOrganizationId(int $organizationId): ?BrandVoiceModel
+    public function findByOrganizationId(int $organizationId, ?int $brandProfileId = null): ?BrandVoiceModel
     {
-        return BrandVoiceModel::where('organization_id', $organizationId)->first();
+        $query = BrandVoiceModel::where('organization_id', $organizationId);
+        if ($brandProfileId) {
+            $query->where('brand_profile_id', $brandProfileId);
+        }
+        return $query->first();
     }
 
     public function saveForOrganization(int $organizationId, int $brandProfileId, SaveBrandVoiceData $data): BrandVoiceModel
     {
         return BrandVoiceModel::updateOrCreate(
-            ['organization_id' => $organizationId],
             [
+                'organization_id' => $organizationId,
                 'brand_profile_id' => $brandProfileId,
+            ],
+            [
                 'primary_tones' => $data->primaryTones,
                 'formality_scale' => $data->formalityScale,
                 'playfulness_scale' => $data->playfulnessScale,

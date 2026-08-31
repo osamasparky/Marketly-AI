@@ -213,6 +213,9 @@ class BrandApplicationService
 
         $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
 
+        $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
+        $brandProfileId = $context->brandId ?? $profile->id;
+
         if ($audienceId) {
             $existing = $this->audienceRepository->findByIdForOrganization($context->organizationId, $audienceId);
             if (!$existing) {
@@ -220,7 +223,7 @@ class BrandApplicationService
             }
             $model = $this->audienceRepository->updateForOrganization($context->organizationId, $audienceId, $data);
         } else {
-            $model = $this->audienceRepository->createForOrganization($context->organizationId, $profile->id, $data);
+            $model = $this->audienceRepository->createForOrganization($context->organizationId, $brandProfileId, $data);
         }
 
         $this->auditService->log(
@@ -267,7 +270,8 @@ class BrandApplicationService
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
         $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
-        $voice = $this->voiceRepository->saveForOrganization($context->organizationId, $profile->id, $data);
+        $brandProfileId = $context->brandId ?? $profile->id;
+        $voice = $this->voiceRepository->saveForOrganization($context->organizationId, $brandProfileId, $data);
 
         $this->auditService->log(
             action: 'brand.voice_updated',
@@ -297,6 +301,7 @@ class BrandApplicationService
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
         $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
+        $brandProfileId = $context->brandId ?? $profile->id;
 
         if ($goalId) {
             $existing = $this->goalRepository->findByIdForOrganization($context->organizationId, $goalId);
@@ -305,7 +310,7 @@ class BrandApplicationService
             }
             $model = $this->goalRepository->updateForOrganization($context->organizationId, $goalId, $data);
         } else {
-            $model = $this->goalRepository->createForOrganization($context->organizationId, $profile->id, $data);
+            $model = $this->goalRepository->createForOrganization($context->organizationId, $brandProfileId, $data);
         }
 
         $this->auditService->log(
@@ -361,6 +366,7 @@ class BrandApplicationService
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
         $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
+        $brandProfileId = $context->brandId ?? $profile->id;
 
         if ($competitorId) {
             $existing = $this->competitorRepository->findByIdForOrganization($context->organizationId, $competitorId);
@@ -369,7 +375,7 @@ class BrandApplicationService
             }
             $model = $this->competitorRepository->updateForOrganization($context->organizationId, $competitorId, $data);
         } else {
-            $model = $this->competitorRepository->createForOrganization($context->organizationId, $profile->id, $data);
+            $model = $this->competitorRepository->createForOrganization($context->organizationId, $brandProfileId, $data);
         }
 
         $this->auditService->log(
@@ -441,7 +447,7 @@ class BrandApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'brand.view');
 
-        $assets = $this->assetRepository->listByOrganizationId($context->organizationId, $type);
+        $assets = $this->assetRepository->listByOrganizationId($context->organizationId, $type, $context->brandId);
 
         return $assets->map(function (BrandAssetModel $asset) {
             $asset->public_url = $asset->file_path ? Storage::disk('public')->url($asset->file_path) : null;
@@ -461,11 +467,12 @@ class BrandApplicationService
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
         $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
+        $brandProfileId = $context->brandId ?? $profile->id;
 
         $filename = ($name ? \Illuminate\Support\Str::slug($name) : $type) . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $storedPath = $file->storeAs("brand-assets/{$context->organizationId}", $filename, 'public');
+        $storedPath = $file->storeAs("brand-assets/{$context->organizationId}/{$brandProfileId}", $filename, 'public');
 
-        $asset = $this->assetRepository->createForOrganization($context->organizationId, $profile->id, [
+        $asset = $this->assetRepository->createForOrganization($context->organizationId, $brandProfileId, [
             'name' => $name ?: $file->getClientOriginalName(),
             'type' => $type,
             'file_path' => $storedPath,

@@ -823,7 +823,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import axios from 'axios';
 import { t, currentLocale } from '../i18n';
 
@@ -1077,7 +1077,10 @@ const fetchBrandBrain = async () => {
 const saveProfile = async () => {
   saving.value = true;
   try {
-    await axios.post('/api/v1/brand', profileForm.value, { headers: getHeaders() });
+    await axios.post('/api/v1/brand', {
+      ...profileForm.value,
+      id: props.brandId || profileForm.value.id,
+    }, { headers: getHeaders() });
     alert(currentLocale.value === 'ar' ? 'تم حفظ هوية وملف العلامة التجارية بنجاح.' : 'Brand profile saved successfully.');
     emit('brand-updated');
     await fetchBrandBrain();
@@ -1219,6 +1222,11 @@ const fetchAiContext = async () => {
     aiContextData.value = JSON.stringify(err.response?.data || { error: err.message }, null, 2);
   }
 };
+
+watch(() => props.brandId, () => {
+  fetchBrandBrain();
+  fetchBrandAssets();
+});
 
 onMounted(() => {
   fetchBrandBrain();

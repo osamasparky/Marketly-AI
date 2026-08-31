@@ -9,9 +9,13 @@ use Illuminate\Support\Facades\Storage;
 
 class EloquentBrandAssetRepository implements BrandAssetRepositoryInterface
 {
-    public function listByOrganizationId(int $organizationId, ?string $type = null): Collection
+    public function listByOrganizationId(int $organizationId, ?string $type = null, ?int $brandProfileId = null): Collection
     {
         $query = BrandAssetModel::where('organization_id', $organizationId);
+
+        if ($brandProfileId) {
+            $query->where('brand_profile_id', $brandProfileId);
+        }
 
         if ($type) {
             $query->where('type', $type);

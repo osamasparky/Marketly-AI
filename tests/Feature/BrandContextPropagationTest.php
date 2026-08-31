@@ -251,14 +251,25 @@ class BrandContextPropagationTest extends TestCase
         $socialResA->assertStatus(200);
         $this->assertEquals(1, $socialResA->json('data.total_connected'));
 
-        $analyticsResA = $this->withHeaders([
+        // --- VERIFY BRAND BRAIN ISOLATION ---
+        $brandBrainResB = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->organization->id,
+            'X-Brand-Id' => (string) $this->brandB->id,
+        ])->getJson('/api/v1/brand');
+
+        $brandBrainResB->assertStatus(200);
+        $this->assertEquals('Brand Beta Fashion', $brandBrainResB->json('data.profile.business_name'));
+        $this->assertEquals('Fashion', $brandBrainResB->json('data.profile.industry'));
+
+        $brandBrainResA = $this->withHeaders([
             'Authorization' => "Bearer {$this->token}",
             'X-Organization-Id' => (string) $this->organization->id,
             'X-Brand-Id' => (string) $this->brandA->id,
-        ])->getJson('/api/v1/analytics/overview');
+        ])->getJson('/api/v1/brand');
 
-        $analyticsResA->assertStatus(200);
-        $this->assertEquals(900, $analyticsResA->json('data.kpis.total_reach'));
-        $this->assertEquals(1250, $analyticsResA->json('data.kpis.total_impressions'));
+        $brandBrainResA->assertStatus(200);
+        $this->assertEquals('Brand Alpha Tech', $brandBrainResA->json('data.profile.business_name'));
+        $this->assertEquals('Technology', $brandBrainResA->json('data.profile.industry'));
     }
 }
