@@ -91,4 +91,9 @@ class ContentPostModel extends Model
     {
         return $this->hasOne(ContentQualityAuditModel::class, 'content_post_id')->latestOfMany();
     }
+
+    public function mediaAssets(): HasMany
+    {
+        return $this->hasMany(\App\Domains\Creative\Infrastructure\Persistence\Models\MediaAssetModel::class, 'content_post_id');
+    }
 }

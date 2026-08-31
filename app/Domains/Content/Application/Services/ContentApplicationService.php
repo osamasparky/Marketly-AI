@@ -39,6 +39,7 @@ class ContentApplicationService
         $query = ContentPostModel::with([
             'variations',
             'latestAudit',
+            'mediaAssets',
             'pillar',
             'campaignTheme',
             'author',
@@ -83,6 +84,7 @@ class ContentApplicationService
             'variations',
             'qualityAudits',
             'latestAudit',
+            'mediaAssets',
             'pillar',
             'campaignTheme',
             'brandProfile',

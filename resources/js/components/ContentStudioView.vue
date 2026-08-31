@@ -707,6 +707,9 @@ async function fetchActiveStrategyPillars() {
 function selectPost(post: any) {
   selectedPost.value = post;
   activeVariationPlatform.value = post.primary_platform || 'linkedin';
+  if (post && post.media_assets && post.media_assets.length > 0) {
+    postVisualAssets.value[post.id] = post.media_assets[0];
+  }
 }
 
 function hasVariationFor(platformKey: string) {

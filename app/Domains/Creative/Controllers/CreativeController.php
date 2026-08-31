@@ -65,11 +65,7 @@ class CreativeController extends Controller
             'content_post_id' => ['nullable', 'integer'],
             'title' => ['nullable', 'string', 'max:255'],
             'hook' => ['nullable', 'string'],
-            'visual_style' => ['nullable', 'string', Rule::in([
-                'product_showcase', 'lifestyle_scene', 'promotional_banner', 'quote_card', 
-                'infographic_style', 'branded_quote', 'product_spotlight', 'metric_card', 
-                'gradient_banner', 'card_graphic'
-            ])],
+            'visual_style' => ['nullable', 'string', 'max:100'],
             'aspect_ratio' => ['nullable', 'string', Rule::in(['1:1', '4:5', '9:16', '16:9'])],
             'color_palette' => ['nullable', 'array'],
             'visual_brief' => ['nullable', 'array'],
