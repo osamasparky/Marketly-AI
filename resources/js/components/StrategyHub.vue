@@ -309,8 +309,8 @@ const handleGenerateStrategy = async () => {
     });
     showWizard.value = false;
     await fetchStrategy();
-  } catch (err) {
-    // Handle error
+  } catch (err: any) {
+    alert(err.response?.data?.message || err.message || 'Strategy generation failed.');
   } finally {
     generating.value = false;
   }

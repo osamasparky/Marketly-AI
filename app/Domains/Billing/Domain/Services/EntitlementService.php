@@ -53,6 +53,8 @@ class EntitlementService
 
         if ($brandProfileId) {
             $query->where('brand_profile_id', $brandProfileId);
+        } else {
+            $query->whereNull('brand_profile_id');
         }
 
         $usage = $query->first();
@@ -161,6 +163,8 @@ class EntitlementService
 
             if ($brandProfileId) {
                 $query->where('brand_profile_id', $brandProfileId);
+            } else {
+                $query->whereNull('brand_profile_id');
             }
 
             $record = $query->lockForUpdate()->first();
