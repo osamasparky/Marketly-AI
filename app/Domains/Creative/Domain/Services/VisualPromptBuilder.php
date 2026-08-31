@@ -91,30 +91,30 @@ class VisualPromptBuilder
         // 6. Style-specific Creative Directives
         $briefDescription = $visualBrief['description'] ?? ($hook ?: $title ?: "Social media asset for {$businessName}");
         $textOverlay = $visualBrief['suggested_text_overlay'] ?? ($hook ?: $title ?: $businessName);
-        $colorNotes = $visualBrief['color_notes'] ?? "Harmonious blending of {$primaryColor} and {$accentColor}";
+        $primaryDesc = $this->describeHexColor($primaryColor);
+        $secondaryDesc = $this->describeHexColor($secondaryColor);
+        $accentDesc = $this->describeHexColor($accentColor);
+        $bgDesc = $this->describeHexColor($bgColor);
 
         $styleDirective = match ($visualStyle) {
-            'product_showcase' => "High-end commercial studio product photography. Hero showcase featuring crisp reflections, directional softbox lighting, clean geometric staging with primary accent {$primaryColor} highlights.",
-            'lifestyle_scene' => "Authentic, relatable contemporary lifestyle environment tailored for {$dialect} regional business audience. Natural candid lighting, warm premium atmosphere, subtle brand presence.",
-            'promotional_banner' => "High-impact promotional campaign banner. Bold typographic hierarchy featuring clear offer callout: '{$textOverlay}', dynamic energy, vibrant contrast using {$primaryColor} and {$accentColor}.",
-            'infographic_style' => "Modern analytical infographic with sleek glassmorphism panels, clean data icons, structured step flow, high-contrast dark theme background {$bgColor}.",
-            'quote_card', 'branded_quote', 'card_graphic' => "Editorial typography card with elegant layout, modern quotation aesthetic, subtle organic gradient backdrop using {$primaryColor} and {$bgColor}.",
-            default => "Professional social media marketing visual with balanced composition and polished commercial finish."
+            'product_showcase' => "High-end commercial 3D studio product photography. Hero showcase on a sleek minimalist geometric podium, crisp glass reflections, soft directional volumetric lighting in {$primaryDesc} and {$accentDesc} highlights, deep {$bgDesc} backdrop.",
+            'lifestyle_scene' => "Authentic, relatable contemporary Saudi/Gulf business executive environment. Modern architectural interior, warm sunlight beam, subtle {$primaryDesc} ambient lighting, luxury minimalist aesthetic.",
+            'promotional_banner' => "Dynamic high-impact advertising graphic with 3D floating geometric glass cards, luminous {$accentDesc} energy trails, deep {$bgDesc} contrast, professional commercial agency finish.",
+            'infographic_style', 'infographic_card' => "Futuristic 3D isometric infographic elements, floating glowing glassmorphism panels, crisp data visualization motifs, neon {$primaryDesc} accent pipelines on deep dark {$bgDesc} background.",
+            'quote_card', 'branded_quote', 'card_graphic' => "Editorial luxury graphic with abstract floating 3D organic curves, smooth satin textures, rich diffuse studio lighting blending {$primaryDesc} and {$secondaryDesc} on a sleek dark canvas.",
+            default => "Award-winning commercial advertising visual with balanced composition, luxury 3D lighting, and polished studio finish."
         };
 
         // 7. Product grounding
         $productContext = '';
         if ($product) {
-            $productContext = " Featured Product/Service: {$product->name} ({$product->category}). Description: {$product->description}.";
-            if ($product->images->isNotEmpty()) {
-                $productContext .= " Product visual reference: {$product->images->first()->name} with authentic styling.";
-            }
+            $productContext = " Featured Product/Service Focus: {$product->name} ({$product->category}) - {$product->description}.";
         }
 
-        // 8. Assemble Prompt Segments
+        // 8. Assemble Ultra-High-Fidelity Prompt with Structural Brand Locking
         $lockedIdentity = "=== LOCKED BRAND IDENTITY (STRICT CONSTRAINTS) ===\n"
             . "- Brand: {$businessName} | Industry: {$industry}\n"
-            . "- Mandatory Palette: Primary ({$primaryColor}), Secondary ({$secondaryColor}), Accent ({$accentColor}), Background ({$bgColor}).\n"
+            . "- Mandatory Palette: Primary ({$primaryColor} - {$primaryDesc}), Secondary ({$secondaryColor} - {$secondaryDesc}), Accent ({$accentColor} - {$accentDesc}), Background ({$bgColor} - {$bgDesc}).\n"
             . "- Brand Tone: {$toneVibe} (Formality: {$formality}/5).\n"
             . "- Logo & Placement: " . ($logoAsset ? "Incorporate designated top/corner clean zone for {$businessName} logo." : "Reserve minimalist branding zone.") . "\n"
             . "RULE: These brand colors and identity elements MUST appear consistently and harmoniously. Do not deviate from the brand palette.";
@@ -123,16 +123,17 @@ class VisualPromptBuilder
             . "- Visual Concept & Style: {$styleDirective}\n"
             . "- Scene Description: {$briefDescription}\n"
             . "- Key Visual Focus & Text Focal: {$textOverlay}\n"
-            . "- Color Styling Notes: {$colorNotes}\n"
+            . "- Color Atmosphere: Dominant {$primaryDesc} paired with {$secondaryDesc} and radiant {$accentDesc} accents on {$bgDesc} background.\n"
             . "{$productContext}\n"
-            . "- Format & Aspect Ratio: {$aspectRatio} ({$dimensions['label']}), 8K resolution, ultra-detailed textures, photorealistic render, award-winning social media marketing design.";
+            . "- Technical Specifications: Aspect ratio {$aspectRatio} ({$dimensions['label']}), 8K resolution, octane 3D render, Hasselblad studio lighting, award-winning social media art direction, clean negative space for branding.\n"
+            . "- STRICT NEGATIVE PROMPT: Do not generate distorted or misspelled text, avoid cluttered amateur clip art, no low-resolution artifacts.";
 
         if ($isRegeneration) {
-            $variableComposition .= "\n- REGENERATION DIRECTIVE: Propose a fresh, distinct creative concept and composition with alternative camera angle and visual staging. "
-                . ($avoidPrompt ? "Avoid repeating composition: {$avoidPrompt}" : "Ensure marked difference from previous variation.");
+            $variableComposition .= "\n- REGENERATION DIRECTIVE: Alternate dynamic perspective, distinct camera focal depth, and fresh artistic staging. "
+                . ($avoidPrompt ? "Avoid previous composition elements." : "Ensure marked difference from previous variation.");
         }
 
-        $fullPrompt = "{$lockedIdentity}\n\n{$variableComposition}";
+        $cleanPrompt = "{$lockedIdentity}\n\n{$variableComposition}";
 
         return [
             'organization_id' => $organizationId,
@@ -145,12 +146,45 @@ class VisualPromptBuilder
             'aspect_ratio' => $aspectRatio,
             'dimensions' => $dimensions,
             'color_palette' => $palette,
-            'ai_prompt' => $fullPrompt,
-            'system_prompt' => $fullPrompt,
+            'ai_prompt' => $cleanPrompt,
+            'system_prompt' => $cleanPrompt,
             'visual_brief' => $visualBrief,
             'product' => $product,
             'negative_prompt' => 'low quality, blurry, distorted text, amateur design, watermark, grainy, oversaturated artifacts, clashing colors',
         ];
+    }
+
+    private function describeHexColor(string $hex): string
+    {
+        $hex = strtolower(ltrim(trim($hex), '#'));
+        if (strlen($hex) === 3) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+        if (strlen($hex) !== 6) {
+            return 'emerald green';
+        }
+
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+
+        if ($r < 30 && $g < 30 && $b < 40) return 'deep obsidian dark slate';
+        if ($r > 200 && $g > 200 && $b > 200) return 'crisp luminous white';
+        if ($g > $r && $g > $b) {
+            if ($g > 150 && $r < 100) return 'vibrant emerald green';
+            if ($g < 100) return 'deep rich forest green';
+            return 'electric mint green';
+        }
+        if ($b > $r && $b > $g) {
+            if ($r > 100) return 'royal purple indigo';
+            return 'luminous sapphire blue';
+        }
+        if ($r > $g && $r > $b) {
+            if ($g > 120) return 'warm amber gold';
+            return 'luxurious crimson ruby';
+        }
+
+        return "refined #{$hex} tone";
     }
 }
 

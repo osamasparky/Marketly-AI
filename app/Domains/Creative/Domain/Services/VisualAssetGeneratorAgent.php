@@ -48,6 +48,14 @@ class VisualAssetGeneratorAgent
                 ]);
 
                 if ($aiResult->success && !empty($aiResult->data['file_path'])) {
+                    $this->compositeBrandOverlay(
+                        storagePath: $aiResult->data['file_path'],
+                        orgId: $orgId,
+                        brandId: $brandId,
+                        businessName: $businessName,
+                        palette: $palette
+                    );
+
                     return [
                         'file_name' => $aiResult->data['file_name'],
                         'file_path' => $aiResult->data['file_path'],
@@ -105,6 +113,14 @@ class VisualAssetGeneratorAgent
                     ]);
 
                     if ($aiResult->success && !empty($aiResult->data['file_path'])) {
+                        $this->compositeBrandOverlay(
+                            storagePath: $aiResult->data['file_path'],
+                            orgId: $orgId,
+                            brandId: $brandId,
+                            businessName: $businessName,
+                            palette: $palette
+                        );
+
                         return [
                             'file_name' => $aiResult->data['file_name'],
                             'file_path' => $aiResult->data['file_path'],
@@ -146,7 +162,9 @@ class VisualAssetGeneratorAgent
             bgColor: $bgColor,
             cardBg: $cardBg,
             textPrimary: $textPrimary,
-            textMuted: $textMuted
+            textMuted: $textMuted,
+            orgId: $orgId,
+            brandId: $brandId
         );
 
         $fileName = 'asset_' . uniqid() . '_' . str_replace(':', 'x', $aspectRatio) . '.svg';
@@ -155,7 +173,7 @@ class VisualAssetGeneratorAgent
 
         try {
             Storage::disk('public')->put($storagePath, $svgMarkup);
-            $publicUrl = Storage::disk('public')->url($storagePath);
+            $publicUrl = '/storage/' . ltrim($storagePath, '/');
         } catch (\Throwable $e) {
             $publicUrl = null;
         }
@@ -192,7 +210,105 @@ class VisualAssetGeneratorAgent
     }
 
     /**
-     * Render modern, high-contrast SVG banner card.
+     * Composite real brand logo onto the generated image with GD.
+     */
+    private function compositeBrandOverlay(
+        string $storagePath,
+        int|string $orgId,
+        int|string $brandId,
+        string $businessName,
+        array $palette
+    ): void {
+        if (!extension_loaded('gd')) {
+            return;
+        }
+
+        try {
+            $logoAsset = null;
+            if (is_numeric($orgId)) {
+                $logoQuery = \App\Domains\Brand\Infrastructure\Persistence\Models\BrandAssetModel::where('organization_id', (int) $orgId)
+                    ->where('type', 'logo');
+                if (is_numeric($brandId)) {
+                    $logoQuery->where('brand_profile_id', (int) $brandId);
+                }
+                $logoAsset = $logoQuery->first();
+                if (!$logoAsset && is_numeric($orgId)) {
+                    $logoAsset = \App\Domains\Brand\Infrastructure\Persistence\Models\BrandAssetModel::where('organization_id', (int) $orgId)
+                        ->where('type', 'logo')
+                        ->first();
+                }
+            }
+
+            $imageDiskPath = Storage::disk('public')->path($storagePath);
+            if (!file_exists($imageDiskPath)) {
+                return;
+            }
+
+            $imgData = file_get_contents($imageDiskPath);
+            $mainImg = @imagecreatefromstring($imgData);
+            if (!$mainImg) {
+                return;
+            }
+
+            imagealphablending($mainImg, true);
+            imagesavealpha($mainImg, true);
+
+            $imgW = imagesx($mainImg);
+            $imgH = imagesy($mainImg);
+
+            // 1. If Brand Logo exists, overlay it in the top corner with a luxury glassmorphism badge backing
+            if ($logoAsset && Storage::disk('public')->exists($logoAsset->file_path)) {
+                $logoDiskPath = Storage::disk('public')->path($logoAsset->file_path);
+                $logoData = file_get_contents($logoDiskPath);
+                $logoImg = @imagecreatefromstring($logoData);
+
+                if ($logoImg) {
+                    imagealphablending($logoImg, true);
+                    $logoW = imagesx($logoImg);
+                    $logoH = imagesy($logoImg);
+
+                    $targetW = (int) ($imgW * 0.16);
+                    $targetH = (int) ($logoH * ($targetW / max(1, $logoW)));
+                    if ($targetH > 90) {
+                        $targetH = 90;
+                        $targetW = (int) ($logoW * ($targetH / max(1, $logoH)));
+                    }
+
+                    // Place in top-right corner with 36px margin
+                    $destX = $imgW - $targetW - 40;
+                    $destY = 40;
+
+                    // Draw subtle frosted glass badge backing for logo
+                    $badgePad = 12;
+                    $badgeX1 = $destX - $badgePad;
+                    $badgeY1 = $destY - $badgePad;
+                    $badgeX2 = $destX + $targetW + $badgePad;
+                    $badgeY2 = $destY + $targetH + $badgePad;
+
+                    $glassColor = imagecolorallocatealpha($mainImg, 2, 6, 23, 50); // Deep dark slate with 60% opacity
+                    imagefilledrectangle($mainImg, $badgeX1, $badgeY1, $badgeX2, $badgeY2, $glassColor);
+
+                    // Copy logo with high quality interpolation
+                    imagecopyresampled($mainImg, $logoImg, $destX, $destY, 0, 0, $targetW, $targetH, $logoW, $logoH);
+                    imagedestroy($logoImg);
+                }
+            }
+
+            // Save composited image back to disk
+            if (str_ends_with(strtolower($storagePath), '.jpg') || str_ends_with(strtolower($storagePath), '.jpeg')) {
+                imagejpeg($mainImg, $imageDiskPath, 92);
+            } else {
+                imagepng($mainImg, $imageDiskPath, 8);
+            }
+
+            imagedestroy($mainImg);
+        } catch (\Throwable $e) {
+            Log::warning('VisualAssetGeneratorAgent: Logo compositing skipped', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Render modern, high-contrast SVG banner card with brand assets and luxury layout.
      */
     private function renderSvgCard(
         int $width,
@@ -205,10 +321,12 @@ class VisualAssetGeneratorAgent
         string $bgColor,
         string $cardBg,
         string $textPrimary,
-        string $textMuted
+        string $textMuted,
+        int|string $orgId = 'default',
+        int|string $brandId = 'default'
     ): string {
-        $cardWidth = (int) ($width * 0.88);
-        $cardHeight = (int) ($height * 0.78);
+        $cardWidth = (int) ($width * 0.90);
+        $cardHeight = (int) ($height * 0.82);
         $cardX = (int) (($width - $cardWidth) / 2);
         $cardY = (int) (($height - $cardHeight) / 2);
 
@@ -236,9 +354,29 @@ class VisualAssetGeneratorAgent
         $titleY = $cardY + 130;
         $footerY = $cardY + $cardHeight - 70;
 
+        // Try to get base64 encoded brand logo if available
+        $logoSvgTag = '';
+        if (is_numeric($orgId)) {
+            try {
+                $logoQuery = \App\Domains\Brand\Infrastructure\Persistence\Models\BrandAssetModel::where('organization_id', (int) $orgId)
+                    ->where('type', 'logo');
+                if (is_numeric($brandId)) {
+                    $logoQuery->where('brand_profile_id', (int) $brandId);
+                }
+                $logo = $logoQuery->first() ?? \App\Domains\Brand\Infrastructure\Persistence\Models\BrandAssetModel::where('organization_id', (int) $orgId)->where('type', 'logo')->first();
+                if ($logo && Storage::disk('public')->exists($logo->file_path)) {
+                    $logoBytes = Storage::disk('public')->get($logo->file_path);
+                    $mime = $logo->mime_type ?: 'image/png';
+                    $base64Logo = base64_encode($logoBytes);
+                    $logoX = $cardX + $cardWidth - 190;
+                    $logoSvgTag = "<image x=\"{$logoX}\" y=\"{$badgeY}\" width=\"140\" height=\"48\" href=\"data:{$mime};base64,{$base64Logo}\" preserveAspectRatio=\"xMidYMid meet\" />";
+                }
+            } catch (\Throwable $e) {}
+        }
+
         $tspanLines = '';
         foreach ($lines as $i => $line) {
-            $tspanY = $textYStart + ($i * 56);
+            $tspanY = $textYStart + ($i * 54);
             $tspanLines .= "<tspan x=\"{$centerX}\" y=\"{$tspanY}\">{$line}</tspan>";
         }
 
@@ -255,7 +393,7 @@ class VisualAssetGeneratorAgent
       <stop offset="100%" stop-color="#34d399" />
     </linearGradient>
     <filter id="cardGlow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="{$primaryColor}" flood-opacity="0.15" />
+      <feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="{$primaryColor}" flood-opacity="0.2" />
     </filter>
   </defs>
 
@@ -263,30 +401,32 @@ class VisualAssetGeneratorAgent
   <rect width="{$width}" height="{$height}" fill="url(#bgGrad)" />
 
   <!-- Ambient Glow Circles -->
-  <circle cx="{$width}" cy="0" r="350" fill="{$primaryColor}" opacity="0.12" filter="blur(60px)" />
-  <circle cx="0" cy="{$height}" r="350" fill="{$primaryColor}" opacity="0.08" filter="blur(60px)" />
+  <circle cx="{$width}" cy="0" r="400" fill="{$primaryColor}" opacity="0.16" filter="blur(80px)" />
+  <circle cx="0" cy="{$height}" r="400" fill="{$primaryColor}" opacity="0.10" filter="blur(80px)" />
 
   <!-- Central Card Box -->
-  <rect x="{$cardX}" y="{$cardY}" width="{$cardWidth}" height="{$cardHeight}" rx="36" fill="{$cardBg}" fill-opacity="0.8" stroke="{$primaryColor}" stroke-opacity="0.3" stroke-width="2" filter="url(#cardGlow)" />
+  <rect x="{$cardX}" y="{$cardY}" width="{$cardWidth}" height="{$cardHeight}" rx="36" fill="{$cardBg}" fill-opacity="0.85" stroke="{$primaryColor}" stroke-opacity="0.35" stroke-width="2" filter="url(#cardGlow)" />
 
   <!-- Brand Badge Top -->
   <g transform="translate({$badgeX}, {$badgeY})">
-    <rect width="180" height="40" rx="20" fill="{$primaryColor}" fill-opacity="0.15" stroke="{$primaryColor}" stroke-opacity="0.4" stroke-width="1.5" />
-    <text x="90" y="25" fill="{$primaryColor}" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" text-anchor="middle">{$businessName}</text>
+    <rect width="200" height="44" rx="22" fill="{$primaryColor}" fill-opacity="0.15" stroke="{$primaryColor}" stroke-opacity="0.45" stroke-width="1.5" />
+    <text x="100" y="27" fill="{$primaryColor}" font-family="'Cairo', 'Inter', system-ui, sans-serif" font-size="15" font-weight="800" text-anchor="middle">{$businessName}</text>
   </g>
 
+  {$logoSvgTag}
+
   <!-- Category Title -->
-  <text x="{$badgeX}" y="{$titleY}" fill="{$textMuted}" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="600" letter-spacing="1">{$title}</text>
+  <text x="{$centerX}" y="{$titleY}" fill="{$textMuted}" font-family="'Cairo', 'Inter', system-ui, sans-serif" font-size="16" font-weight="600" text-anchor="middle" letter-spacing="1">{$title}</text>
 
   <!-- Central Hook / Quote Text -->
-  <text font-family="system-ui, -apple-system, 'Cairo', 'Inter', sans-serif" font-size="38" font-weight="800" fill="{$textPrimary}" text-anchor="middle" letter-spacing="-0.5">
+  <text font-family="'Cairo', 'Alexandria', 'Inter', system-ui, sans-serif" font-size="38" font-weight="800" fill="{$textPrimary}" text-anchor="middle" letter-spacing="-0.5">
     {$tspanLines}
   </text>
 
   <!-- Bottom Accent / CTA Bar -->
   <g transform="translate({$badgeX}, {$footerY})">
     <circle cx="16" cy="16" r="16" fill="url(#primaryGrad)" />
-    <text x="44" y="21" fill="{$textMuted}" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="500">Autonomous Creative Engine • Marketly AI</text>
+    <text x="44" y="21" fill="{$textMuted}" font-family="'Cairo', 'Inter', system-ui, sans-serif" font-size="13" font-weight="600">هوية معتمدة • {$businessName}</text>
   </g>
 </svg>
 SVG;
