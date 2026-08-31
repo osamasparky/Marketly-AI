@@ -1,15 +1,32 @@
-# Marketly-AI — Autonomous AI Marketing Employee
+# Marketly-AI — Autonomous AI Marketing SaaS Platform
 
 > **Production-ready, multi-tenant AI-native SaaS platform** that plans, creates, schedules, publishes, analyzes, and optimizes multi-platform marketing content across Meta (Facebook & Instagram), LinkedIn, YouTube, TikTok, and X.
 
 ---
 
-## 🌟 Product Vision
+## 🌟 Product Vision & Capabilities
 
-Marketly-AI acts as an autonomous marketing department for businesses and marketing agencies:
+Marketly-AI operates as an autonomous, multi-tenant AI marketing department for businesses and marketing agencies:
 ```
-Business Onboarding → Brand Brain → AI Strategy → Content Studio → Creative Studio → Calendar → Publishing Engine → Analytics & Learning → AI Optimization
+Organization Onboarding → Brand Brain → AI Strategy (Gemini) → Content Studio → Creative Studio → Calendar → Publishing Engine (LinkedIn live) → Analytics & Learning → Super Admin Governance
 ```
+
+### Core Value Pillars
+1. **Multi-Tenant SaaS with Plan Entitlements**:
+   - **Starter Plan**: Free trial / Solopreneurs (0 social connections, 30 AI posts/month, 5 strategies/month).
+   - **Growth Plan**: Scale-ups (5 connected social channels, 150 AI posts/month, 20 strategies/month, full analytics).
+   - **Pro Plan**: Agencies & Enterprises (Unlimited social channels, unlimited AI generations, team collaboration, automation).
+2. **Real AI Provider Integration**:
+   - Primary engine powered by **Google Gemini REST API** (`GeminiAIProvider`) via `AIProviderInterface`.
+   - Generates authentic Arabic (Saudi, Egyptian, Gulf, MSA) and English marketing copy with brand voice alignment and deterministic fallback protection.
+3. **Real Social Publishing Engine**:
+   - **LinkedIn**: Live OAuth 2.0 handshake, UserInfo profile extraction, and UGC Post publishing API (`LinkedInPublisherAdapter`).
+   - **Facebook, Instagram, TikTok, X**: Architectural STUB implementations ready for app client credential pairing.
+4. **Super Admin Platform Governance**:
+   - Global KPIs (MRR, total organizations, active subscriptions, revenue by plan).
+   - 1-Click "Login as Company" impersonation.
+   - Subscription plan switching and company status moderation.
+   - Real-time visibility into each organization's connected channels limit (`connected / limit`) and monthly AI quota consumption (`used / limit`).
 
 ---
 
@@ -19,10 +36,10 @@ Business Onboarding → Brand Brain → AI Strategy → Content Studio → Creat
 - **Framework**: Laravel 11 / 12 (PHP 8.2+)
 - **Architecture**: Modular Domain Monolith (`app/Domains/`)
 - **Authentication**: Laravel Sanctum (Bearer Token & Stateful API)
-- **Database**: PostgreSQL / SQLite with strict typing & foreign keys
-- **AI Contracts**: Replaceable provider abstraction (`AIProviderInterface`, `ImageProviderInterface`, `VideoProviderInterface`, `EmbeddingProviderInterface`) with Google Gemini as primary provider.
-- **Social Contracts**: Provider-independent publishing contracts (`SocialPublisherInterface`, `SocialAccountServiceInterface`).
-- **Queues & Jobs**: Asynchronous workers for document analysis, AI generation, and scheduled publishing with idempotency and retry backoff.
+- **Database**: SQLite (local & testing) / PostgreSQL (production) with strict multi-tenant isolation
+- **AI Contracts**: `AIProviderInterface` with `GeminiAIProvider` registered as the container singleton.
+- **Social Contracts**: `SocialPublisherInterface` with `LinkedInPublisherAdapter` implementing live OAuth 2.0 + UGC Posting.
+- **Security & Isolation**: `TenantIsolationGuard` checking tenant ownership and RBAC permissions (`owner`, `admin`, `manager`, `editor`, `viewer`).
 
 ### Frontend
 - **Framework**: Vue 3 (Composition API) + TypeScript
@@ -38,117 +55,70 @@ app/
 ├── Domains/
 │   ├── Identity/         # User auth, credentials & sessions
 │   ├── Tenancy/          # Multi-tenant organizations & isolation
-│   ├── Brand/            # Brand Brain, profiles, knowledge assets
-│   ├── Strategy/         # Goals, pillars, cadence & campaigns
-│   ├── Content/          # Post generation, hooks, CTAs, quality checks
+│   ├── Brand/            # Brand Brain, profiles, audiences, products
+│   ├── Strategy/         # AI strategy generator, pillars, campaigns
+│   ├── Content/          # Content generator agent, hooks, CTAs, quality checks
 │   ├── Creative/         # Image prompts, aspect ratios, video briefs
-│   ├── Publishing/       # Social accounts, queue, idempotency
+│   ├── Publishing/       # Social accounts, OAuth handshakes, publishing jobs
 │   ├── Analytics/        # Normalized metrics & AI performance insights
-│   ├── AI/               # AI agents, prompt schemas & cost tracking
-│   ├── Billing/          # Subscriptions, quotas & payment gateways
-│   └── Administration/   # Platform oversight, health & audit logs
+│   ├── AI/               # AI prompt schemas & cost tracking
+│   ├── Billing/          # Subscriptions, plan entitlements & limits
+│   └── Administration/   # Super Admin governance, KPIs & impersonation
 │
 ├── AI/
-│   └── Contracts/        # AIProvider, ImageProvider, VideoProvider, DTOs
+│   ├── Contracts/        # AIProviderInterface, DTOs (AIStructuredOutput, GenerationUsage)
+│   └── Providers/        # GeminiAIProvider (Google Gemini 2.0 Flash / REST API)
 │
 ├── Social/
-│   └── Contracts/        # SocialPublisher, SocialAccountService, DTOs
+│   └── Contracts/        # SocialPublisherInterface, DTOs (PublishPayload, PublishResult)
 │
 └── Support/
     └── ApiResponse.php   # Standard API envelope { data, meta } / { message, code, errors }
-
-resources/
-├── js/
-│   ├── App.vue           # Command Center interactive dashboard
-│   ├── app.ts            # Vue 3 bootstrap
-│   └── env.d.ts          # TypeScript declarations
-└── css/
-    └── app.css           # Design system tokens & typography
 ```
 
 ---
 
-## 🚀 Quick Start & Local Setup
+## 🚀 Environment Configuration
 
-### Prerequisites
-- PHP >= 8.2
-- Composer >= 2.0
-- Node.js >= 18.0 & npm
-- SQLite / PostgreSQL
+Add the following environment variables to your `.env`:
 
-### Installation
+```env
+APP_NAME=Marketly-AI
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://127.0.0.1:8000
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/osamasparky/Marketly-AI.git
-   cd Marketly-AI
-   ```
+# Google Gemini AI Configuration
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.0-flash
 
-2. **Install Backend Dependencies**:
-   ```bash
-   composer install
-   ```
-
-3. **Install Frontend Dependencies**:
-   ```bash
-   npm install
-   ```
-
-4. **Environment Setup**:
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
-
-5. **Run Migrations**:
-   ```bash
-   php artisan migrate
-   ```
-
-6. **Build Frontend Assets**:
-   ```bash
-   npm run build
-   ```
-
-7. **Start Development Servers**:
-   ```bash
-   # Start Laravel API Server
-   php artisan serve
-
-   # In another terminal: Start Vite Dev Server
-   npm run dev
-   ```
-
-8. Open `http://localhost:8000` in your browser.
+# LinkedIn Developer App Configuration
+LINKEDIN_CLIENT_ID=your_linkedin_client_id
+LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
+LINKEDIN_REDIRECT_URI=http://127.0.0.1:8000/api/v1/social/oauth/linkedin/callback
+```
 
 ---
 
 ## 🧪 Testing & Verification
 
-Run the automated test suite:
+Run the entire automated test suite:
 ```bash
 php artisan test
 ```
 
-Run TypeScript verification:
-```bash
-npx tsc --noEmit
-```
+Default credentials seeded:
+- **Super Admin**: `admin@marketly.ai` / `Password123!`
+- **Test Org Admin**: Auto-created on organization registration or onboarding.
 
 ---
 
-## 🗺️ Master Implementation Roadmap
+## 🗺️ Implementation Status
 
-- [x] **Phase 0 — Foundation & Architecture**: Laravel foundation, Sanctum auth, Vue 3 + TS Command Center, AI & Social provider contracts, standard API response structure, tests.
-- [ ] **Phase 1 — Identity & Multi-tenancy**: Organizations, roles, permissions, tenant middleware, policies, cross-tenant isolation tests.
-- [ ] **Phase 2 — Brand Brain**: Knowledge document ingestion, structured business fact extraction, brand profile management & approval.
-- [ ] **Phase 3 — AI Strategy**: Gemini provider integration, Strategy Agent, content pillars, 30-day campaign planning.
-- [ ] **Phase 4 — Content Studio**: Multi-platform post generator, hooks, CTAs, Quality Agent, and Arabic/English dialect controls.
-- [ ] **Phase 5 — Creative Studio**: AI image generation prompts (1:1, 4:5, 9:16, 16:9), video briefs, and media library.
-- [ ] **Phase 6 — Content Calendar**: Interactive scheduling, drag-and-drop, approval flows.
-- [ ] **Phase 7 — Social Integrations**: OAuth connections for Facebook, Instagram, LinkedIn, YouTube, TikTok, X.
-- [ ] **Phase 8 — Automatic Publishing**: Asynchronous dispatch workers, database locking, idempotency keys, and retry backoff.
-- [ ] **Phase 9 — Analytics & AI Optimization**: Metric synchronization, normalized KPI dashboards, Optimization Agent.
-- [ ] **Phase 10 — AI Marketing Assistant**: Conversational assistant with tool calling and safe mutation confirmations.
-- [ ] **Phase 11 — SaaS & Agency**: Agency client switching, quotas, AI cost/token tracking.
-- [ ] **Phase 12 — Production Hardening**: Security audit, rate limiting, and end-to-end verification.
+- [x] **Multi-Tenant Architecture & RBAC**: Tenant context, isolation guard, 5 system roles.
+- [x] **Brand Brain Hub**: Brand identity, voice/tone, products/services, and target personas.
+- [x] **Real AI Provider Integration**: Google Gemini 2.0 Flash REST provider with deterministic fallback.
+- [x] **Subscription Entitlements & Limit Enforcement**: Plan-based restrictions on social channels & AI usage.
+- [x] **Social Publishing Platform**: Live LinkedIn OAuth & UGC posting + stub matrix for other networks.
+- [x] **Super Admin Governance**: Real-time KPIs, plan distribution, company impersonation, and quota monitoring.
