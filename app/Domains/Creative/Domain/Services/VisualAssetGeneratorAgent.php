@@ -72,18 +72,66 @@ class VisualAssetGeneratorAgent
                     ];
                 }
 
-                Log::warning('VisualAssetGeneratorAgent: AI image generation failed, using declared fallback', [
+                Log::warning('VisualAssetGeneratorAgent: Primary AI image generation failed, trying fallback provider', [
                     'error' => $aiResult->errorMessage,
                 ]);
                 $fallbackReason = $aiResult->errorMessage;
             } catch (\Throwable $e) {
-                Log::warning('VisualAssetGeneratorAgent: Exception during AI image generation', [
+                Log::warning('VisualAssetGeneratorAgent: Exception during primary AI image generation', [
                     'error' => $e->getMessage(),
                 ]);
                 $fallbackReason = $e->getMessage();
             }
         } else {
-            $fallbackReason = 'AI image provider is not configured. Generated using high-contrast branded SVG template.';
+            $fallbackReason = 'Primary AI image provider is not configured.';
+        }
+
+        // 1b. Multi-Provider Fallback: If primary failed or not configured, try OpenAI if available
+        if (!empty($aiPrompt)) {
+            try {
+                $openAiKey = null;
+                if (!empty($orgId) && is_numeric($orgId)) {
+                    $org = \App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationModel::find($orgId);
+                    $openAiKey = $org?->ai_config_json['openai_api_key'] ?? null;
+                }
+                $openAiKey = $openAiKey ?: config('services.openai.api_key');
+
+                if (!empty($openAiKey)) {
+                    $openAiProvider = new \App\AI\Providers\OpenAIAIProvider(apiKey: $openAiKey);
+                    $aiResult = $openAiProvider->generateImage($aiPrompt, [
+                        'aspect_ratio' => $aspectRatio,
+                        'org_id' => $orgId,
+                        'brand_id' => $brandId,
+                    ]);
+
+                    if ($aiResult->success && !empty($aiResult->data['file_path'])) {
+                        return [
+                            'file_name' => $aiResult->data['file_name'],
+                            'file_path' => $aiResult->data['file_path'],
+                            'file_type' => 'image',
+                            'mime_type' => $aiResult->data['mime_type'] ?? 'image/png',
+                            'file_size_bytes' => $aiResult->data['file_size_bytes'] ?? 0,
+                            'width' => $w,
+                            'height' => $h,
+                            'aspect_ratio' => $aspectRatio,
+                            'visual_style' => $style,
+                            'prompt_used' => $aiPrompt,
+                            'text_overlay' => $hook,
+                            'color_palette' => $palette,
+                            'metadata' => [
+                                'mode' => 'ai_generated',
+                                'image_url' => $aiResult->data['image_url'] ?? null,
+                                'visual_brief' => $parameters['visual_brief'] ?? null,
+                                'latency_ms' => $aiResult->usage?->latencyMs,
+                                'negative_prompt' => $parameters['negative_prompt'] ?? null,
+                            ],
+                            'status' => 'ready',
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('VisualAssetGeneratorAgent: Secondary OpenAI fallback exception', ['error' => $e->getMessage()]);
+            }
         }
 
         // 2. Declared Fallback: Render crisp SVG Card

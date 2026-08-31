@@ -30,33 +30,73 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(AuthorizationService::class);
         $this->app->bind(AIProviderInterface::class, function ($app) {
-            $apiKey = (string) config('services.gemini.api_key', '');
-            $model = (string) config('services.gemini.model', 'gemini-2.0-flash');
+            $geminiKey = (string) config('services.gemini.api_key', '');
+            $geminiModel = (string) config('services.gemini.model', 'gemini-flash-latest');
+            $openAiKey = (string) config('services.openai.api_key', '');
+            $openAiModel = (string) config('services.openai.model', 'gpt-4o-mini');
+            $preferredProvider = 'gemini';
 
-            // If active tenant context has custom BYOK Gemini key, use tenant's key
+            // Check active tenant context for custom BYOK keys and preferences
             try {
+                $org = null;
                 if ($app->bound(\App\Domains\Tenancy\Domain\Entities\TenantContext::class)) {
                     $context = $app->make(\App\Domains\Tenancy\Domain\Entities\TenantContext::class);
                     if ($context && $context->organizationId) {
                         $org = \App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationModel::find($context->organizationId);
-                        if ($org && !empty($org->ai_config_json['gemini_api_key'])) {
-                            $apiKey = $org->ai_config_json['gemini_api_key'];
-                        }
                     }
                 } elseif (request()?->attributes->has('tenant_context')) {
                     $context = request()->attributes->get('tenant_context');
                     if ($context && $context->organizationId) {
                         $org = \App\Domains\Tenancy\Infrastructure\Persistence\Models\OrganizationModel::find($context->organizationId);
-                        if ($org && !empty($org->ai_config_json['gemini_api_key'])) {
-                            $apiKey = $org->ai_config_json['gemini_api_key'];
+                    }
+                }
+
+                if ($org && !empty($org->ai_config_json)) {
+                    $config = $org->ai_config_json;
+                    if (!empty($config['gemini_api_key'])) {
+                        $geminiKey = $config['gemini_api_key'];
+                    }
+                    if (!empty($config['openai_api_key'])) {
+                        $openAiKey = $config['openai_api_key'];
+                    }
+                    if (!empty($config['preferred_model'])) {
+                        $pref = strtolower($config['preferred_model']);
+                        if (str_starts_with($pref, 'gpt') || str_starts_with($pref, 'o1') || str_starts_with($pref, 'o3') || str_starts_with($pref, 'o4')) {
+                            $preferredProvider = 'openai';
+                            $openAiModel = $config['preferred_model'];
+                        } elseif (str_starts_with($pref, 'gemini')) {
+                            $preferredProvider = 'gemini';
+                            $geminiModel = $config['preferred_model'];
                         }
                     }
                 }
             } catch (\Throwable $e) {}
 
+            if ($preferredProvider === 'openai' && !empty($openAiKey)) {
+                return new \App\AI\Providers\OpenAIAIProvider(
+                    apiKey: $openAiKey,
+                    model: $openAiModel
+                );
+            }
+
+            if (!empty($geminiKey)) {
+                return new GeminiAIProvider(
+                    apiKey: $geminiKey,
+                    model: $geminiModel,
+                    baseUrl: 'https://generativelanguage.googleapis.com/v1beta'
+                );
+            }
+
+            if (!empty($openAiKey)) {
+                return new \App\AI\Providers\OpenAIAIProvider(
+                    apiKey: $openAiKey,
+                    model: $openAiModel
+                );
+            }
+
             return new GeminiAIProvider(
-                apiKey: $apiKey,
-                model: $model,
+                apiKey: $geminiKey,
+                model: $geminiModel,
                 baseUrl: 'https://generativelanguage.googleapis.com/v1beta'
             );
         });
