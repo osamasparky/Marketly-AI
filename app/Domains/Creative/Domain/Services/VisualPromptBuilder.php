@@ -58,10 +58,10 @@ class VisualPromptBuilder
         $businessName = $profile?->business_name ?? 'Marketly AI';
         $industry = $profile?->industry ?? 'Technology & SaaS';
 
-        // 3. Resolve Palette (Brand Brain Phase D colors with fallback)
+        // 3. Resolve Palette (Brand Brain Phase D colors with dynamic multi-color defaults)
         $primaryColor = $customPalette['primary'] ?? $profile?->primary_color ?? '#10b981';
-        $secondaryColor = $customPalette['secondary'] ?? $profile?->secondary_color ?? '#064e3b';
-        $accentColor = $customPalette['accent'] ?? $profile?->accent_color ?? '#34d399';
+        $secondaryColor = $customPalette['secondary'] ?? $profile?->secondary_color ?? '#3b82f6';
+        $accentColor = $customPalette['accent'] ?? $profile?->accent_color ?? '#f59e0b';
         $bgColor = $customPalette['background'] ?? $profile?->background_color ?? '#020617';
 
         $palette = [
@@ -69,7 +69,7 @@ class VisualPromptBuilder
             'secondary' => $secondaryColor,
             'accent' => $accentColor,
             'background' => $bgColor,
-            'card_bg' => '#0f172a',
+            'card_bg' => $secondaryColor,
             'text_primary' => '#ffffff',
             'text_muted' => '#94a3b8',
         ];
@@ -89,8 +89,8 @@ class VisualPromptBuilder
         $formality = $voice?->formality_scale ?? 3;
 
         // 6. Style-specific Creative Directives
-        $briefDescription = $visualBrief['description'] ?? ($hook ?: $title ?: "Social media asset for {$businessName}");
-        $textOverlay = $visualBrief['suggested_text_overlay'] ?? ($hook ?: $title ?: $businessName);
+        $briefDescription = $visualBrief['description'] ?? ($hook ?: $title ?: "Commercial 3D marketing visual for {$industry}");
+        $textOverlay = $visualBrief['suggested_text_overlay'] ?? ($hook ?: $title ?: $industry);
         $primaryDesc = $this->describeHexColor($primaryColor);
         $secondaryDesc = $this->describeHexColor($secondaryColor);
         $accentDesc = $this->describeHexColor($accentColor);
@@ -100,7 +100,7 @@ class VisualPromptBuilder
             'product_showcase' => "High-end commercial 3D studio product photography. Hero showcase on a sleek minimalist geometric podium, crisp glass reflections, soft directional volumetric lighting in {$primaryDesc} and {$accentDesc} highlights, deep {$bgDesc} backdrop.",
             'lifestyle_scene' => "Authentic, relatable contemporary Saudi/Gulf business executive environment. Modern architectural interior, warm sunlight beam, subtle {$primaryDesc} ambient lighting, luxury minimalist aesthetic.",
             'promotional_banner' => "Dynamic high-impact advertising graphic with 3D floating geometric glass cards, luminous {$accentDesc} energy trails, deep {$bgDesc} contrast, professional commercial agency finish.",
-            'infographic_style', 'infographic_card' => "Futuristic 3D isometric infographic elements, floating glowing glassmorphism panels, crisp data visualization motifs, neon {$primaryDesc} accent pipelines on deep dark {$bgDesc} background.",
+            'infographic_style', 'infographic_card' => "Futuristic 3D isometric abstract tech nodes, floating glowing glassmorphism geometric panels, volumetric {$secondaryDesc} rim glows, neon {$primaryDesc} and {$accentDesc} specular highlights on deep dark {$bgDesc} background.",
             'quote_card', 'branded_quote', 'card_graphic' => "Editorial luxury graphic with abstract floating 3D organic curves, smooth satin textures, rich diffuse studio lighting blending {$primaryDesc} and {$secondaryDesc} on a sleek dark canvas.",
             default => "Award-winning commercial advertising visual with balanced composition, luxury 3D lighting, and polished studio finish."
         };
@@ -113,21 +113,18 @@ class VisualPromptBuilder
 
         // 8. Assemble Ultra-High-Fidelity Prompt with Structural Brand Locking
         $lockedIdentity = "=== LOCKED BRAND IDENTITY (STRICT CONSTRAINTS) ===\n"
-            . "- Brand: {$businessName} | Industry: {$industry}\n"
+            . "- Brand Reference: {$businessName} | Industry Focus: {$industry}\n"
             . "- Mandatory 4-Color Harmonic Palette: Primary ({$primaryColor} - {$primaryDesc}), Secondary ({$secondaryColor} - {$secondaryDesc}), Accent ({$accentColor} - {$accentDesc}), Background ({$bgColor} - {$bgDesc}).\n"
             . "- Color Distribution Rule (60-30-10): 60% base deep atmosphere in {$bgDesc} and {$secondaryDesc}, 30% structural 3D objects and reflections in {$primaryDesc}, 10% radiant neon specular highlights in {$accentDesc}.\n"
-            . "- Brand Tone: {$toneVibe} (Formality: {$formality}/5).\n"
-            . "- Logo & Placement: " . ($logoAsset ? "Incorporate designated top/corner clean zone for {$businessName} logo." : "Reserve minimalist branding zone.") . "\n"
-            . "RULE: Blend all four brand colors harmoniously across lighting, shadows, and surfaces. Do not use a single monochrome color.";
+            . "- Strict Anti-Text & Anti-Logo Rule: DO NOT generate any text, letters, words, brand names, or invented logos in the image pixels. Leave the top corner clean and empty for the official verified logo overlay.";
 
         $variableComposition = "=== VARIABLE CREATIVE COMPOSITION (CREATIVE FREEDOM) ===\n"
             . "- Visual Concept & Style: {$styleDirective}\n"
-            . "- Scene Description: {$briefDescription}\n"
-            . "- Key Visual Focus & Text Focal: {$textOverlay}\n"
-            . "- Color Atmosphere: Rich multi-color blending of {$primaryDesc}, {$secondaryDesc}, and {$accentDesc} upon {$bgDesc}.\n"
+            . "- Scene Description: Commercial abstract 3D visual setting for {$industry}\n"
+            . "- Multi-Color Lighting Blend: Harmonious volumetric studio lighting combining {$primaryDesc} key light, {$secondaryDesc} rim glow, and {$accentDesc} neon specular accents upon {$bgDesc} backdrop.\n"
             . "{$productContext}\n"
-            . "- Technical Specifications: Aspect ratio {$aspectRatio} ({$dimensions['label']}), 8K resolution, octane 3D render, Hasselblad studio lighting, award-winning social media art direction, clean negative space for branding.\n"
-            . "- STRICT NEGATIVE PROMPT: Do not generate distorted text, DO NOT write or paint the brand name '{$businessName}' as text (the official logo will be watermarked directly), avoid cluttered clip art, no low-resolution artifacts.";
+            . "- Technical Specifications: Aspect ratio {$aspectRatio} ({$dimensions['label']}), 8K resolution, octane 3D render, Hasselblad studio lighting, award-winning social media art direction, clean negative space.\n"
+            . "- STRICT NEGATIVE PROMPT: text, typography, letters, words, alphabet, numbers, watermark, fake logo, letter M, symbol, messy Arabic font, distorted glyphs, blurry, low resolution.";
 
         if ($isRegeneration) {
             $variableComposition .= "\n- REGENERATION DIRECTIVE: Alternate dynamic perspective, distinct camera focal depth, and fresh artistic staging. "
