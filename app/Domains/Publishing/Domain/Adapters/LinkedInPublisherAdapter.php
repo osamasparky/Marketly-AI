@@ -187,6 +187,25 @@ class LinkedInPublisherAdapter implements SocialPublisherInterface
             ],
         ];
 
+        // If running in local/testing with mock tokens and no live credentials configured, provide simulated sandbox response
+        $isMockToken = str_starts_with($account->access_token, 'sec_') || str_starts_with($account->access_token, 'ln_live_');
+        $hasLiveCredentials = !empty($this->clientId) && !empty($this->clientSecret);
+
+        if (app()->environment('local', 'testing') && $isMockToken && !$hasLiveCredentials) {
+            $postId = 'urn:li:share:' . rand(100000000, 999999999);
+            $shareUrl = "https://www.linkedin.com/feed/update/{$postId}";
+
+            return [
+                'external_post_id' => $postId,
+                'external_post_url' => $shareUrl,
+                'metrics' => [
+                    'impressions' => 0,
+                    'clicks' => 0,
+                    'reactions' => 0,
+                ],
+            ];
+        }
+
         try {
             $response = Http::withToken($account->access_token)
                 ->withHeaders([
@@ -212,26 +231,16 @@ class LinkedInPublisherAdapter implements SocialPublisherInterface
                 ];
             }
 
-            Log::warning('LinkedIn publish API call returned non-200 status', [
-                'status' => $response->status(),
-                'response' => $response->body(),
-            ]);
+            $errorMsg = "LinkedIn publish failed with status {$response->status()}: " . $response->body();
+            Log::error($errorMsg);
+            throw new RuntimeException($errorMsg);
         } catch (\Throwable $e) {
-            Log::error('LinkedIn publish API exception', ['error' => $e->getMessage()]);
+            if ($e instanceof RuntimeException) {
+                throw $e;
+            }
+            $errorMsg = 'LinkedIn publish API error: ' . $e->getMessage();
+            Log::error($errorMsg);
+            throw new RuntimeException($errorMsg, 0, $e);
         }
-
-        // Fallback simulated success for local/offline testing
-        $postId = 'urn:li:share:' . rand(100000000, 999999999);
-        $shareUrl = "https://www.linkedin.com/feed/update/{$postId}";
-
-        return [
-            'external_post_id' => $postId,
-            'external_post_url' => $shareUrl,
-            'metrics' => [
-                'impressions' => 0,
-                'clicks' => 0,
-                'reactions' => 0,
-            ],
-        ];
     }
 }

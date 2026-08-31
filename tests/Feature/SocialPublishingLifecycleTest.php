@@ -141,7 +141,13 @@ class SocialPublishingLifecycleTest extends TestCase
             'status' => 'approved',
         ]);
 
-        // 3. Publish now
+        // 3. Publish now (with mocked LinkedIn API response)
+        \Illuminate\Support\Facades\Http::fake([
+            'https://api.linkedin.com/v2/ugcPosts' => \Illuminate\Support\Facades\Http::response([
+                'id' => 'urn:li:share:123456789',
+            ], 201),
+        ]);
+
         $response = $this->withHeaders([
             'Authorization' => "Bearer {$this->token}",
             'X-Organization-Id' => (string) $this->organization->id,
@@ -151,7 +157,7 @@ class SocialPublishingLifecycleTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonPath('data.status', 'published');
-        $this->assertNotNull($response->json('data.external_post_id'));
+        $this->assertEquals('urn:li:share:123456789', $response->json('data.external_post_id'));
         $this->assertNotNull($response->json('data.external_post_url'));
 
         // Verify post status updated
@@ -161,6 +167,46 @@ class SocialPublishingLifecycleTest extends TestCase
             'content_post_id' => $post->id,
             'status' => 'published',
         ]);
+    }
+
+    public function test_publish_fails_explicitly_when_api_returns_error(): void
+    {
+        $account = SocialAccountModel::create([
+            'organization_id' => $this->organization->id,
+            'user_id' => $this->user->id,
+            'platform' => 'linkedin',
+            'account_name' => 'Marketly LinkedIn',
+            'account_id' => 'urn:li:person:998877',
+            'access_token' => 'real_live_token_that_fails',
+            'is_active' => true,
+            'health_status' => 'healthy',
+        ]);
+
+        $post = ContentPostModel::create([
+            'organization_id' => $this->organization->id,
+            'title' => 'Failing Post',
+            'caption' => 'Should fail explicitly.',
+            'primary_platform' => 'linkedin',
+            'status' => 'approved',
+        ]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://api.linkedin.com/v2/ugcPosts' => \Illuminate\Support\Facades\Http::response([
+                'serviceErrorCode' => 100,
+                'message' => 'Invalid UGC parameter',
+            ], 400),
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->organization->id,
+        ])->postJson("/api/v1/social/posts/{$post->id}/publish-now", [
+            'social_account_id' => $account->id,
+        ]);
+
+        // When external publishing fails, API returns 500/error and does NOT claim success
+        $response->assertStatus(500);
+        $this->assertNotEquals('published', $post->fresh()->status);
     }
 
     public function test_health_check_and_disconnect_account(): void
