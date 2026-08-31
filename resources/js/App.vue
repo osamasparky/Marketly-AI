@@ -219,19 +219,24 @@
 
           <!-- Brand Switcher Dropdown (Phase E Multi-Brand Support) -->
           <div v-if="authUser && orgBrands.length > 0" class="relative hidden sm:block">
-            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-teal-500/30 text-xs">
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-teal-500/30 text-xs shadow-lg shadow-teal-950/20">
               <span class="text-teal-400">🏷️</span>
               <select 
                 :value="activeBrandId" 
                 @change="handleBrandSwitch(Number(($event.target as HTMLSelectElement).value))"
-                class="bg-transparent text-teal-300 font-bold text-xs focus:outline-none cursor-pointer"
+                class="bg-transparent text-teal-300 font-bold text-xs focus:outline-none cursor-pointer pr-1"
               >
                 <option v-for="brand in orgBrands" :key="brand.id" :value="brand.id" class="bg-slate-900 text-slate-200">
                   {{ brand.business_name }}
                 </option>
               </select>
-              <button @click="showNewBrandModal = true" class="text-slate-400 hover:text-teal-400 text-xs px-1" title="Create New Brand">
-                ➕
+              <button 
+                @click="showNewBrandModal = true" 
+                class="px-2 py-0.5 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 font-bold text-[11px] flex items-center gap-1 transition-colors border border-teal-500/30" 
+                :title="currentLocale === 'ar' ? 'إضافة براند جديد' : 'Create New Brand'"
+              >
+                <span>➕</span>
+                <span>{{ currentLocale === 'ar' ? 'براند جديد' : 'New Brand' }}</span>
               </button>
             </div>
           </div>
