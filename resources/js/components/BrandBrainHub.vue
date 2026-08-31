@@ -72,53 +72,191 @@
       </button>
     </div>
 
-    <!-- Tab 1: Profile & Identity -->
-    <div v-if="activeTab === 'identity'" class="p-6 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-6">
-      <h3 class="text-sm font-bold text-white flex items-center gap-2">
-        <span>🏢</span>
-        <span>{{ t('brandBrain.tabs.identity') }}</span>
-      </h3>
+    <!-- Tab 1: Profile & Visual Identity -->
+    <div v-if="activeTab === 'identity'" class="space-y-6">
+      <!-- 1. Visual Identity & Brand Assets Card -->
+      <div class="p-6 md:p-8 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <span>🎨</span>
+              <span>{{ currentLocale === 'ar' ? 'الهوية البصرية وأصول العلامة التجارية' : 'Visual Identity & Brand Assets' }}</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              {{ currentLocale === 'ar' ? 'قم برفع لوجو الشركة وتحديد لوحة الألوان لاستخدامها تلقائياً في التصاميم والمحتوى' : 'Upload your company logo and define your brand color palette for automated creatives' }}
+            </p>
+          </div>
+          <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Creative Core
+          </span>
+        </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="space-y-1.5">
-          <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.businessName') }}</label>
-          <input v-model="profileForm.business_name" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="Acme Inc." />
-        </div>
-        <div class="space-y-1.5">
-          <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.industry') }}</label>
-          <input v-model="profileForm.industry" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="Technology / SaaS" />
-        </div>
-        <div class="space-y-1.5">
-          <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.businessType') }}</label>
-          <select v-model="profileForm.business_type" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white">
-            <option value="B2B">B2B (Business to Business)</option>
-            <option value="B2C">B2C (Business to Consumer)</option>
-            <option value="D2C">D2C (Direct to Consumer)</option>
-            <option value="Agency">Agency / Service</option>
-          </select>
-        </div>
-        <div class="space-y-1.5">
-          <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.website') }}</label>
-          <input v-model="profileForm.website" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="https://example.com" />
-        </div>
-        <div class="space-y-1.5 md:col-span-2">
-          <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.tagline') }}</label>
-          <input v-model="profileForm.tagline" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="Autonomous Marketing for High-Growth Brands" />
-        </div>
-        <div class="space-y-1.5 md:col-span-2">
-          <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.positioning') }}</label>
-          <textarea v-model="profileForm.positioning" rows="2" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="Core market positioning and brand pillars..."></textarea>
-        </div>
-        <div class="space-y-1.5 md:col-span-2">
-          <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.description') }}</label>
-          <textarea v-model="profileForm.description" rows="3" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="Detailed business background and service offering overview..."></textarea>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Logo Upload Zone (5 cols) -->
+          <div class="lg:col-span-5 space-y-3">
+            <label class="text-xs font-semibold text-slate-300 flex items-center gap-2">
+              <span>🖼️</span>
+              <span>{{ currentLocale === 'ar' ? 'شعار الشركة (Brand Logo)' : 'Brand Logo (PNG, JPG, SVG)' }}</span>
+            </label>
+
+            <!-- Logo Card if uploaded -->
+            <div v-if="brandLogo" class="p-4 rounded-2xl bg-slate-950/80 border border-emerald-500/30 flex items-center gap-4 relative group">
+              <div class="w-20 h-20 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center p-2 overflow-hidden shadow-inner">
+                <img :src="brandLogo.public_url" :alt="brandLogo.name" class="max-w-full max-h-full object-contain" />
+              </div>
+              <div class="flex-1 space-y-1 text-xs">
+                <div class="font-bold text-white truncate max-w-[160px]">{{ brandLogo.name }}</div>
+                <div class="text-[10px] text-slate-400 font-mono">{{ brandLogo.mime_type }} • {{ Math.round(brandLogo.file_size / 1024) }} KB</div>
+                <button 
+                  @click="deleteLogo(brandLogo.id)" 
+                  class="text-[11px] text-red-400 hover:text-red-300 font-bold flex items-center gap-1 transition-colors pt-1"
+                >
+                  <span>🗑️</span> {{ currentLocale === 'ar' ? 'حذف الشعار' : 'Remove Logo' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Upload Dropzone if no logo -->
+            <div 
+              v-else 
+              @click="triggerLogoInput"
+              class="p-6 rounded-2xl bg-slate-950/40 border-2 border-dashed border-slate-800 hover:border-emerald-500/50 cursor-pointer text-center space-y-2 transition-all group"
+            >
+              <input ref="logoInputRef" type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden" @change="onLogoFileSelected" />
+              <div class="text-3xl group-hover:scale-110 transition-transform">📁</div>
+              <div class="text-xs font-bold text-slate-200 group-hover:text-emerald-400 transition-colors">
+                {{ uploadingLogo ? (currentLocale === 'ar' ? 'جاري الرفع...' : 'Uploading...') : (currentLocale === 'ar' ? 'اضغط لرفع اللوجو' : 'Click or Drag Logo here') }}
+              </div>
+              <div class="text-[10px] text-slate-500">PNG, JPG, SVG, WebP up to 2MB</div>
+            </div>
+          </div>
+
+          <!-- Color Palette Picker (7 cols) -->
+          <div class="lg:col-span-7 space-y-4">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-slate-300 flex items-center gap-2">
+                <span>🎨</span>
+                <span>{{ currentLocale === 'ar' ? 'لوحة ألوان العلامة التجارية (Color Palette)' : 'Brand Color Palette' }}</span>
+              </label>
+              <div class="flex items-center gap-1.5 text-[10px]">
+                <span class="text-slate-500">{{ currentLocale === 'ar' ? 'قوالب جاهزة:' : 'Presets:' }}</span>
+                <button type="button" @click="applyColorPreset('#10B981', '#064E3B', '#34D399')" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30">Emerald</button>
+                <button type="button" @click="applyColorPreset('#3B82F6', '#1E3A8A', '#60A5FA')" class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 hover:bg-blue-500/30">Sapphire</button>
+                <button type="button" @click="applyColorPreset('#F59E0B', '#78350F', '#FBBF24')" class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30">Gold</button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <!-- Primary Color -->
+              <div class="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                <div class="flex items-center justify-between text-[11px] font-bold text-slate-300">
+                  <span>Primary</span>
+                  <span class="w-3.5 h-3.5 rounded-full border border-white/20 shadow" :style="{ backgroundColor: profileForm.primary_color }"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input v-model="profileForm.primary_color" type="color" class="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0" />
+                  <input v-model="profileForm.primary_color" type="text" class="w-full px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-white font-mono uppercase" />
+                </div>
+              </div>
+
+              <!-- Secondary Color -->
+              <div class="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                <div class="flex items-center justify-between text-[11px] font-bold text-slate-300">
+                  <span>Secondary</span>
+                  <span class="w-3.5 h-3.5 rounded-full border border-white/20 shadow" :style="{ backgroundColor: profileForm.secondary_color || '#1e293b' }"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input v-model="profileForm.secondary_color" type="color" class="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0" />
+                  <input v-model="profileForm.secondary_color" type="text" placeholder="#3B82F6" class="w-full px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-white font-mono uppercase" />
+                </div>
+              </div>
+
+              <!-- Accent Color -->
+              <div class="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                <div class="flex items-center justify-between text-[11px] font-bold text-slate-300">
+                  <span>Accent</span>
+                  <span class="w-3.5 h-3.5 rounded-full border border-white/20 shadow" :style="{ backgroundColor: profileForm.accent_color || '#f59e0b' }"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input v-model="profileForm.accent_color" type="color" class="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0" />
+                  <input v-model="profileForm.accent_color" type="text" placeholder="#F59E0B" class="w-full px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-white font-mono uppercase" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Card Preview -->
+            <div 
+              class="p-4 rounded-2xl border text-xs flex items-center justify-between shadow-lg transition-all"
+              :style="{ 
+                borderColor: profileForm.primary_color || '#10B981',
+                background: `linear-gradient(135deg, ${profileForm.primary_color || '#10B981'}15, #090d16)` 
+              }"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white shadow" :style="{ backgroundColor: profileForm.primary_color || '#10B981' }">
+                  {{ profileForm.business_name ? profileForm.business_name.charAt(0).toUpperCase() : 'M' }}
+                </div>
+                <div>
+                  <span class="font-bold text-white block">{{ profileForm.business_name || 'Brand Preview' }}</span>
+                  <span class="text-[10px] text-slate-400 font-mono">Live Palette Integration Active</span>
+                </div>
+              </div>
+              <span class="px-2 py-1 rounded-md text-[10px] font-bold font-mono text-white shadow" :style="{ backgroundColor: profileForm.accent_color || '#f59e0b' }">
+                AI Ready
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="flex justify-end pt-2">
-        <button @click="saveProfile" :disabled="saving" class="tactile-btn tactile-btn-primary text-xs px-5 py-2.5">
-          {{ saving ? t('common.processing') : t('brandBrain.buttons.saveProfile') }}
-        </button>
+      <!-- 2. Business Profile Form Card -->
+      <div class="p-6 md:p-8 rounded-3xl bg-slate-900/60 border border-slate-800/80 shadow-xl space-y-6">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <span>🏢</span>
+          <span>{{ t('brandBrain.tabs.identity') }}</span>
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.businessName') }}</label>
+            <input v-model="profileForm.business_name" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="Acme Inc." />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.industry') }}</label>
+            <input v-model="profileForm.industry" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="Technology / SaaS" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.businessType') }}</label>
+            <select v-model="profileForm.business_type" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white">
+              <option value="B2B">B2B (Business to Business)</option>
+              <option value="B2C">B2C (Business to Consumer)</option>
+              <option value="D2C">D2C (Direct to Consumer)</option>
+              <option value="Agency">Agency / Service</option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.website') }}</label>
+            <input v-model="profileForm.website" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="https://example.com" />
+          </div>
+          <div class="space-y-1.5 md:col-span-2">
+            <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.tagline') }}</label>
+            <input v-model="profileForm.tagline" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="Autonomous Marketing for High-Growth Brands" />
+          </div>
+          <div class="space-y-1.5 md:col-span-2">
+            <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.positioning') }}</label>
+            <textarea v-model="profileForm.positioning" rows="2" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="Core market positioning and brand pillars..."></textarea>
+          </div>
+          <div class="space-y-1.5 md:col-span-2">
+            <label class="text-[11px] font-medium text-slate-400">{{ t('brandBrain.fields.description') }}</label>
+            <textarea v-model="profileForm.description" rows="3" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" placeholder="Detailed business background and service offering overview..."></textarea>
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <button @click="saveProfile" :disabled="saving" class="tactile-btn tactile-btn-primary text-xs px-6 py-2.5 shadow-lg shadow-emerald-500/20">
+            {{ saving ? t('common.processing') : (currentLocale === 'ar' ? 'حفظ الهوية والملف الكامل' : 'Save Brand Identity & Profile') }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -419,7 +557,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { t, currentLocale } from '../i18n';
 
@@ -431,10 +569,18 @@ const props = defineProps<{
 const activeTab = ref('identity');
 const saving = ref(false);
 const modalSaving = ref(false);
+const uploadingLogo = ref(false);
+const logoInputRef = ref<HTMLInputElement | null>(null);
+
 const completeness = ref<any>({ total_score: 0, status: 'empty', pillars: {} });
 const products = ref<any[]>([]);
 const audiences = ref<any[]>([]);
+const brandAssets = ref<any[]>([]);
 const aiContextData = ref<string>('');
+
+const brandLogo = computed(() => {
+  return brandAssets.value.find(a => a.type === 'logo') || null;
+});
 
 const showProductModal = ref(false);
 const showAudienceModal = ref(false);
@@ -447,6 +593,10 @@ const profileForm = ref({
   website: '',
   tagline: '',
   positioning: '',
+  primary_color: '#10B981',
+  secondary_color: '#3B82F6',
+  accent_color: '#F59E0B',
+  background_color: '#0F172A',
 });
 
 const voiceForm = ref({
@@ -487,6 +637,68 @@ const getHeaders = () => ({
   'X-Locale': currentLocale.value,
   ...(props.organizationId ? { 'X-Organization-Id': String(props.organizationId) } : {}),
 });
+
+const triggerLogoInput = () => {
+  if (logoInputRef.value) {
+    logoInputRef.value.click();
+  }
+};
+
+const onLogoFileSelected = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  uploadingLogo.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'logo');
+    formData.append('name', file.name);
+
+    await axios.post('/api/v1/brand/assets', formData, {
+      headers: {
+        ...getHeaders(),
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    await fetchBrandAssets();
+    await fetchBrandBrain();
+  } catch (err: any) {
+    alert(err.response?.data?.message || 'Failed to upload logo.');
+  } finally {
+    uploadingLogo.value = false;
+    if (logoInputRef.value) logoInputRef.value.value = '';
+  }
+};
+
+const deleteLogo = async (assetId: number) => {
+  if (!confirm(currentLocale.value === 'ar' ? 'هل أنت متأكد من حذف الشعار؟' : 'Are you sure you want to remove the brand logo?')) return;
+  try {
+    await axios.delete(`/api/v1/brand/assets/${assetId}`, { headers: getHeaders() });
+    await fetchBrandAssets();
+    await fetchBrandBrain();
+  } catch (err: any) {
+    alert(err.response?.data?.message || 'Failed to delete logo.');
+  }
+};
+
+const applyColorPreset = (primary: string, secondary: string, accent: string) => {
+  profileForm.value.primary_color = primary;
+  profileForm.value.secondary_color = secondary;
+  profileForm.value.accent_color = accent;
+};
+
+const fetchBrandAssets = async () => {
+  if (!props.authToken) return;
+  try {
+    const res = await axios.get('/api/v1/brand/assets', { headers: getHeaders() });
+    brandAssets.value = res.data?.data?.assets || [];
+  } catch (err) {
+    console.error('Failed to load brand assets', err);
+  }
+};
 
 const openNewProductModal = () => {
   productForm.value = {
@@ -529,6 +741,10 @@ const fetchBrandBrain = async () => {
           website: data.profile.website || '',
           tagline: data.profile.tagline || '',
           positioning: data.profile.positioning || '',
+          primary_color: data.profile.primary_color || '#10B981',
+          secondary_color: data.profile.secondary_color || '#3B82F6',
+          accent_color: data.profile.accent_color || '#F59E0B',
+          background_color: data.profile.background_color || '#0F172A',
         };
         products.value = data.profile.products_services || [];
         audiences.value = data.profile.audiences || [];
@@ -550,7 +766,7 @@ const saveProfile = async () => {
   saving.value = true;
   try {
     await axios.post('/api/v1/brand', profileForm.value, { headers: getHeaders() });
-    alert('Brand profile saved successfully.');
+    alert(currentLocale.value === 'ar' ? 'تم حفظ هوية وملف العلامة التجارية بنجاح.' : 'Brand profile saved successfully.');
     await fetchBrandBrain();
   } catch (err: any) {
     alert(err.response?.data?.message || 'Failed to save brand profile.');
@@ -563,7 +779,7 @@ const saveVoice = async () => {
   saving.value = true;
   try {
     await axios.patch('/api/v1/brand/voice', voiceForm.value, { headers: getHeaders() });
-    alert('Brand voice and tone saved.');
+    alert(currentLocale.value === 'ar' ? 'تم حفظ نبرة وصوت العلامة التجارية.' : 'Brand voice and tone saved.');
     await fetchBrandBrain();
   } catch (err: any) {
     alert(err.response?.data?.message || 'Failed to save voice.');
@@ -654,5 +870,6 @@ const fetchAiContext = async () => {
 
 onMounted(() => {
   fetchBrandBrain();
+  fetchBrandAssets();
 });
 </script>

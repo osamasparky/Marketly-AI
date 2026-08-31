@@ -37,6 +37,10 @@ class BrandProfileModel extends Model
         'positioning',
         'unique_selling_points',
         'brand_promise',
+        'primary_color',
+        'secondary_color',
+        'accent_color',
+        'background_color',
         'version',
         'status',
     ];

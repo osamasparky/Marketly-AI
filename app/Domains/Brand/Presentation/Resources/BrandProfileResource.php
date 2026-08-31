@@ -34,8 +34,25 @@ class BrandProfileResource extends JsonResource
             'positioning' => $this->positioning,
             'unique_selling_points' => $this->unique_selling_points ?? [],
             'brand_promise' => $this->brand_promise,
+            'primary_color' => $this->primary_color ?? '#10B981',
+            'secondary_color' => $this->secondary_color,
+            'accent_color' => $this->accent_color,
+            'background_color' => $this->background_color,
             'version' => $this->version,
             'status' => $this->status,
+            'assets' => $this->whenLoaded('assets', function () {
+                return $this->assets->map(function ($asset) {
+                    return [
+                        'id' => $asset->id,
+                        'name' => $asset->name,
+                        'type' => $asset->type,
+                        'file_path' => $asset->file_path,
+                        'public_url' => $asset->file_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($asset->file_path) : null,
+                        'mime_type' => $asset->mime_type,
+                        'file_size' => $asset->file_size,
+                    ];
+                });
+            }),
             'products_services' => ProductServiceResource::collection($this->whenLoaded('productsServices')),
             'audiences' => AudienceResource::collection($this->whenLoaded('audiences')),
             'voice' => new BrandVoiceResource($this->whenLoaded('voice')),

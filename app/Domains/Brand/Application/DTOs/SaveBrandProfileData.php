@@ -24,7 +24,11 @@ readonly class SaveBrandProfileData
         public array $values = [],
         public ?string $positioning = null,
         public array $uniqueSellingPoints = [],
-        public ?string $brandPromise = null
+        public ?string $brandPromise = null,
+        public ?string $primaryColor = '#10B981',
+        public ?string $secondaryColor = null,
+        public ?string $accentColor = null,
+        public ?string $backgroundColor = null
     ) {}
 
     public static function fromArray(array $data): self
@@ -49,7 +53,11 @@ readonly class SaveBrandProfileData
             values: $data['values'] ?? [],
             positioning: $data['positioning'] ?? null,
             uniqueSellingPoints: $data['unique_selling_points'] ?? [],
-            brandPromise: $data['brand_promise'] ?? null
+            brandPromise: $data['brand_promise'] ?? null,
+            primaryColor: $data['primary_color'] ?? '#10B981',
+            secondaryColor: $data['secondary_color'] ?? null,
+            accentColor: $data['accent_color'] ?? null,
+            backgroundColor: $data['background_color'] ?? null
         );
     }
 }

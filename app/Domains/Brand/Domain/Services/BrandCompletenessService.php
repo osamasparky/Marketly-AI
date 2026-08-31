@@ -34,14 +34,18 @@ class BrandCompletenessService
         if (!empty($profile->business_type)) $businessScore += 4; else $businessMissing[] = 'business_type';
         if (!empty($profile->description)) $businessScore += 6; else $businessMissing[] = 'description';
 
-        // 2. Brand Identity (Max 20%)
+        // 2. Brand Identity & Visual Assets (Max 20%)
         $identityMissing = [];
         $identityScore = 0;
-        if (!empty($profile->tagline)) $identityScore += 4; else $identityMissing[] = 'tagline';
-        if (!empty($profile->mission)) $identityScore += 4; else $identityMissing[] = 'mission';
-        if (!empty($profile->vision)) $identityScore += 4; else $identityMissing[] = 'vision';
-        if (!empty($profile->positioning)) $identityScore += 4; else $identityMissing[] = 'positioning';
-        if (!empty($profile->values) && count($profile->values) > 0) $identityScore += 4; else $identityMissing[] = 'values';
+        if (!empty($profile->tagline)) $identityScore += 3; else $identityMissing[] = 'tagline';
+        if (!empty($profile->mission)) $identityScore += 3; else $identityMissing[] = 'mission';
+        if (!empty($profile->vision)) $identityScore += 3; else $identityMissing[] = 'vision';
+        if (!empty($profile->positioning)) $identityScore += 3; else $identityMissing[] = 'positioning';
+        if (!empty($profile->values) && count($profile->values) > 0) $identityScore += 3; else $identityMissing[] = 'values';
+        if (!empty($profile->primary_color)) $identityScore += 2; else $identityMissing[] = 'brand_colors';
+        
+        $hasLogo = $profile->assets()->where('type', 'logo')->exists();
+        if ($hasLogo) $identityScore += 3; else $identityMissing[] = 'brand_logo';
 
         // 3. Target Audience (Max 20%)
         $audienceMissing = [];

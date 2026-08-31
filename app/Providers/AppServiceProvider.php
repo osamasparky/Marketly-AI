@@ -38,6 +38,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(BrandVoiceRepositoryInterface::class, EloquentBrandVoiceRepository::class);
         $this->app->bind(BrandGoalRepositoryInterface::class, EloquentBrandGoalRepository::class);
         $this->app->bind(BrandCompetitorRepositoryInterface::class, EloquentBrandCompetitorRepository::class);
+        $this->app->bind(
+            \App\Domains\Brand\Domain\Repositories\BrandAssetRepositoryInterface::class,
+            \App\Domains\Brand\Infrastructure\Persistence\Repositories\EloquentBrandAssetRepository::class
+        );
     }
 
     /**

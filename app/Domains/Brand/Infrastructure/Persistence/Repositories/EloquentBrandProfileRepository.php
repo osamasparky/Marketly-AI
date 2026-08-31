@@ -56,6 +56,10 @@ class EloquentBrandProfileRepository implements BrandProfileRepositoryInterface
                     'positioning' => $data->positioning,
                     'unique_selling_points' => $data->uniqueSellingPoints,
                     'brand_promise' => $data->brandPromise,
+                    'primary_color' => $data->primaryColor,
+                    'secondary_color' => $data->secondaryColor,
+                    'accent_color' => $data->accentColor,
+                    'background_color' => $data->backgroundColor,
                     'version' => $nextVersion,
                 ]
             );

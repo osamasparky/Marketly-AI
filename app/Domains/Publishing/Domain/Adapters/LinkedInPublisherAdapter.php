@@ -217,7 +217,10 @@ class LinkedInPublisherAdapter implements SocialPublisherInterface
 
             if ($response->successful()) {
                 $resData = $response->json();
-                $postId = $resData['id'] ?? ('urn:li:share:' . rand(100000000, 999999999));
+                $postId = $resData['id'] ?? null;
+                if (!$postId) {
+                    throw new RuntimeException('LinkedIn publish API response missing post ID: ' . $response->body());
+                }
                 $shareUrl = "https://www.linkedin.com/feed/update/{$postId}";
 
                 return [

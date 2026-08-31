@@ -78,6 +78,10 @@ class BrandController extends Controller
             'unique_selling_points' => 'nullable|array|max:20',
             'unique_selling_points.*' => 'string|max:255',
             'brand_promise' => 'nullable|string|max:1000',
+            'primary_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'secondary_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'accent_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'background_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ]);
 
         $dto = SaveBrandProfileData::fromArray($validated);
@@ -401,5 +405,49 @@ class BrandController extends Controller
         return ApiResponse::success([
             'context' => $minimized,
         ]);
+    }
+
+    /**
+     * Brand Assets (Logo, Guidelines, etc.)
+     */
+    public function listAssets(Request $request): JsonResponse
+    {
+        $type = $request->query('type');
+        $assets = $this->brandService->listBrandAssets($this->getContext($request), $type);
+
+        return ApiResponse::success(['assets' => $assets]);
+    }
+
+    public function uploadAsset(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:png,jpg,jpeg,svg,webp|max:2048', // 2MB max
+            'type' => 'nullable|string|in:logo,favicon,cover,guideline_doc,palette',
+            'name' => 'nullable|string|max:100',
+        ]);
+
+        $file = $request->file('file');
+        $type = $request->input('type', 'logo');
+        $name = $request->input('name');
+
+        $asset = $this->brandService->uploadBrandAsset(
+            context: $this->getContext($request),
+            file: $file,
+            type: $type,
+            name: $name
+        );
+
+        return ApiResponse::success(
+            data: ['asset' => $asset],
+            meta: ['message' => 'Brand asset uploaded successfully.'],
+            status: 201
+        );
+    }
+
+    public function deleteAsset(Request $request, int $asset): JsonResponse
+    {
+        $this->brandService->deleteBrandAsset($this->getContext($request), $asset);
+
+        return ApiResponse::success(null, ['message' => 'Brand asset deleted successfully.']);
     }
 }

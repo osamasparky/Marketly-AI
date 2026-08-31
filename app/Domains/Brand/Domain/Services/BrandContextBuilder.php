@@ -49,6 +49,8 @@ class BrandContextBuilder
             );
         }
 
+        $logoAsset = $profile->assets ? $profile->assets->firstWhere('type', 'logo') : null;
+
         $brandIdentity = [
             'tagline' => $profile->tagline,
             'mission' => $profile->mission,
@@ -57,6 +59,11 @@ class BrandContextBuilder
             'positioning' => $profile->positioning,
             'unique_selling_points' => $profile->unique_selling_points ?? [],
             'brand_promise' => $profile->brand_promise,
+            'primary_color' => $profile->primary_color ?? '#10B981',
+            'secondary_color' => $profile->secondary_color,
+            'accent_color' => $profile->accent_color,
+            'background_color' => $profile->background_color,
+            'logo_url' => $logoAsset ? \Illuminate\Support\Facades\Storage::disk('public')->url($logoAsset->file_path) : null,
         ];
 
         $voice = $profile->voice;

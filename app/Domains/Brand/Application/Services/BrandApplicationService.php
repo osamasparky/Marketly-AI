@@ -17,10 +17,14 @@ use App\Domains\Brand\Domain\Repositories\BrandProfileRepositoryInterface;
 use App\Domains\Brand\Domain\Repositories\BrandVoiceRepositoryInterface;
 use App\Domains\Brand\Domain\Services\BrandCompletenessService;
 use App\Domains\Brand\Domain\Services\BrandContextBuilder;
+use App\Domains\Brand\Domain\Repositories\BrandAssetRepositoryInterface;
+use App\Domains\Brand\Infrastructure\Persistence\Models\BrandAssetModel;
 use App\Domains\Tenancy\Application\Services\AuditApplicationService;
 use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Services\TenantIsolationGuard;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class BrandApplicationService
@@ -34,7 +38,8 @@ class BrandApplicationService
         private readonly BrandAudienceRepositoryInterface $audienceRepository,
         private readonly BrandVoiceRepositoryInterface $voiceRepository,
         private readonly BrandGoalRepositoryInterface $goalRepository,
-        private readonly BrandCompetitorRepositoryInterface $competitorRepository
+        private readonly BrandCompetitorRepositoryInterface $competitorRepository,
+        private readonly BrandAssetRepositoryInterface $assetRepository
     ) {}
 
     /**
@@ -374,5 +379,88 @@ class BrandApplicationService
         }
 
         return $this->contextBuilder->build($context->organizationId);
+    }
+
+    /**
+     * List Brand Assets for the tenant.
+     */
+    public function listBrandAssets(TenantContext $context, ?string $type = null): Collection
+    {
+        TenantIsolationGuard::assertPermission($context, 'brand.view');
+
+        $assets = $this->assetRepository->listByOrganizationId($context->organizationId, $type);
+
+        return $assets->map(function (BrandAssetModel $asset) {
+            $asset->public_url = $asset->file_path ? Storage::disk('public')->url($asset->file_path) : null;
+            return $asset;
+        });
+    }
+
+    /**
+     * Upload and store Brand Asset.
+     */
+    public function uploadBrandAsset(
+        TenantContext $context,
+        UploadedFile $file,
+        string $type = 'logo',
+        ?string $name = null
+    ): BrandAssetModel {
+        TenantIsolationGuard::assertPermission($context, 'brand.update');
+
+        $profile = $this->profileRepository->ensureExistsForOrganization($context->organizationId);
+
+        $filename = ($name ? \Illuminate\Support\Str::slug($name) : $type) . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $storedPath = $file->storeAs("brand-assets/{$context->organizationId}", $filename, 'public');
+
+        $asset = $this->assetRepository->createForOrganization($context->organizationId, $profile->id, [
+            'name' => $name ?: $file->getClientOriginalName(),
+            'type' => $type,
+            'file_path' => $storedPath,
+            'mime_type' => $file->getClientMimeType() ?: 'image/png',
+            'file_size' => $file->getSize(),
+            'is_public' => true,
+            'metadata' => [
+                'original_name' => $file->getClientOriginalName(),
+                'extension' => $file->getClientOriginalExtension(),
+            ],
+        ]);
+
+        $asset->public_url = Storage::disk('public')->url($storedPath);
+
+        $this->auditService->log(
+            action: 'brand.asset_uploaded',
+            organizationId: $context->organizationId,
+            userId: $context->userId,
+            entityType: 'brand_asset',
+            entityId: (string) $asset->id,
+            metadata: ['type' => $type, 'name' => $asset->name]
+        );
+
+        return $asset;
+    }
+
+    /**
+     * Delete Brand Asset.
+     */
+    public function deleteBrandAsset(TenantContext $context, int $assetId): bool
+    {
+        TenantIsolationGuard::assertPermission($context, 'brand.update');
+
+        $existing = $this->assetRepository->findByIdForOrganization($context->organizationId, $assetId);
+        if (!$existing) {
+            throw new NotFoundHttpException('Brand asset not found.');
+        }
+
+        $this->assetRepository->deleteForOrganization($context->organizationId, $assetId);
+
+        $this->auditService->log(
+            action: 'brand.asset_deleted',
+            organizationId: $context->organizationId,
+            userId: $context->userId,
+            entityType: 'brand_asset',
+            entityId: (string) $assetId
+        );
+
+        return true;
     }
 }

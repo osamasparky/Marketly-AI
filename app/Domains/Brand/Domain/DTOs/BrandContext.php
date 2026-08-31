@@ -74,6 +74,10 @@ readonly class BrandContext
                 'values' => $this->brandIdentity['values'] ?? [],
                 'positioning' => $this->brandIdentity['positioning'] ?? null,
                 'usps' => $this->brandIdentity['unique_selling_points'] ?? [],
+                'primary_color' => $this->brandIdentity['primary_color'] ?? '#10B981',
+                'secondary_color' => $this->brandIdentity['secondary_color'] ?? null,
+                'accent_color' => $this->brandIdentity['accent_color'] ?? null,
+                'logo_url' => $this->brandIdentity['logo_url'] ?? null,
             ],
             'voice_and_tone' => [
                 'primary_tones' => $this->voiceAndTone['primary_tones'] ?? ['professional'],

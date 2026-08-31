@@ -99,6 +99,11 @@ Route::prefix('v1')->group(function () {
             Route::post('/competitors', [BrandController::class, 'storeCompetitor'])->name('api.v1.brand.competitors.store');
             Route::patch('/competitors/{competitor}', [BrandController::class, 'updateCompetitor'])->name('api.v1.brand.competitors.update');
             Route::delete('/competitors/{competitor}', [BrandController::class, 'deleteCompetitor'])->name('api.v1.brand.competitors.destroy');
+
+            // Brand Assets & Visual Identity (Logos, Guidelines, etc.)
+            Route::get('/assets', [BrandController::class, 'listAssets'])->name('api.v1.brand.assets.index');
+            Route::post('/assets', [BrandController::class, 'uploadAsset'])->name('api.v1.brand.assets.store');
+            Route::delete('/assets/{asset}', [BrandController::class, 'deleteAsset'])->name('api.v1.brand.assets.destroy');
         });
 
         // Phase 3: AI Marketing Strategy API
