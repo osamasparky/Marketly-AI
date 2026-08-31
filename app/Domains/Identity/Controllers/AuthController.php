@@ -30,12 +30,16 @@ class AuthController extends Controller
             'name' => 'required|string|min:2|max:100',
             'email' => 'required|email|max:255',
             'password' => 'required|string|min:8|max:100',
+            'company_name' => 'nullable|string|min:2|max:100',
+            'industry' => 'nullable|string|max:100',
         ]);
 
         $dto = new RegisterUserData(
             name: $validated['name'],
             email: new Email($validated['email']),
-            password: $validated['password']
+            password: $validated['password'],
+            companyName: $validated['company_name'] ?? null,
+            industry: $validated['industry'] ?? null
         );
 
         $result = $this->authService->register($dto);
@@ -190,6 +194,7 @@ class AuthController extends Controller
                 'locale' => $user->locale ?? 'en',
                 'timezone' => $user->timezone ?? 'UTC',
                 'status' => $user->status ?? 'active',
+                'is_super_admin' => (bool) ($user->is_super_admin ?? false),
                 'last_login_at' => $user->last_login_at?->toIso8601String(),
                 'created_at' => $user->created_at?->toIso8601String(),
             ],

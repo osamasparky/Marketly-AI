@@ -119,4 +119,45 @@ class OrganizationController extends Controller
             meta: ['message' => 'Switched active organization successfully.']
         );
     }
+
+    /**
+     * Get company AI model preferences and masked API keys.
+     */
+    public function getAiConfig(Request $request, int $id): JsonResponse
+    {
+        $context = $request->attributes->get('tenant_context') ?? app(TenantContext::class);
+        $result = $this->orgService->getAiConfig($context, $id);
+
+        return ApiResponse::success(
+            data: $result,
+            meta: ['message' => 'AI configuration retrieved.']
+        );
+    }
+
+    /**
+     * Update encrypted AI API keys and company preferences.
+     */
+    public function updateAiConfig(Request $request, int $id): JsonResponse
+    {
+        $context = $request->attributes->get('tenant_context') ?? app(TenantContext::class);
+
+        $validated = $request->validate([
+            'preferred_model' => 'nullable|string|in:gemini-1.5-pro,gemini-1.5-flash,gpt-4o,gpt-4o-mini,claude-3-5-sonnet,deepseek-chat',
+            'gemini_api_key' => 'nullable|string|max:500',
+            'openai_api_key' => 'nullable|string|max:500',
+            'anthropic_api_key' => 'nullable|string|max:500',
+            'deepseek_api_key' => 'nullable|string|max:500',
+            'custom_instructions' => 'nullable|string|max:2000',
+            'website_url' => 'nullable|url|max:255',
+            'industry' => 'nullable|string|max:100',
+            'billing_email' => 'nullable|email|max:255',
+        ]);
+
+        $org = $this->orgService->updateAiConfig($context, $id, $validated);
+
+        return ApiResponse::success(
+            data: ['organization' => $org],
+            meta: ['message' => 'AI settings & company profile saved successfully.']
+        );
+    }
 }

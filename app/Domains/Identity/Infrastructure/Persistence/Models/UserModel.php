@@ -30,6 +30,7 @@ class UserModel extends Authenticatable
         'locale',
         'timezone',
         'status',
+        'is_super_admin',
         'current_organization_id',
         'last_login_at',
     ];
@@ -50,6 +51,7 @@ class UserModel extends Authenticatable
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'is_super_admin' => 'boolean',
         ];
     }
 

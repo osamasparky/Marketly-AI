@@ -49,7 +49,11 @@ class OrganizationApplicationService
                 'timezone' => $timezone,
             ]);
 
-            $ownerRole = RoleModel::where('slug', 'owner')->firstOrFail();
+            $ownerRole = RoleModel::where('slug', 'owner')->first();
+            if (!$ownerRole) {
+                (new \Database\Seeders\RbacSeeder())->run();
+                $ownerRole = RoleModel::where('slug', 'owner')->firstOrFail();
+            }
 
             OrganizationMembershipModel::create([
                 'organization_id' => $organization->id,
@@ -163,6 +167,101 @@ class OrganizationApplicationService
             entityType: 'organization',
             entityId: (string) $org->id,
             metadata: $updates
+        );
+
+        return $org;
+    }
+
+    /**
+     * Get organization AI configuration with API keys masked for security.
+     */
+    public function getAiConfig(TenantContext $context, int $organizationId): array
+    {
+        TenantIsolationGuard::assertTenantAccess($organizationId, $context);
+        TenantIsolationGuard::assertPermission($context, 'organization.view');
+
+        $org = OrganizationModel::findOrFail($organizationId);
+        $config = $org->ai_config_json ?? [];
+
+        // Mask API keys so raw secrets are never leaked to client side
+        $masked = [
+            'preferred_model' => $config['preferred_model'] ?? 'gemini-1.5-pro',
+            'gemini_api_key_configured' => !empty($config['gemini_api_key']),
+            'openai_api_key_configured' => !empty($config['openai_api_key']),
+            'anthropic_api_key_configured' => !empty($config['anthropic_api_key']),
+            'deepseek_api_key_configured' => !empty($config['deepseek_api_key']),
+            'gemini_api_key_preview' => !empty($config['gemini_api_key']) ? substr($config['gemini_api_key'], 0, 4) . '...' . substr($config['gemini_api_key'], -4) : null,
+            'openai_api_key_preview' => !empty($config['openai_api_key']) ? substr($config['openai_api_key'], 0, 4) . '...' . substr($config['openai_api_key'], -4) : null,
+            'anthropic_api_key_preview' => !empty($config['anthropic_api_key']) ? substr($config['anthropic_api_key'], 0, 4) . '...' . substr($config['anthropic_api_key'], -4) : null,
+            'deepseek_api_key_preview' => !empty($config['deepseek_api_key']) ? substr($config['deepseek_api_key'], 0, 4) . '...' . substr($config['deepseek_api_key'], -4) : null,
+            'custom_instructions' => $config['custom_instructions'] ?? '',
+        ];
+
+        return [
+            'ai_config' => $masked,
+            'organization' => [
+                'id' => $org->id,
+                'name' => $org->name,
+                'website_url' => $org->website_url,
+                'industry' => $org->industry,
+                'billing_email' => $org->billing_email,
+            ],
+        ];
+    }
+
+    /**
+     * Save encrypted AI keys and company preferences.
+     */
+    public function updateAiConfig(TenantContext $context, int $organizationId, array $data): OrganizationModel
+    {
+        TenantIsolationGuard::assertTenantAccess($organizationId, $context);
+        TenantIsolationGuard::assertPermission($context, 'organization.manage');
+
+        $org = OrganizationModel::findOrFail($organizationId);
+        $currentConfig = $org->ai_config_json ?? [];
+
+        // Update keys only if provided, preserving existing keys if empty/masked
+        $newConfig = $currentConfig;
+        if (!empty($data['preferred_model'])) {
+            $newConfig['preferred_model'] = $data['preferred_model'];
+        }
+        if (!empty($data['gemini_api_key']) && !str_contains($data['gemini_api_key'], '...')) {
+            $newConfig['gemini_api_key'] = trim($data['gemini_api_key']);
+        }
+        if (!empty($data['openai_api_key']) && !str_contains($data['openai_api_key'], '...')) {
+            $newConfig['openai_api_key'] = trim($data['openai_api_key']);
+        }
+        if (!empty($data['anthropic_api_key']) && !str_contains($data['anthropic_api_key'], '...')) {
+            $newConfig['anthropic_api_key'] = trim($data['anthropic_api_key']);
+        }
+        if (!empty($data['deepseek_api_key']) && !str_contains($data['deepseek_api_key'], '...')) {
+            $newConfig['deepseek_api_key'] = trim($data['deepseek_api_key']);
+        }
+        if (isset($data['custom_instructions'])) {
+            $newConfig['custom_instructions'] = trim($data['custom_instructions']);
+        }
+
+        $orgUpdates = ['ai_config_json' => $newConfig];
+
+        if (isset($data['website_url'])) {
+            $orgUpdates['website_url'] = $data['website_url'];
+        }
+        if (isset($data['industry'])) {
+            $orgUpdates['industry'] = $data['industry'];
+        }
+        if (isset($data['billing_email'])) {
+            $orgUpdates['billing_email'] = $data['billing_email'];
+        }
+
+        $org->update($orgUpdates);
+
+        $this->auditService->log(
+            action: 'organization.ai_config_updated',
+            organizationId: $org->id,
+            userId: $context->userId,
+            entityType: 'organization',
+            entityId: (string) $org->id,
+            metadata: ['preferred_model' => $newConfig['preferred_model'] ?? null]
         );
 
         return $org;

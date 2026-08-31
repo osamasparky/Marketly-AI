@@ -48,7 +48,7 @@ class EntitlementService
 
         $usage = UsageRecordModel::where('organization_id', $organizationId)
             ->where('feature_key', $featureKey)
-            ->where('period_start', $periodStart)
+            ->whereDate('period_start', $periodStart)
             ->first();
 
         $used = $usage?->used_count ?? 0;
@@ -95,7 +95,7 @@ class EntitlementService
         return DB::transaction(function () use ($organizationId, $featureKey, $periodStart, $periodEnd, $amount) {
             $record = UsageRecordModel::where('organization_id', $organizationId)
                 ->where('feature_key', $featureKey)
-                ->where('period_start', $periodStart)
+                ->whereDate('period_start', $periodStart)
                 ->lockForUpdate()
                 ->first();
 

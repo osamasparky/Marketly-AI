@@ -4,10 +4,12 @@ namespace Tests\Unit;
 
 use App\Domains\Brand\Domain\Services\BrandCompletenessService;
 use App\Domains\Brand\Infrastructure\Persistence\Models\BrandProfileModel;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class BrandCompletenessTest extends TestCase
 {
+    use RefreshDatabase;
     public function test_completeness_calculation_on_null_profile(): void
     {
         $service = new BrandCompletenessService();

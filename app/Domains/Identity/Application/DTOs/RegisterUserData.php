@@ -11,7 +11,9 @@ class RegisterUserData
     public function __construct(
         public readonly string $name,
         string $email,
-        public readonly string $password
+        public readonly string $password,
+        public readonly ?string $companyName = null,
+        public readonly ?string $industry = null
     ) {
         $this->email = new Email($email);
     }

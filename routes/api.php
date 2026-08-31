@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Brand\Controllers\BrandController;
+use App\Domains\Content\Controllers\ContentController;
 use App\Domains\Identity\Controllers\AuthController;
 use App\Domains\Strategy\Controllers\StrategyController;
 use App\Domains\Tenancy\Controllers\MembershipController;
@@ -49,6 +50,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/organizations/{organization}', [OrganizationController::class, 'show'])->name('api.v1.organizations.show');
         Route::patch('/organizations/{organization}', [OrganizationController::class, 'update'])->name('api.v1.organizations.update');
         Route::post('/organizations/{organization}/switch', [OrganizationController::class, 'switch'])->name('api.v1.organizations.switch');
+        Route::get('/organizations/{organization}/ai-config', [OrganizationController::class, 'getAiConfig'])->name('api.v1.organizations.ai_config.show');
+        Route::patch('/organizations/{organization}/ai-config', [OrganizationController::class, 'updateAiConfig'])->name('api.v1.organizations.ai_config.update');
 
         // Organization Members & Invitations
         Route::get('/organizations/{organization}/members', [MembershipController::class, 'index'])->name('api.v1.members.index');
@@ -128,5 +131,75 @@ Route::prefix('v1')->group(function () {
             Route::post('/subscription/select-plan', [\App\Domains\Billing\Controllers\BillingController::class, 'selectPlan'])->name('api.v1.billing.subscription.select_plan');
             Route::post('/subscription/cancel', [\App\Domains\Billing\Controllers\BillingController::class, 'cancel'])->name('api.v1.billing.subscription.cancel');
         });
+
+        // Phase 4: Content Studio API
+        Route::prefix('content')->group(function () {
+            Route::get('/', [ContentController::class, 'index'])->name('api.v1.content.index');
+            Route::post('/generate', [ContentController::class, 'generate'])->middleware('throttle:20,1')->name('api.v1.content.generate');
+            Route::get('/{content}', [ContentController::class, 'show'])->name('api.v1.content.show');
+            Route::patch('/{content}', [ContentController::class, 'update'])->name('api.v1.content.update');
+            Route::delete('/{content}', [ContentController::class, 'destroy'])->name('api.v1.content.destroy');
+            Route::patch('/{content}/variations/{platform}', [ContentController::class, 'updateVariation'])->name('api.v1.content.variations.update');
+            Route::post('/{content}/regenerate', [ContentController::class, 'regenerate'])->name('api.v1.content.regenerate');
+            Route::post('/{content}/repurpose', [ContentController::class, 'repurpose'])->name('api.v1.content.repurpose');
+            Route::post('/{content}/quality-check', [ContentController::class, 'qualityCheck'])->name('api.v1.content.quality_check');
+            Route::post('/{content}/approve', [ContentController::class, 'approve'])->name('api.v1.content.approve');
+            Route::post('/{content}/schedule', [ContentController::class, 'schedule'])->name('api.v1.content.schedule');
+        });
+
+        // Phase 5: Creative Studio API
+        Route::prefix('creative')->group(function () {
+            Route::get('/assets', [\App\Domains\Creative\Controllers\CreativeController::class, 'index'])->name('api.v1.creative.assets.index');
+            Route::post('/generate', [\App\Domains\Creative\Controllers\CreativeController::class, 'generate'])->middleware('throttle:20,1')->name('api.v1.creative.generate');
+            Route::post('/generate-reel', [\App\Domains\Creative\Controllers\CreativeController::class, 'generateReel'])->middleware('throttle:20,1')->name('api.v1.creative.generate_reel');
+            Route::get('/assets/{asset}', [\App\Domains\Creative\Controllers\CreativeController::class, 'show'])->name('api.v1.creative.assets.show');
+            Route::post('/assets/{asset}/attach', [\App\Domains\Creative\Controllers\CreativeController::class, 'attach'])->name('api.v1.creative.assets.attach');
+            Route::delete('/assets/{asset}', [\App\Domains\Creative\Controllers\CreativeController::class, 'destroy'])->name('api.v1.creative.assets.destroy');
+        });
+
+        // Phase 6: Marketing Calendar & Approvals API
+        Route::prefix('calendar')->group(function () {
+            Route::get('/', [\App\Domains\Calendar\Controllers\CalendarController::class, 'index'])->name('api.v1.calendar.index');
+            Route::post('/plan', [\App\Domains\Calendar\Controllers\CalendarController::class, 'plan'])->middleware('throttle:10,1')->name('api.v1.calendar.plan');
+            Route::post('/posts/{post}/reschedule', [\App\Domains\Calendar\Controllers\CalendarController::class, 'reschedule'])->name('api.v1.calendar.posts.reschedule');
+            Route::post('/posts/{post}/submit-review', [\App\Domains\Calendar\Controllers\CalendarController::class, 'submitReview'])->name('api.v1.calendar.posts.submit_review');
+            Route::post('/posts/{post}/approve', [\App\Domains\Calendar\Controllers\CalendarController::class, 'approve'])->name('api.v1.calendar.posts.approve');
+            Route::post('/posts/{post}/schedule', [\App\Domains\Calendar\Controllers\CalendarController::class, 'schedule'])->name('api.v1.calendar.posts.schedule');
+            Route::post('/posts/{post}/unschedule', [\App\Domains\Calendar\Controllers\CalendarController::class, 'unschedule'])->name('api.v1.calendar.posts.unschedule');
+        });
+
+        // Phase 7: Social Publishing & Multi-Platform OAuth API
+        Route::prefix('social')->group(function () {
+            Route::get('/accounts', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'index'])->name('api.v1.social.accounts.index');
+            Route::get('/oauth/{platform}/redirect', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'getOAuthUrl'])->name('api.v1.social.oauth.redirect');
+            Route::post('/oauth/{platform}/callback', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'handleCallback'])->name('api.v1.social.oauth.callback');
+            Route::post('/accounts/{account}/health-check', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'healthCheck'])->name('api.v1.social.accounts.health_check');
+            Route::delete('/accounts/{account}', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'disconnect'])->name('api.v1.social.accounts.disconnect');
+            Route::post('/posts/{post}/publish-now', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'publishNow'])->name('api.v1.social.posts.publish_now');
+            Route::get('/jobs', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'getJobs'])->name('api.v1.social.jobs.index');
+        });
+
+        // Phase 8: Analytics, Performance & AI Learning API
+        Route::prefix('analytics')->group(function () {
+            Route::get('/overview', [\App\Domains\Analytics\Controllers\AnalyticsController::class, 'overview'])->name('api.v1.analytics.overview');
+            Route::get('/content', [\App\Domains\Analytics\Controllers\AnalyticsController::class, 'content'])->name('api.v1.analytics.content');
+            Route::get('/pillars', [\App\Domains\Analytics\Controllers\AnalyticsController::class, 'pillars'])->name('api.v1.analytics.pillars');
+            Route::post('/sync', [\App\Domains\Analytics\Controllers\AnalyticsController::class, 'sync'])->name('api.v1.analytics.sync');
+            Route::get('/recommendations', [\App\Domains\Analytics\Controllers\AnalyticsController::class, 'recommendations'])->name('api.v1.analytics.recommendations');
+            Route::post('/recommendations/{recommendation}/apply', [\App\Domains\Analytics\Controllers\AnalyticsController::class, 'applyRecommendation'])->name('api.v1.analytics.recommendations.apply');
+            Route::post('/recommendations/{recommendation}/dismiss', [\App\Domains\Analytics\Controllers\AnalyticsController::class, 'dismissRecommendation'])->name('api.v1.analytics.recommendations.dismiss');
+        });
+
+        // Super Admin Platform Management
+        Route::prefix('super-admin')->middleware(\App\Http\Middleware\EnsureSuperAdmin::class)->group(function () {
+            Route::get('/kpis', [\App\Domains\Administration\Controllers\SuperAdminController::class, 'kpis'])->name('api.v1.super_admin.kpis');
+            Route::get('/organizations', [\App\Domains\Administration\Controllers\SuperAdminController::class, 'organizations'])->name('api.v1.super_admin.organizations.index');
+            Route::patch('/organizations/{id}/status', [\App\Domains\Administration\Controllers\SuperAdminController::class, 'updateStatus'])->name('api.v1.super_admin.organizations.status');
+            Route::patch('/organizations/{id}/plan', [\App\Domains\Administration\Controllers\SuperAdminController::class, 'updatePlan'])->name('api.v1.super_admin.organizations.plan');
+            Route::post('/organizations/{id}/impersonate', [\App\Domains\Administration\Controllers\SuperAdminController::class, 'impersonate'])->name('api.v1.super_admin.organizations.impersonate');
+            Route::get('/subscriptions', [\App\Domains\Administration\Controllers\SuperAdminController::class, 'subscriptions'])->name('api.v1.super_admin.subscriptions.index');
+            Route::get('/reports', [\App\Domains\Administration\Controllers\SuperAdminController::class, 'reports'])->name('api.v1.super_admin.reports');
+        });
     });
 });
+

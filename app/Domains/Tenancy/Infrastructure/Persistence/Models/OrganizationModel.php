@@ -21,7 +21,18 @@ class OrganizationModel extends Model
         'status',
         'default_locale',
         'timezone',
+        'ai_config_json',
+        'website_url',
+        'industry',
+        'billing_email',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'ai_config_json' => 'encrypted:array',
+        ];
+    }
 
     public function memberships(): HasMany
     {

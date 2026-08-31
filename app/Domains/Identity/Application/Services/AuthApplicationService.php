@@ -45,13 +45,18 @@ class AuthApplicationService
             ]);
 
             // Auto-create initial default organization tenant atomically
-            $this->orgService->createOrganization(
+            $orgName = !empty($data->companyName) ? trim($data->companyName) : "{$createdUser->name}'s Workspace";
+            $org = $this->orgService->createOrganization(
                 user: $createdUser,
-                name: "{$createdUser->name}'s Workspace",
+                name: $orgName,
                 type: 'business',
                 defaultLocale: 'en',
                 timezone: 'UTC'
             );
+
+            if (!empty($data->industry)) {
+                $org->update(['industry' => $data->industry]);
+            }
 
             return $createdUser;
         });

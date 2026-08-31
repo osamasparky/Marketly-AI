@@ -1,21 +1,158 @@
 <template>
   <div :dir="isRtl ? 'rtl' : 'ltr'" :class="{'dark': isDark}" class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans transition-colors duration-200">
     
-    <!-- Public Marketing Site View -->
+    <!-- 1. Public Marketing Site View -->
     <div v-if="currentMode === 'website'">
       <PublicWebsite 
         @open-auth="handleOpenAuth" 
       />
     </div>
 
-    <!-- Onboarding Wizard View -->
+    <!-- 2. Dedicated Full-Screen Authentication Portal View (No Dashboard Menu) -->
+    <div v-else-if="currentMode === 'auth'" class="min-h-screen bg-slate-950 flex flex-col justify-between relative overflow-hidden">
+      <!-- Top Simple Header -->
+      <header class="h-16 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-xl px-6 flex items-center justify-between relative z-10">
+        <div class="flex items-center gap-3 cursor-pointer" @click="currentMode = 'website'">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20">
+            M
+          </div>
+          <div>
+            <span class="font-extrabold text-white text-base tracking-tight">{{ t('common.appName') }}</span>
+            <span class="text-[10px] text-emerald-400 block -mt-1 font-mono">AUTONOMOUS MARKETING</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <!-- Language Toggle -->
+          <button 
+            @click="toggleLanguage" 
+            class="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300 hover:text-emerald-400 transition-colors"
+          >
+            🌐 {{ currentLocale === 'ar' ? 'English' : 'العربية' }}
+          </button>
+          
+          <!-- Back to Landing Page -->
+          <button 
+            @click="currentMode = 'website'" 
+            class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition-colors flex items-center gap-1.5"
+          >
+            <span>←</span>
+            <span>{{ t('navigation.home') }}</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Center Auth Card -->
+      <main class="flex-1 flex items-center justify-center p-4 py-12 relative z-10">
+        <!-- Ambient background glows -->
+        <div class="absolute w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -bottom-10 right-10"></div>
+
+        <div class="w-full max-w-md bg-slate-900/90 border border-slate-800/90 rounded-3xl p-8 space-y-6 shadow-2xl backdrop-blur-2xl relative">
+          <!-- Auth Card Header & Mode Switcher -->
+          <div class="space-y-4">
+            <div class="text-center space-y-1">
+              <h2 class="text-xl font-black text-white">
+                {{ authMode === 'login' ? t('dashboard.loginMode') : (authMode === 'register' ? t('dashboard.registerMode') : t('dashboard.forgotMode')) }}
+              </h2>
+              <p class="text-xs text-slate-400">
+                {{ authMode === 'login' ? 'Sign in to access your autonomous marketing workspace' : (authMode === 'register' ? 'Create your company workspace and start your AI engine' : 'Enter your email to receive recovery instructions') }}
+              </p>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs text-center">
+              <button 
+                @click="authMode = 'login'" 
+                :class="[authMode === 'login' ? 'bg-emerald-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-slate-200']"
+                class="py-1.5 rounded-lg text-xs transition-all"
+              >
+                {{ t('dashboard.loginMode') }}
+              </button>
+              <button 
+                @click="authMode = 'register'" 
+                :class="[authMode === 'register' ? 'bg-emerald-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-slate-200']"
+                class="py-1.5 rounded-lg text-xs transition-all"
+              >
+                {{ t('dashboard.registerMode') }}
+              </button>
+              <button 
+                @click="authMode = 'forgot'" 
+                :class="[authMode === 'forgot' ? 'bg-emerald-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-slate-200']"
+                class="py-1.5 rounded-lg text-xs transition-all"
+              >
+                {{ t('dashboard.forgotMode') }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Auth Form -->
+          <form @submit.prevent="handleAuthSubmit" class="space-y-4">
+            <div v-if="authMode === 'register'" class="space-y-3">
+              <div class="space-y-1.5">
+                <label class="text-xs text-slate-300 font-semibold">{{ t('dashboard.fullName') }}</label>
+                <input v-model="authForm.name" type="text" required placeholder="Osama Sabry" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none" />
+              </div>
+              <div class="space-y-1.5">
+                <label class="text-xs text-slate-300 font-semibold">{{ t('tenancy.orgName') }}</label>
+                <input v-model="authForm.company_name" type="text" placeholder="e.g. Apex Marketing Labs" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none" />
+              </div>
+              <div class="space-y-1.5">
+                <label class="text-xs text-slate-300 font-semibold">Industry / Sector</label>
+                <input v-model="authForm.industry" type="text" placeholder="e.g. E-Commerce, SaaS, Real Estate" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none" />
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-xs text-slate-300 font-semibold">{{ t('dashboard.email') }}</label>
+              <input v-model="authForm.email" type="email" required placeholder="admin@company.com" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none" />
+            </div>
+
+            <div v-if="authMode !== 'forgot'" class="space-y-1.5">
+              <label class="text-xs text-slate-300 font-semibold">{{ t('dashboard.password') }}</label>
+              <input v-model="authForm.password" type="password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none" />
+            </div>
+
+            <button type="submit" :disabled="authLoading" class="tactile-btn tactile-btn-primary w-full py-3 text-xs font-bold shadow-lg shadow-emerald-500/20">
+              {{ authLoading ? t('common.processing') : (authMode === 'login' ? t('dashboard.btnLogin') : (authMode === 'register' ? t('dashboard.btnRegister') : t('dashboard.btnForgot'))) }}
+            </button>
+          </form>
+
+          <!-- Super Admin Quick Fill Demo Box -->
+          <div v-if="authMode === 'login'" class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-amber-300 font-bold flex items-center gap-1">
+                👑 Super Admin Credentials:
+              </span>
+              <button 
+                @click="fillSuperAdminCreds" 
+                type="button" 
+                class="px-2 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[10px] font-bold transition-colors"
+              >
+                ⚡ 1-Click Auto Fill
+              </button>
+            </div>
+            <div class="text-[11px] text-slate-400 font-mono flex flex-col gap-0.5">
+              <span>Email: <strong class="text-slate-200">admin@marketly.ai</strong></span>
+              <span>Pass: <strong class="text-slate-200">Password123!</strong></span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="py-4 text-center text-xs text-slate-600 border-t border-slate-900">
+        Marketly AI © 2026 • Autonomous Marketing Multi-Tenant Platform
+      </footer>
+    </div>
+
+    <!-- 3. Onboarding Wizard View -->
     <div v-else-if="currentMode === 'onboarding'" class="min-h-screen bg-slate-950 flex flex-col justify-between">
       <header class="h-16 border-b border-slate-800/80 bg-slate-900/70 px-6 flex items-center justify-between">
         <div class="flex items-center gap-2.5">
           <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center font-black text-white">M</div>
           <span class="font-extrabold text-white">{{ t('common.appName') }}</span>
         </div>
-        <button @click="currentMode = 'app'" class="text-xs text-slate-400 hover:text-white">{{ t('common.skip') }} →</button>
+        <button @click="currentMode = 'app'; activeNav = 'dashboard'" class="text-xs text-slate-400 hover:text-white">{{ t('common.skip') }} →</button>
       </header>
       <main class="flex-1 flex items-center justify-center">
         <OnboardingWizard 
@@ -27,7 +164,7 @@
       <footer class="py-4 text-center text-xs text-slate-600">Marketly AI Onboarding Hub</footer>
     </div>
 
-    <!-- Authenticated SaaS Workspace & Application -->
+    <!-- 4. Authenticated SaaS Workspace & Application -->
     <div v-else class="flex flex-col min-h-screen">
       <!-- Top Navigation Header -->
       <header class="h-16 border-b border-slate-800/80 bg-slate-900/70 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-50">
@@ -102,12 +239,26 @@
             </button>
           </div>
           <div v-else>
-            <button @click="activeNav = 'auth'" class="tactile-btn tactile-btn-primary text-xs px-4 py-1.5">
+            <button @click="currentMode = 'auth'" class="tactile-btn tactile-btn-primary text-xs px-4 py-1.5">
               {{ t('dashboard.loginMode') }}
             </button>
           </div>
         </div>
       </header>
+
+      <!-- Impersonation Notice Banner (Super Admin Mode) -->
+      <div v-if="isImpersonating" class="bg-gradient-to-r from-amber-500/20 via-amber-500/30 to-amber-500/20 border-b border-amber-500/40 px-6 py-2 flex items-center justify-between text-xs text-amber-200">
+        <div class="flex items-center gap-2">
+          <span>⚠️</span>
+          <span>{{ t('superAdmin.impersonationBanner.warning') }} <strong class="text-white font-bold">{{ currentOrg?.name }}</strong></span>
+        </div>
+        <button 
+          @click="exitImpersonation" 
+          class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] transition-colors"
+        >
+          {{ t('superAdmin.impersonationBanner.returnBtn') }}
+        </button>
+      </div>
 
       <!-- Main Workspace Layout -->
       <div class="flex flex-1 overflow-hidden">
@@ -178,95 +329,80 @@
             />
           </div>
 
-          <!-- 4. Content Studio (Phase 4 Ready Placeholder) -->
-          <div v-else-if="activeNav === 'content'" class="p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-4">
-            <div class="w-14 h-14 rounded-2xl bg-amber-400/10 border border-amber-400/30 text-amber-400 text-2xl flex items-center justify-center mx-auto">
-              ✍️
-            </div>
-            <h3 class="text-xl font-bold text-white">Content Studio</h3>
-            <p class="text-xs text-slate-400 max-w-md mx-auto">
-              Multi-platform copy generator and creative studio. Turn active strategy pillars into high-converting posts.
-            </p>
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/10 text-amber-400 text-xs font-bold">
-              Phase 4 Implementation Ready
-            </div>
+          <!-- 4. Content Studio View (Phase 4) -->
+          <div v-else-if="activeNav === 'content'">
+            <ContentStudioView 
+              :auth-token="authToken" 
+              :organization-id="currentOrg?.id"
+            />
           </div>
 
-          <!-- 5. Billing View -->
+          <!-- 5. Creative Studio View (Phase 5) -->
+          <div v-else-if="activeNav === 'creative'">
+            <CreativeStudioView 
+              :auth-token="authToken" 
+              :organization-id="currentOrg?.id"
+            />
+          </div>
+
+          <!-- 6. Marketing Calendar View (Phase 6) -->
+          <div v-else-if="activeNav === 'calendar'">
+            <CalendarView 
+              :auth-token="authToken" 
+              :organization-id="currentOrg?.id"
+            />
+          </div>
+
+          <!-- 7. Social Publishing View (Phase 7) -->
+          <div v-else-if="activeNav === 'social'">
+            <PublishingChannelsView 
+              :auth-token="authToken" 
+              :organization-id="currentOrg?.id"
+            />
+          </div>
+
+          <!-- 8. Analytics & ROI View (Phase 8) -->
+          <div v-else-if="activeNav === 'analytics'">
+            <AnalyticsHubView 
+              :auth-token="authToken" 
+              :organization-id="currentOrg?.id"
+            />
+          </div>
+
+          <!-- 9. Billing View -->
           <div v-else-if="activeNav === 'billing'">
             <BillingView 
-              :auth-token="authToken"
+              :auth-token="authToken" 
               :organization-id="currentOrg?.id"
             />
           </div>
 
-          <!-- 6. Team View -->
+          <!-- 10. Team View -->
           <div v-else-if="activeNav === 'team'">
             <TeamView 
-              :auth-token="authToken"
+              :auth-token="authToken" 
               :organization-id="currentOrg?.id"
             />
           </div>
 
-          <!-- 7. Settings View -->
+          <!-- 11. Settings View -->
           <div v-else-if="activeNav === 'settings'">
             <SettingsView 
-              :auth-token="authToken"
-              :organization-id="currentOrg?.id"
+              :auth-token="authToken" 
+              :organization-id="currentOrg?.id" 
               :current-user="authUser"
               @logout="handleLogout"
               @org-updated="currentOrg = $event"
             />
           </div>
 
-          <!-- 8. Auth Console / Fallback -->
-          <div v-else class="space-y-8 max-w-2xl mx-auto">
-            <div class="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 md:p-8 space-y-6 shadow-2xl">
-              <div class="flex items-center justify-between">
-                <h3 class="text-lg font-bold text-white">{{ t('dashboard.authConsoleTitle') }}</h3>
-                <div class="flex items-center gap-2">
-                  <button 
-                    @click="authMode = 'login'" 
-                    :class="[authMode === 'login' ? 'bg-emerald-500 text-white' : 'text-slate-400']"
-                    class="px-3 py-1 rounded-lg text-xs font-bold"
-                  >
-                    {{ t('dashboard.loginMode') }}
-                  </button>
-                  <button 
-                    @click="authMode = 'register'" 
-                    :class="[authMode === 'register' ? 'bg-emerald-500 text-white' : 'text-slate-400']"
-                    class="px-3 py-1 rounded-lg text-xs font-bold"
-                  >
-                    {{ t('dashboard.registerMode') }}
-                  </button>
-                  <button 
-                    @click="authMode = 'forgot'" 
-                    :class="[authMode === 'forgot' ? 'bg-emerald-500 text-white' : 'text-slate-400']"
-                    class="px-3 py-1 rounded-lg text-xs font-bold"
-                  >
-                    {{ t('dashboard.forgotMode') }}
-                  </button>
-                </div>
-              </div>
-
-              <form @submit.prevent="handleAuthSubmit" class="space-y-4">
-                <div v-if="authMode === 'register'" class="space-y-1.5">
-                  <label class="text-xs text-slate-400">{{ t('dashboard.fullName') }}</label>
-                  <input v-model="authForm.name" type="text" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" />
-                </div>
-                <div class="space-y-1.5">
-                  <label class="text-xs text-slate-400">{{ t('dashboard.email') }}</label>
-                  <input v-model="authForm.email" type="email" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" />
-                </div>
-                <div v-if="authMode !== 'forgot'" class="space-y-1.5">
-                  <label class="text-xs text-slate-400">{{ t('dashboard.password') }}</label>
-                  <input v-model="authForm.password" type="password" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white" />
-                </div>
-                <button type="submit" :disabled="authLoading" class="tactile-btn tactile-btn-primary w-full py-2.5 text-xs font-bold">
-                  {{ authLoading ? t('common.processing') : (authMode === 'login' ? t('dashboard.btnLogin') : (authMode === 'register' ? t('dashboard.btnRegister') : t('dashboard.btnForgot'))) }}
-                </button>
-              </form>
-            </div>
+          <!-- 12. Super Admin Dashboard View -->
+          <div v-else-if="activeNav === 'super_admin'">
+            <SuperAdminDashboardView 
+              :auth-token="authToken"
+              :organization-id="currentOrg?.id"
+              @impersonate-success="handleImpersonateSuccess"
+            />
           </div>
         </main>
       </div>
@@ -290,7 +426,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { t, currentLocale, setLocale, isRtl } from './i18n';
 import PublicWebsite from './components/PublicWebsite.vue';
@@ -298,12 +434,18 @@ import OnboardingWizard from './components/OnboardingWizard.vue';
 import DashboardView from './components/DashboardView.vue';
 import BrandBrainHub from './components/BrandBrainHub.vue';
 import StrategyHub from './components/StrategyHub.vue';
+import ContentStudioView from './components/ContentStudioView.vue';
+import CreativeStudioView from './components/CreativeStudioView.vue';
+import CalendarView from './components/CalendarView.vue';
+import PublishingChannelsView from './components/PublishingChannelsView.vue';
+import AnalyticsHubView from './components/AnalyticsHubView.vue';
 import BillingView from './components/BillingView.vue';
 import TeamView from './components/TeamView.vue';
 import SettingsView from './components/SettingsView.vue';
+import SuperAdminDashboardView from './components/SuperAdminDashboardView.vue';
 
 const isDark = ref(true);
-const currentMode = ref<'website' | 'onboarding' | 'app'>('website');
+const currentMode = ref<'website' | 'auth' | 'onboarding' | 'app'>('website');
 const activeNav = ref('dashboard');
 
 const authUser = ref<any>(null);
@@ -314,22 +456,42 @@ const userRole = ref<string>('owner');
 const permissionsList = ref<string[]>([]);
 const healthStatus = ref<{ status?: string }>({ status: 'healthy' });
 
+const isImpersonating = ref(false);
+const originalAdminOrg = ref<any>(null);
+
 const authMode = ref<'login' | 'register' | 'forgot'>('login');
 const authLoading = ref(false);
-const authForm = ref({ name: '', email: '', password: '' });
+const authForm = ref({ name: '', email: '', password: '', company_name: '', industry: '' });
 
 const showNewOrgModal = ref(false);
 const newOrgForm = ref({ name: '' });
 
-const navItems = [
+const baseNavItems = [
   { id: 'dashboard', icon: '📊', titleKey: 'navigation.dashboard' },
   { id: 'brand_brain', icon: '🧠', titleKey: 'navigation.brandBrain' },
   { id: 'strategy', icon: '🎯', titleKey: 'navigation.strategy' },
   { id: 'content', icon: '✍️', titleKey: 'navigation.content', badge: 'Phase 4' },
+  { id: 'creative', icon: '🎨', titleKey: 'navigation.creative', badge: 'Phase 5' },
+  { id: 'calendar', icon: '📅', titleKey: 'navigation.calendar', badge: 'Phase 6' },
+  { id: 'social', icon: '📡', titleKey: 'navigation.publishing', badge: 'Phase 7' },
+  { id: 'analytics', icon: '📈', titleKey: 'navigation.analytics', badge: 'Phase 8' },
   { id: 'team', icon: '👥', titleKey: 'navigation.team' },
   { id: 'billing', icon: '💳', titleKey: 'navigation.billing' },
   { id: 'settings', icon: '⚙️', titleKey: 'navigation.settings' },
 ];
+
+const navItems = computed(() => {
+  const items = [...baseNavItems];
+  if (authUser.value?.is_super_admin) {
+    items.push({
+      id: 'super_admin',
+      icon: '👑',
+      titleKey: 'navigation.superAdmin',
+      badge: 'Master',
+    });
+  }
+  return items;
+});
 
 const toggleLanguage = () => {
   setLocale(currentLocale.value === 'ar' ? 'en' : 'ar');
@@ -337,8 +499,12 @@ const toggleLanguage = () => {
 
 const handleOpenAuth = (mode: 'login' | 'register', planSlug?: string) => {
   authMode.value = mode;
-  currentMode.value = 'app';
-  activeNav.value = 'auth';
+  currentMode.value = 'auth';
+};
+
+const fillSuperAdminCreds = () => {
+  authForm.value.email = 'admin@marketly.ai';
+  authForm.value.password = 'Password123!';
 };
 
 const getHeaders = () => ({
@@ -355,6 +521,8 @@ const handleAuthSubmit = async () => {
         email: authForm.value.email,
         password: authForm.value.password,
         password_confirmation: authForm.value.password,
+        company_name: authForm.value.company_name,
+        industry: authForm.value.industry,
       });
       authToken.value = res.data?.data?.token;
       authUser.value = res.data?.data?.user;
@@ -371,7 +539,7 @@ const handleAuthSubmit = async () => {
       localStorage.setItem('marketly_token', authToken.value);
       await fetchUserData();
       currentMode.value = 'app';
-      activeNav.value = 'dashboard';
+      activeNav.value = authUser.value?.is_super_admin ? 'super_admin' : 'dashboard';
     } else {
       await axios.post('/api/v1/auth/forgot-password', { email: authForm.value.email });
       alert('Password reset link sent to your email.');
@@ -420,12 +588,31 @@ const handleCreateOrg = async () => {
   }
 };
 
+const handleImpersonateSuccess = async (data: any) => {
+  if (!originalAdminOrg.value) {
+    originalAdminOrg.value = currentOrg.value;
+  }
+  isImpersonating.value = true;
+  currentOrg.value = data.organization;
+  await fetchUserData();
+  activeNav.value = 'dashboard';
+};
+
+const exitImpersonation = async () => {
+  if (originalAdminOrg.value) {
+    await handleOrgSwitch(originalAdminOrg.value.id);
+  }
+  isImpersonating.value = false;
+  activeNav.value = 'super_admin';
+};
+
 const handleLogout = async () => {
   try {
     await axios.post('/api/v1/auth/logout', {}, { headers: { Authorization: `Bearer ${authToken.value}` } });
   } catch (e) {}
   authToken.value = '';
   authUser.value = null;
+  isImpersonating.value = false;
   localStorage.removeItem('marketly_token');
   currentMode.value = 'website';
 };
@@ -437,7 +624,7 @@ onMounted(async () => {
     await fetchUserData();
     if (authUser.value) {
       currentMode.value = 'app';
-      activeNav.value = 'dashboard';
+      activeNav.value = authUser.value?.is_super_admin ? 'super_admin' : 'dashboard';
     }
   }
 });
