@@ -43,8 +43,7 @@ class GeminiAIProvider implements AIProviderInterface
         $maxTokens = $options['max_tokens'] ?? 2048;
 
         try {
-            $response = Http::timeout(45)
-                ->withHeaders(['Content-Type' => 'application/json'])
+            $response = $this->httpClient(45)
                 ->post("{$this->baseUrl}/models/{$this->model}:generateContent?key={$this->apiKey}", [
                     'contents' => [
                         [
@@ -143,8 +142,7 @@ class GeminiAIProvider implements AIProviderInterface
         }
 
         try {
-            $response = Http::timeout(45)
-                ->withHeaders(['Content-Type' => 'application/json'])
+            $response = $this->httpClient(45)
                 ->post("{$this->baseUrl}/models/{$this->model}:generateContent?key={$this->apiKey}", $payload);
 
             $latencyMs = (int) round((microtime(true) - $startTime) * 1000);
@@ -245,8 +243,7 @@ class GeminiAIProvider implements AIProviderInterface
                 $parts[] = ['inlineData' => $inlineData];
             }
 
-            $response = Http::timeout(45)
-                ->withHeaders(['Content-Type' => 'application/json'])
+            $response = $this->httpClient(45)
                 ->post("{$this->baseUrl}/models/{$this->model}:generateContent?key={$this->apiKey}", [
                     'contents' => [
                         [
@@ -310,8 +307,7 @@ class GeminiAIProvider implements AIProviderInterface
         $startTime = microtime(true);
 
         try {
-            $response = Http::timeout(45)
-                ->withHeaders(['Content-Type' => 'application/json'])
+            $response = $this->httpClient(45)
                 ->post("{$this->baseUrl}/models/{$this->model}:generateContent?key={$this->apiKey}", [
                     'contents' => [
                         [
@@ -389,8 +385,7 @@ class GeminiAIProvider implements AIProviderInterface
         $geminiImageModel = $options['image_model'] ?? config('services.gemini.image_model', 'gemini-2.0-flash-exp');
 
         try {
-            $response = Http::timeout(60)
-                ->withHeaders(['Content-Type' => 'application/json'])
+            $response = $this->httpClient(60)
                 ->post("{$this->baseUrl}/models/{$geminiImageModel}:generateContent?key={$this->apiKey}", [
                     'contents' => [
                         [
@@ -468,8 +463,7 @@ class GeminiAIProvider implements AIProviderInterface
         $aspectRatioParam = in_array($aspectRatio, $validAspectRatios, true) ? $aspectRatio : '1:1';
 
         try {
-            $response = Http::timeout(60)
-                ->withHeaders(['Content-Type' => 'application/json'])
+            $response = $this->httpClient(60)
                 ->post("{$this->baseUrl}/models/{$imagenModel}:predict?key={$this->apiKey}", [
                     'instances' => [
                         ['prompt' => $prompt],
@@ -554,6 +548,18 @@ class GeminiAIProvider implements AIProviderInterface
                 errorMessage: $e->getMessage()
             );
         }
+    }
+
+    private function httpClient(int $timeout = 45): \Illuminate\Http\Client\PendingRequest
+    {
+        $client = Http::timeout($timeout)->withHeaders(['Content-Type' => 'application/json']);
+
+        // In local/testing environments or when running on local OS without CA bundle, disable cURL SSL verification
+        if (app()->environment('local', 'testing') || config('app.debug') || empty(ini_get('curl.cainfo'))) {
+            $client = $client->withoutVerifying();
+        }
+
+        return $client;
     }
 
     private function extractUsage(array $json, int $latencyMs): GenerationUsage

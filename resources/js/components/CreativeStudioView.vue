@@ -722,7 +722,7 @@ async function handleRegenerateVariation(asset: any) {
         aspect_ratio: asset.aspect_ratio,
         visual_style: asset.visual_style || 'product_showcase',
         is_regeneration: true,
-        avoid_prompt: asset.prompt_used || undefined,
+        avoid_prompt: asset.prompt_used ? asset.prompt_used.substring(0, 1000) : undefined,
       }),
     });
 

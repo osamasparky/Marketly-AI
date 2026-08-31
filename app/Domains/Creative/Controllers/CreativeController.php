@@ -71,7 +71,7 @@ class CreativeController extends Controller
             'visual_brief' => ['nullable', 'array'],
             'product_id' => ['nullable', 'integer'],
             'is_regeneration' => ['nullable', 'boolean'],
-            'avoid_prompt' => ['nullable', 'string', 'max:500'],
+            'avoid_prompt' => ['nullable', 'string', 'max:5000'],
         ]);
 
         $asset = $this->creativeService->generateVisual($tenantContext, $params);
