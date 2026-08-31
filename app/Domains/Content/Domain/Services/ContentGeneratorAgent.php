@@ -33,6 +33,36 @@ class ContentGeneratorAgent
         $productName = $product['name'] ?? null;
         $targetAudienceName = $audience['name'] ?? null;
 
+        if ($this->aiProvider?->isConfigured()) {
+            try {
+                $aiResult = $this->generateWithAi(
+                    context: $context,
+                    businessName: $businessName,
+                    industry: $industry,
+                    language: $language,
+                    dialect: $dialect,
+                    tone: $tone,
+                    platform: $platform,
+                    pillarName: $pillarName,
+                    productName: $productName,
+                    targetAudienceName: $targetAudienceName,
+                    userPrompt: $userPrompt,
+                    contentType: $contentType
+                );
+
+                if ($aiResult !== null) {
+                    $this->validateContentSchema($aiResult);
+                    return $aiResult;
+                }
+            } catch (\Throwable $e) {
+                // Fallback seamlessly to deterministic generator on AI error
+                \Illuminate\Support\Facades\Log::warning('ContentGeneratorAgent AI generation failed, using fallback generator', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Deterministic Fallback Generator
         if ($language === 'ar') {
             $generated = $this->generateArabicContent(
                 businessName: $businessName,
@@ -63,6 +93,134 @@ class ContentGeneratorAgent
         $this->validateContentSchema($generated);
 
         return $generated;
+    }
+
+    /**
+     * Generate content post using connected AI Provider (Gemini).
+     */
+    private function generateWithAi(
+        array $context,
+        string $businessName,
+        string $industry,
+        string $language,
+        string $dialect,
+        string $tone,
+        string $platform,
+        string $pillarName,
+        ?string $productName,
+        ?string $targetAudienceName,
+        ?string $userPrompt,
+        ?string $contentType
+    ): ?array {
+        $prompt = <<<PROMPT
+You are an expert autonomous social media copywriter and growth marketer for the brand "{$businessName}".
+Generate a high-converting, authentic, brand-aligned {$contentType} for the platform: {$platform}.
+
+BRAND CONTEXT:
+- Business: {$businessName}
+- Industry: {$industry}
+- Language: {$language}
+- Target Dialect/Style: {$dialect}
+- Tone of Voice: {$tone}
+- Strategic Content Pillar: {$pillarName}
+PROMPT;
+
+        if ($productName) {
+            $prompt .= "\n- Featured Product/Service: {$productName}";
+        }
+        if ($targetAudienceName) {
+            $prompt .= "\n- Target Audience Persona: {$targetAudienceName}";
+        }
+        if ($userPrompt) {
+            $prompt .= "\n- User Custom Instructions: {$userPrompt}";
+        }
+
+        $prompt .= <<<PROMPT
+
+
+REQUIREMENTS:
+1. Language must be in {$language} with authentic {$dialect} nuances (Saudi, Egyptian, Gulf, MSA, or English depending on request).
+2. Start with an arresting Hook (first 1-2 lines) tailored to {$platform}.
+3. The Caption body must provide genuine educational or practical value, clear formatting, spacing, and appropriate emojis.
+4. Conclude with a relevant Call-To-Action (CTA).
+5. Provide 3-6 relevant hashtags.
+6. Provide a concise visual brief for the graphic designer.
+
+Output must be a JSON object with EXACTLY the following structure:
+{
+  "title": "Short title describing the post topic",
+  "hook": "Engaging hook line",
+  "caption": "Full engaging post body text",
+  "cta": "Call to action text",
+  "hashtags": ["#Tag1", "#Tag2", "#Tag3"],
+  "visual_brief": {
+    "type": "card_graphic",
+    "description": "Visual description",
+    "suggested_text_overlay": "Text for image overlay",
+    "color_notes": "Color styling suggestions"
+  }
+}
+PROMPT;
+
+        $schema = [
+            'type' => 'object',
+            'properties' => [
+                'title' => ['type' => 'string'],
+                'hook' => ['type' => 'string'],
+                'caption' => ['type' => 'string'],
+                'cta' => ['type' => 'string'],
+                'hashtags' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string']
+                ],
+                'visual_brief' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'type' => ['type' => 'string'],
+                        'description' => ['type' => 'string'],
+                        'suggested_text_overlay' => ['type' => 'string'],
+                        'color_notes' => ['type' => 'string']
+                    ],
+                    'required' => ['type', 'description']
+                ]
+            ],
+            'required' => ['title', 'hook', 'caption', 'cta', 'hashtags', 'visual_brief']
+        ];
+
+        $output = $this->aiProvider->generateStructured($prompt, $schema, [
+            'temperature' => 0.7,
+            'max_tokens' => 2048,
+        ]);
+
+        if (!$output->success || empty($output->data)) {
+            return null;
+        }
+
+        $data = $output->data;
+
+        // Ensure required fields exist with fallbacks if model omitted any
+        if (empty($data['title'])) {
+            $data['title'] = "{$pillarName} — {$businessName}";
+        }
+        if (empty($data['hook'])) {
+            $data['hook'] = mb_substr($data['caption'] ?? '', 0, 80);
+        }
+        if (empty($data['cta'])) {
+            $data['cta'] = ($language === 'ar') ? 'شاركنا رأيك في التعليقات 👇' : 'Share your thoughts below! 👇';
+        }
+        if (empty($data['hashtags']) || !is_array($data['hashtags'])) {
+            $data['hashtags'] = ['#' . str_replace(' ', '', $businessName), '#' . str_replace(' ', '', $industry)];
+        }
+        if (empty($data['visual_brief']) || !is_array($data['visual_brief'])) {
+            $data['visual_brief'] = [
+                'type' => 'card_graphic',
+                'description' => "Visual card for {$businessName} covering {$pillarName}",
+                'suggested_text_overlay' => $data['title'],
+                'color_notes' => 'Modern dark theme with brand accents',
+            ];
+        }
+
+        return $data;
     }
 
     /**

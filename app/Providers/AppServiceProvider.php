@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\AI\Contracts\AIProviderInterface;
+use App\AI\Providers\GeminiAIProvider;
 use App\Domains\Brand\Domain\Repositories\BrandAudienceRepositoryInterface;
 use App\Domains\Brand\Domain\Repositories\BrandCompetitorRepositoryInterface;
 use App\Domains\Brand\Domain\Repositories\BrandGoalRepositoryInterface;
@@ -27,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(AuthorizationService::class);
+        $this->app->singleton(AIProviderInterface::class, GeminiAIProvider::class);
 
         // Brand Domain Repository Bindings
         $this->app->bind(BrandProfileRepositoryInterface::class, EloquentBrandProfileRepository::class);

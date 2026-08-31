@@ -7,6 +7,11 @@ use App\AI\Contracts\DTOs\AIStructuredOutput;
 interface AIProviderInterface
 {
     /**
+     * Check if the AI provider has valid configuration (API keys, models).
+     */
+    public function isConfigured(): bool;
+
+    /**
      * Generate freeform text response.
      *
      * @param string $prompt

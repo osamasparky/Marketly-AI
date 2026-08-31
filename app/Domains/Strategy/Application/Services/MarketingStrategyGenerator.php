@@ -40,7 +40,30 @@ class MarketingStrategyGenerator
         $timeHorizon = $params['time_horizon_months'] ?? 3;
         $dialect = $business['voice_dialect'] ?? 'saudi';
 
-        // Prepare synthesized strategic response structure
+        if ($this->aiProvider?->isConfigured()) {
+            try {
+                $aiStrategy = $this->generateWithAi(
+                    strategyContext: $strategyContext,
+                    businessName: $businessName,
+                    industry: $industry,
+                    primaryObjective: $primaryObjective,
+                    platforms: $platforms,
+                    timeHorizon: $timeHorizon,
+                    dialect: $dialect
+                );
+
+                if ($aiStrategy !== null) {
+                    $this->validateStrategySchema($aiStrategy);
+                    return $aiStrategy;
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('MarketingStrategyGenerator AI generation failed, using fallback generator', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Deterministic Fallback Strategy
         $rawStrategy = [
             'name' => "{$businessName} — Q" . ceil(date('n') / 3) . " Growth & {$primaryObjective} Strategy",
             'description' => "Autonomous quarterly marketing strategy focused on {$primaryObjective} for {$businessName} across " . implode(', ', $platforms) . ".",
@@ -127,6 +150,152 @@ class MarketingStrategyGenerator
         $this->validateStrategySchema($rawStrategy);
 
         return $rawStrategy;
+    }
+
+    /**
+     * Generate marketing strategy using connected AI Provider (Gemini).
+     */
+    private function generateWithAi(
+        array $strategyContext,
+        string $businessName,
+        string $industry,
+        string $primaryObjective,
+        array $platforms,
+        int $timeHorizon,
+        string $dialect
+    ): ?array {
+        $contextJson = json_encode($strategyContext, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+        $prompt = <<<PROMPT
+You are a CMO and chief marketing strategist for the brand "{$businessName}".
+Generate a comprehensive, actionable, high-ROI marketing strategy for the next {$timeHorizon} months.
+
+BUSINESS & BRAND INTELLIGENCE:
+{$contextJson}
+
+KEY PARAMETERS:
+- Business: {$businessName}
+- Industry: {$industry}
+- Primary Objective: {$primaryObjective}
+- Target Platforms: {$timeHorizon} months across: {$dialect} dialect
+
+REQUIREMENTS:
+1. Provide between 3 and 5 high-impact content pillars with balanced percentage distributions summing up to 100% (or 90-100%).
+2. Provide 2-4 actionable campaign themes with audience persona targets.
+3. Provide strategic opportunities and platform breakdowns.
+4. Output MUST be valid JSON adhering strictly to the schema.
+PROMPT;
+
+        $schema = [
+            'type' => 'object',
+            'properties' => [
+                'name' => ['type' => 'string'],
+                'description' => ['type' => 'string'],
+                'primary_objective' => ['type' => 'string'],
+                'secondary_objectives' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string']
+                ],
+                'rationale' => ['type' => 'string'],
+                'pillars' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'name' => ['type' => 'string'],
+                            'description' => ['type' => 'string'],
+                            'objective' => ['type' => 'string'],
+                            'priority' => ['type' => 'string'],
+                            'recommended_percentage' => ['type' => 'integer']
+                        ],
+                        'required' => ['name', 'description', 'objective', 'priority', 'recommended_percentage']
+                    ]
+                ],
+                'campaign_themes' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'name' => ['type' => 'string'],
+                            'objective' => ['type' => 'string'],
+                            'audience_persona' => ['type' => 'string'],
+                            'core_message' => ['type' => 'string'],
+                            'duration_weeks' => ['type' => 'integer'],
+                            'recommended_formats' => [
+                                'type' => 'array',
+                                'items' => ['type' => 'string']
+                            ]
+                        ],
+                        'required' => ['name', 'objective', 'audience_persona', 'core_message', 'duration_weeks', 'recommended_formats']
+                    ]
+                ],
+                'opportunities' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'title' => ['type' => 'string'],
+                            'description' => ['type' => 'string'],
+                            'objective' => ['type' => 'string'],
+                            'priority' => ['type' => 'string'],
+                            'source' => ['type' => 'string'],
+                            'recommended_timing' => ['type' => 'string']
+                        ],
+                        'required' => ['title', 'description', 'objective', 'priority', 'source', 'recommended_timing']
+                    ]
+                ],
+                'platforms' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'platform' => ['type' => 'string'],
+                            'primary_objective' => ['type' => 'string'],
+                            'posting_frequency' => ['type' => 'string'],
+                            'recommended_formats' => [
+                                'type' => 'array',
+                                'items' => ['type' => 'string']
+                            ]
+                        ],
+                        'required' => ['platform', 'primary_objective', 'posting_frequency', 'recommended_formats']
+                    ]
+                ]
+            ],
+            'required' => ['name', 'description', 'primary_objective', 'secondary_objectives', 'rationale', 'pillars', 'campaign_themes', 'opportunities', 'platforms']
+        ];
+
+        $output = $this->aiProvider->generateStructured($prompt, $schema, [
+            'temperature' => 0.5,
+            'max_tokens' => 4096,
+        ]);
+
+        if (!$output->success || empty($output->data)) {
+            return null;
+        }
+
+        $data = $output->data;
+
+        // Ensure default fields if missing
+        if (empty($data['name'])) {
+            $data['name'] = "{$businessName} — Q" . ceil(date('n') / 3) . " Growth & {$primaryObjective} Strategy";
+        }
+        if (empty($data['description'])) {
+            $data['description'] = "Quarterly marketing strategy for {$businessName}.";
+        }
+        if (empty($data['primary_objective'])) {
+            $data['primary_objective'] = $primaryObjective;
+        }
+        if (empty($data['secondary_objectives']) || !is_array($data['secondary_objectives'])) {
+            $data['secondary_objectives'] = ['brand_awareness', 'engagement'];
+        }
+        if (empty($data['rationale'])) {
+            $data['rationale'] = "Strategy engineered for {$businessName} in the {$industry} sector.";
+        }
+        if (empty($data['pillars']) || !is_array($data['pillars'])) {
+            return null;
+        }
+
+        return $data;
     }
 
     /**

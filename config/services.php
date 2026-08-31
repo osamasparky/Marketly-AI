@@ -31,4 +31,33 @@ return [
         ],
     ],
 
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+    ],
+
+    'linkedin' => [
+        'client_id' => env('LINKEDIN_CLIENT_ID'),
+        'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
+        'redirect_uri' => env('LINKEDIN_REDIRECT_URI', env('APP_URL', 'http://127.0.0.1:8000') . '/api/v1/publishing/oauth/linkedin/callback'),
+    ],
+
+    'twitter' => [
+        'client_id' => env('TWITTER_CLIENT_ID'),
+        'client_secret' => env('TWITTER_CLIENT_SECRET'),
+        'redirect_uri' => env('TWITTER_REDIRECT_URI', env('APP_URL', 'http://127.0.0.1:8000') . '/api/v1/publishing/oauth/x/callback'),
+    ],
+
+    'facebook' => [
+        'client_id' => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect_uri' => env('FACEBOOK_REDIRECT_URI', env('APP_URL', 'http://127.0.0.1:8000') . '/api/v1/publishing/oauth/facebook/callback'),
+    ],
+
+    'tiktok' => [
+        'client_id' => env('TIKTOK_CLIENT_ID'),
+        'client_secret' => env('TIKTOK_CLIENT_SECRET'),
+        'redirect_uri' => env('TIKTOK_REDIRECT_URI', env('APP_URL', 'http://127.0.0.1:8000') . '/api/v1/publishing/oauth/tiktok/callback'),
+    ],
+
 ];
