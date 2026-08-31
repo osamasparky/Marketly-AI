@@ -27,12 +27,16 @@ class CreativeApplicationService
     /**
      * List media assets for the active tenant.
      */
-    public function getAssets(TenantContext $context, array $filters = []): Collection
+    public function listAssets(TenantContext $context, array $filters = []): Collection
     {
         TenantIsolationGuard::assertPermission($context, 'creative.view');
 
         $query = MediaAssetModel::with(['post', 'author'])
             ->where('organization_id', $context->organizationId);
+
+        if ($context->brandId) {
+            $query->where('brand_profile_id', $context->brandId);
+        }
 
         if (!empty($filters['aspect_ratio'])) {
             $query->where('aspect_ratio', $filters['aspect_ratio']);
@@ -58,6 +62,11 @@ class CreativeApplicationService
         return $query->latest()->get();
     }
 
+    public function getAssets(TenantContext $context, array $filters = []): Collection
+    {
+        return $this->listAssets($context, $filters);
+    }
+
     /**
      * Get a specific media asset.
      */
@@ -65,10 +74,15 @@ class CreativeApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'creative.view');
 
-        return MediaAssetModel::with(['post', 'author'])
+        $query = MediaAssetModel::with(['post', 'author'])
             ->where('organization_id', $context->organizationId)
-            ->where('id', $assetId)
-            ->firstOrFail();
+            ->where('id', $assetId);
+
+        if ($context->brandId) {
+            $query->where('brand_profile_id', $context->brandId);
+        }
+
+        return $query->firstOrFail();
     }
 
     /**
@@ -78,8 +92,8 @@ class CreativeApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'creative.create');
 
-        // Quota assertion & consumption
-        $this->entitlementService->assertCanAndConsume($context->organizationId, 'ai_content', 1);
+        // Quota assertion & consumption per brand
+        $this->entitlementService->assertCanAndConsume($context->organizationId, 'ai_content', 1, $context->brandId);
 
         $postId = isset($params['content_post_id']) ? (int) $params['content_post_id'] : null;
         $title = $params['title'] ?? null;
@@ -109,33 +123,35 @@ class CreativeApplicationService
         return DB::transaction(function () use ($context, $postId, $visualParams, $generated) {
             $asset = MediaAssetModel::create([
                 'organization_id' => $context->organizationId,
+                'brand_profile_id' => $context->brandId,
                 'content_post_id' => $postId,
                 'created_by' => $context->userId,
-                'title' => $visualParams['title'],
+                'title' => $visualParams['title'] ?: 'Generated Graphic',
                 'file_name' => $generated['file_name'],
-                'file_type' => $generated['file_type'],
+                'file_path' => $generated['file_path'] ?? ('media/' . $generated['file_name']),
+                'file_type' => $generated['file_type'] ?? 'graphic_card',
                 'mime_type' => $generated['mime_type'],
                 'file_size_bytes' => $generated['file_size_bytes'],
                 'width' => $generated['width'],
                 'height' => $generated['height'],
-                'aspect_ratio' => $generated['aspect_ratio'],
-                'prompt_used' => $generated['prompt_used'],
-                'visual_style' => $generated['visual_style'],
-                'text_overlay' => $generated['text_overlay'],
-                'color_palette' => $generated['color_palette'],
-                'metadata' => $generated['metadata'],
+                'aspect_ratio' => $visualParams['aspect_ratio'],
+                'prompt_used' => $generated['prompt_used'] ?? $visualParams['system_prompt'],
+                'visual_style' => $generated['visual_style'] ?? $visualParams['visual_style'],
+                'text_overlay' => $generated['text_overlay'] ?? $visualParams['hook'],
+                'color_palette' => $generated['color_palette'] ?? $visualParams['color_palette'],
+                'metadata' => $generated['metadata'] ?? [],
                 'status' => 'ready',
             ]);
 
             $this->auditService->log(
-                action: 'creative.generated',
+                action: 'creative.visual_generated',
                 organizationId: $context->organizationId,
                 userId: $context->userId,
                 entityType: 'media_asset',
                 entityId: (string) $asset->id
             );
 
-            return $asset->load(['post', 'author']);
+            return $asset;
         });
     }
 
@@ -146,7 +162,7 @@ class CreativeApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'creative.create');
 
-        $this->entitlementService->assertCanAndConsume($context->organizationId, 'ai_content', 1);
+        $this->entitlementService->assertCanAndConsume($context->organizationId, 'ai_content', 1, $context->brandId);
 
         $postId = isset($params['content_post_id']) ? (int) $params['content_post_id'] : null;
         $title = $params['title'] ?? 'Strategic Growth Framework';
@@ -173,6 +189,7 @@ class CreativeApplicationService
         return DB::transaction(function () use ($context, $postId, $title, $hook, $scriptData) {
             $asset = MediaAssetModel::create([
                 'organization_id' => $context->organizationId,
+                'brand_profile_id' => $context->brandId,
                 'content_post_id' => $postId,
                 'created_by' => $context->userId,
                 'title' => $scriptData['title'],

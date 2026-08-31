@@ -68,6 +68,8 @@ Route::prefix('v1')->group(function () {
         // Phase 2: Brand Brain API
         Route::prefix('brand')->group(function () {
             Route::get('/', [BrandController::class, 'show'])->name('api.v1.brand.show');
+            Route::get('/brands', [BrandController::class, 'index'])->name('api.v1.brand.index');
+            Route::delete('/brands/{brand}', [BrandController::class, 'destroy'])->name('api.v1.brand.destroy');
             Route::post('/', [BrandController::class, 'saveProfile'])->name('api.v1.brand.save');
             Route::patch('/', [BrandController::class, 'saveProfile'])->name('api.v1.brand.update');
             Route::get('/ai-context', [BrandController::class, 'aiContext'])->name('api.v1.brand.ai_context');

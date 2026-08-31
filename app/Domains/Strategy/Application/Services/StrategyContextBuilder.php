@@ -20,13 +20,14 @@ class StrategyContextBuilder
         array $targetPlatforms,
         int $timeHorizonMonths = 3,
         ?string $seasonalFocus = null,
-        ?int $targetAudienceId = null
+        ?int $targetAudienceId = null,
+        ?int $brandProfileId = null
     ): array {
         if ($organizationId <= 0) {
             throw new InvalidArgumentException('Valid organization ID is required.');
         }
 
-        $brandContext = $this->brandContextBuilder->build($organizationId);
+        $brandContext = $this->brandContextBuilder->build($organizationId, $brandProfileId);
         $minimizedBrand = $brandContext->forContentGeneration($targetAudienceId);
 
         return [

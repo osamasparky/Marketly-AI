@@ -41,6 +41,11 @@ class BrandProfileModel extends Model
         'secondary_color',
         'accent_color',
         'background_color',
+        'preferred_platforms',
+        'content_pillars_input',
+        'existing_social_handles',
+        'approximate_monthly_budget',
+        'budget_currency',
         'version',
         'status',
     ];
@@ -48,6 +53,10 @@ class BrandProfileModel extends Model
     protected $casts = [
         'values' => 'array',
         'unique_selling_points' => 'array',
+        'preferred_platforms' => 'array',
+        'content_pillars_input' => 'array',
+        'existing_social_handles' => 'array',
+        'approximate_monthly_budget' => 'decimal:2',
         'version' => 'integer',
     ];
 

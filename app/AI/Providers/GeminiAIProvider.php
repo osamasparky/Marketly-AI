@@ -133,6 +133,15 @@ class GeminiAIProvider implements AIProviderInterface
             $payload['generationConfig']['responseSchema'] = $schema;
         }
 
+        // Support dedicated systemInstruction in Gemini API
+        if (!empty($options['system'])) {
+            $payload['systemInstruction'] = [
+                'parts' => [
+                    ['text' => (string) $options['system']]
+                ]
+            ];
+        }
+
         try {
             $response = Http::timeout(45)
                 ->withHeaders(['Content-Type' => 'application/json'])

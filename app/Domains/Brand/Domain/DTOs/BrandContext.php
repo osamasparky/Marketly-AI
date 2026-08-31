@@ -78,6 +78,11 @@ readonly class BrandContext
                 'secondary_color' => $this->brandIdentity['secondary_color'] ?? null,
                 'accent_color' => $this->brandIdentity['accent_color'] ?? null,
                 'logo_url' => $this->brandIdentity['logo_url'] ?? null,
+                'preferred_platforms' => $this->brandIdentity['preferred_platforms'] ?? [],
+                'content_pillars' => $this->brandIdentity['content_pillars'] ?? [],
+                'existing_social_handles' => $this->brandIdentity['existing_social_handles'] ?? [],
+                'approximate_monthly_budget' => $this->brandIdentity['approximate_monthly_budget'] ?? null,
+                'budget_currency' => $this->brandIdentity['budget_currency'] ?? 'SAR',
             ],
             'voice_and_tone' => [
                 'primary_tones' => $this->voiceAndTone['primary_tones'] ?? ['professional'],

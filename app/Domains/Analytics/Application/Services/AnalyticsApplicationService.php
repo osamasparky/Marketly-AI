@@ -29,8 +29,18 @@ class AnalyticsApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'analytics.view');
 
-        $metrics = PostMetricModel::where('organization_id', $context->organizationId)->get();
-        $snapshots = AnalyticsSnapshotModel::where('organization_id', $context->organizationId)->get();
+        $metricsQuery = PostMetricModel::where('organization_id', $context->organizationId);
+        $snapshotsQuery = AnalyticsSnapshotModel::where('organization_id', $context->organizationId);
+        $recsQuery = AiRecommendationModel::where('organization_id', $context->organizationId)->where('status', 'active');
+
+        if ($context->brandId) {
+            $metricsQuery->where('brand_profile_id', $context->brandId);
+            $snapshotsQuery->where('brand_profile_id', $context->brandId);
+            $recsQuery->where('brand_profile_id', $context->brandId);
+        }
+
+        $metrics = $metricsQuery->get();
+        $snapshots = $snapshotsQuery->get();
 
         $totalReach = $metrics->sum('reach');
         $totalImpressions = $metrics->sum('views');
@@ -44,11 +54,15 @@ class AnalyticsApplicationService
         $channelStats = [];
 
         foreach ($channels as $channel) {
-            $chMetrics = PostMetricModel::where('post_metrics.organization_id', $context->organizationId)
+            $chQuery = PostMetricModel::where('post_metrics.organization_id', $context->organizationId)
                 ->join('content_posts', 'post_metrics.content_post_id', '=', 'content_posts.id')
-                ->where('content_posts.primary_platform', $channel)
-                ->select('post_metrics.*')
-                ->get();
+                ->where('content_posts.primary_platform', $channel);
+
+            if ($context->brandId) {
+                $chQuery->where('post_metrics.brand_profile_id', $context->brandId);
+            }
+
+            $chMetrics = $chQuery->select('post_metrics.*')->get();
 
             $channelStats[] = [
                 'platform' => $channel,
@@ -71,7 +85,7 @@ class AnalyticsApplicationService
                 'published_posts_count' => $metrics->count(),
             ],
             'channels' => $channelStats,
-            'active_recommendations_count' => AiRecommendationModel::where('organization_id', $context->organizationId)->where('status', 'active')->count(),
+            'active_recommendations_count' => $recsQuery->count(),
         ];
     }
 
@@ -83,8 +97,13 @@ class AnalyticsApplicationService
         TenantIsolationGuard::assertPermission($context, 'analytics.view');
 
         $query = PostMetricModel::with(['post.pillar', 'post.author', 'socialAccount'])
-            ->where('organization_id', $context->organizationId)
-            ->orderByDesc('engagement_rate');
+            ->where('organization_id', $context->organizationId);
+
+        if ($context->brandId) {
+            $query->where('brand_profile_id', $context->brandId);
+        }
+
+        $query->orderByDesc('engagement_rate');
 
         $posts = $query->paginate(15);
 

@@ -14,6 +14,7 @@ class PostMetricModel extends Model
 
     protected $fillable = [
         'organization_id',
+        'brand_profile_id',
         'content_post_id',
         'social_account_id',
         'captured_at',

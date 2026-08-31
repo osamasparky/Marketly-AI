@@ -252,6 +252,188 @@
           </div>
         </div>
 
+        <!-- Phase F: Enriched Strategic Brand Brain Fields -->
+        <div class="border-t border-slate-800/80 pt-6 space-y-6">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+              <span>🎯</span>
+              <span>{{ currentLocale === 'ar' ? 'القنوات والركائز والميزانية التسويقية' : 'Target Channels, Pillars & Budget Intelligence' }}</span>
+            </h4>
+            <span class="text-[10px] text-slate-500 font-mono">Phase F Enriched Context</span>
+          </div>
+
+          <!-- Preferred Platforms Checkboxes -->
+          <div class="space-y-2">
+            <label class="text-xs font-semibold text-slate-300 block">
+              {{ currentLocale === 'ar' ? 'المنصات التسويقية المستهدفة (Preferred Platforms)' : 'Target Marketing Platforms' }}
+            </label>
+            <div class="flex flex-wrap gap-2.5">
+              <label 
+                v-for="platform in availablePlatforms" 
+                :key="platform.id"
+                class="px-3.5 py-2 rounded-xl border text-xs font-bold flex items-center gap-2 cursor-pointer transition-all"
+                :class="profileForm.preferred_platforms.includes(platform.id) ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-300' : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'"
+              >
+                <input 
+                  type="checkbox" 
+                  :value="platform.id" 
+                  v-model="profileForm.preferred_platforms" 
+                  class="hidden" 
+                />
+                <span>{{ platform.icon }}</span>
+                <span>{{ platform.name }}</span>
+                <span v-if="profileForm.preferred_platforms.includes(platform.id)" class="text-emerald-400 text-[10px]">✓</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Content Pillars Input (List) -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-slate-300">
+                {{ currentLocale === 'ar' ? 'ركائز المحتوى الأساسية (Core Content Pillars)' : 'Strategic Content Pillars' }}
+              </label>
+              <button 
+                type="button" 
+                @click="addContentPillar" 
+                class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-emerald-400 transition-colors flex items-center gap-1"
+              >
+                <span>➕</span>
+                <span>{{ currentLocale === 'ar' ? 'إضافة ركيزة' : 'Add Pillar' }}</span>
+              </button>
+            </div>
+
+            <div v-if="profileForm.content_pillars.length === 0" class="p-3.5 rounded-xl bg-slate-950/40 border border-slate-800/80 text-xs text-slate-500 italic">
+              {{ currentLocale === 'ar' ? 'لم يتم تحديد ركائز مخصصة بعد (سيقوم الذكاء الاصطناعي بتوليدها تلقائياً).' : 'No custom pillars added yet. AI will infer standard pillars automatically.' }}
+            </div>
+
+            <div v-else class="space-y-2">
+              <div 
+                v-for="(pillar, idx) in profileForm.content_pillars" 
+                :key="idx"
+                class="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-start gap-3"
+              >
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2 flex-1">
+                  <input 
+                    v-model="pillar.name" 
+                    type="text" 
+                    placeholder="Pillar Name (e.g. Industry Insights)" 
+                    class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none" 
+                  />
+                  <input 
+                    v-model="pillar.description" 
+                    type="text" 
+                    placeholder="Description & Goal..." 
+                    class="md:col-span-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none" 
+                  />
+                </div>
+                <button 
+                  type="button" 
+                  @click="removeContentPillar(idx)" 
+                  class="p-1.5 text-slate-500 hover:text-red-400 transition-colors text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Existing Social Handles & Budget Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Existing Social Handles -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-semibold text-slate-300">
+                  {{ currentLocale === 'ar' ? 'حسابات التواصل الحالية (Social Handles)' : 'Existing Social Media Handles' }}
+                </label>
+                <button 
+                  type="button" 
+                  @click="addSocialHandle" 
+                  class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-cyan-400 transition-colors flex items-center gap-1"
+                >
+                  <span>➕</span>
+                  <span>{{ currentLocale === 'ar' ? 'إضافة حساب' : 'Add Handle' }}</span>
+                </button>
+              </div>
+
+              <div v-if="profileForm.existing_social_handles.length === 0" class="p-3.5 rounded-xl bg-slate-950/40 border border-slate-800/80 text-xs text-slate-500 italic">
+                {{ currentLocale === 'ar' ? 'لم يتم إدخال حسابات تواصل بعد.' : 'No existing social handles registered.' }}
+              </div>
+
+              <div v-else class="space-y-2">
+                <div 
+                  v-for="(h, idx) in profileForm.existing_social_handles" 
+                  :key="idx"
+                  class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2"
+                >
+                  <select 
+                    v-model="h.platform" 
+                    class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white focus:border-cyan-500 outline-none"
+                  >
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="x">X / Twitter</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="youtube">YouTube</option>
+                  </select>
+                  <input 
+                    v-model="h.handle" 
+                    type="text" 
+                    placeholder="@company or URL" 
+                    class="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-cyan-500 outline-none" 
+                  />
+                  <button 
+                    type="button" 
+                    @click="removeSocialHandle(idx)" 
+                    class="p-1.5 text-slate-500 hover:text-red-400 text-xs"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Monthly Marketing Budget -->
+            <div class="space-y-3">
+              <label class="text-xs font-semibold text-slate-300 block">
+                {{ currentLocale === 'ar' ? 'الميزانية التسويقية الشهرية التقريبية' : 'Estimated Monthly Marketing Budget' }}
+              </label>
+              <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                <div class="grid grid-cols-3 gap-3">
+                  <div class="col-span-2 space-y-1">
+                    <label class="text-[10px] text-slate-500">Amount (القيمة)</label>
+                    <input 
+                      v-model.number="profileForm.approximate_monthly_budget" 
+                      type="number" 
+                      min="0" 
+                      placeholder="e.g. 15000" 
+                      class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:border-emerald-500 outline-none" 
+                    />
+                  </div>
+                  <div class="space-y-1">
+                    <label class="text-[10px] text-slate-500">Currency (العملة)</label>
+                    <select 
+                      v-model="profileForm.budget_currency" 
+                      class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white font-mono focus:border-emerald-500 outline-none"
+                    >
+                      <option value="SAR">SAR (ر.س)</option>
+                      <option value="AED">AED (د.إ)</option>
+                      <option value="USD">USD ($)</option>
+                      <option value="EGP">EGP (ج.م)</option>
+                      <option value="KWD">KWD (د.ك)</option>
+                      <option value="QAR">QAR (ر.ق)</option>
+                    </select>
+                  </div>
+                </div>
+                <p class="text-[10px] text-slate-400 leading-relaxed">
+                  {{ currentLocale === 'ar' ? 'تُستخدم هذه القيمة لتوجيه خطط الحملات وفرص النمو المدفوعة وفق قدراتك المالية.' : 'Helps the AI marketing strategist calculate realistic customer acquisition and paid distribution themes.' }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="flex justify-end pt-2">
           <button @click="saveProfile" :disabled="saving" class="tactile-btn tactile-btn-primary text-xs px-6 py-2.5 shadow-lg shadow-emerald-500/20">
             {{ saving ? t('common.processing') : (currentLocale === 'ar' ? 'حفظ الهوية والملف الكامل' : 'Save Brand Identity & Profile') }}
@@ -564,6 +746,11 @@ import { t, currentLocale } from '../i18n';
 const props = defineProps<{
   authToken: string;
   organizationId?: number;
+  brandId?: number;
+}>();
+
+const emit = defineEmits<{
+  (e: 'brand-updated'): void;
 }>();
 
 const activeTab = ref('identity');
@@ -571,6 +758,15 @@ const saving = ref(false);
 const modalSaving = ref(false);
 const uploadingLogo = ref(false);
 const logoInputRef = ref<HTMLInputElement | null>(null);
+
+const availablePlatforms = [
+  { id: 'linkedin', name: 'LinkedIn', icon: '💼' },
+  { id: 'instagram', name: 'Instagram', icon: '📸' },
+  { id: 'x', name: 'X / Twitter', icon: '🐦' },
+  { id: 'tiktok', name: 'TikTok', icon: '🎵' },
+  { id: 'facebook', name: 'Facebook', icon: '📘' },
+  { id: 'youtube', name: 'YouTube', icon: '▶️' },
+];
 
 const completeness = ref<any>({ total_score: 0, status: 'empty', pillars: {} });
 const products = ref<any[]>([]);
@@ -586,6 +782,7 @@ const showProductModal = ref(false);
 const showAudienceModal = ref(false);
 
 const profileForm = ref({
+  id: null as number | null,
   business_name: '',
   industry: 'Technology',
   business_type: 'B2B',
@@ -597,7 +794,28 @@ const profileForm = ref({
   secondary_color: '#3B82F6',
   accent_color: '#F59E0B',
   background_color: '#0F172A',
+  preferred_platforms: [] as string[],
+  content_pillars: [] as Array<{ name: string; description: string }>,
+  existing_social_handles: [] as Array<{ platform: string; handle: string }>,
+  approximate_monthly_budget: null as number | null,
+  budget_currency: 'SAR',
 });
+
+const addContentPillar = () => {
+  profileForm.value.content_pillars.push({ name: '', description: '' });
+};
+
+const removeContentPillar = (idx: number) => {
+  profileForm.value.content_pillars.splice(idx, 1);
+};
+
+const addSocialHandle = () => {
+  profileForm.value.existing_social_handles.push({ platform: 'linkedin', handle: '' });
+};
+
+const removeSocialHandle = (idx: number) => {
+  profileForm.value.existing_social_handles.splice(idx, 1);
+};
 
 const voiceForm = ref({
   dialect: 'saudi',
@@ -636,6 +854,7 @@ const getHeaders = () => ({
   Authorization: `Bearer ${props.authToken}`,
   'X-Locale': currentLocale.value,
   ...(props.organizationId ? { 'X-Organization-Id': String(props.organizationId) } : {}),
+  ...(props.brandId ? { 'X-Brand-Id': String(props.brandId) } : {}),
 });
 
 const triggerLogoInput = () => {
@@ -734,6 +953,7 @@ const fetchBrandBrain = async () => {
       completeness.value = data.completeness || { total_score: 0, status: 'empty', pillars: {} };
       if (data.profile) {
         profileForm.value = {
+          id: data.profile.id || null,
           business_name: data.profile.business_name || '',
           industry: data.profile.industry || 'Technology',
           business_type: data.profile.business_type || 'B2B',
@@ -745,6 +965,11 @@ const fetchBrandBrain = async () => {
           secondary_color: data.profile.secondary_color || '#3B82F6',
           accent_color: data.profile.accent_color || '#F59E0B',
           background_color: data.profile.background_color || '#0F172A',
+          preferred_platforms: data.profile.preferred_platforms || [],
+          content_pillars: data.profile.content_pillars || [],
+          existing_social_handles: data.profile.existing_social_handles || [],
+          approximate_monthly_budget: data.profile.approximate_monthly_budget ? Number(data.profile.approximate_monthly_budget) : null,
+          budget_currency: data.profile.budget_currency || 'SAR',
         };
         products.value = data.profile.products_services || [];
         audiences.value = data.profile.audiences || [];
@@ -767,6 +992,7 @@ const saveProfile = async () => {
   try {
     await axios.post('/api/v1/brand', profileForm.value, { headers: getHeaders() });
     alert(currentLocale.value === 'ar' ? 'تم حفظ هوية وملف العلامة التجارية بنجاح.' : 'Brand profile saved successfully.');
+    emit('brand-updated');
     await fetchBrandBrain();
   } catch (err: any) {
     alert(err.response?.data?.message || 'Failed to save brand profile.');

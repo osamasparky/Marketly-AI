@@ -44,6 +44,10 @@ class ContentApplicationService
             'author',
         ])->where('organization_id', $context->organizationId);
 
+        if ($context->brandId) {
+            $query->where('brand_profile_id', $context->brandId);
+        }
+
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
@@ -75,7 +79,7 @@ class ContentApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'content.view');
 
-        return ContentPostModel::with([
+        $query = ContentPostModel::with([
             'variations',
             'qualityAudits',
             'latestAudit',
@@ -84,8 +88,13 @@ class ContentApplicationService
             'brandProfile',
             'author',
         ])->where('organization_id', $context->organizationId)
-          ->where('id', $postId)
-          ->firstOrFail();
+          ->where('id', $postId);
+
+        if ($context->brandId) {
+            $query->where('brand_profile_id', $context->brandId);
+        }
+
+        return $query->firstOrFail();
     }
 
     /**
@@ -95,8 +104,8 @@ class ContentApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'content.create');
 
-        // 1. Quota check and consumption
-        $this->entitlementService->assertCanAndConsume($context->organizationId, 'ai_content', 1);
+        // 1. Quota check and consumption per brand
+        $this->entitlementService->assertCanAndConsume($context->organizationId, 'ai_content', 1, $context->brandId);
 
         // 2. Build strategic context
         $contentContext = $this->contextBuilder->build(
@@ -129,7 +138,7 @@ class ContentApplicationService
         return DB::transaction(function () use ($context, $params, $contentContext, $generated, $variations, $auditData) {
             $post = ContentPostModel::create([
                 'organization_id' => $context->organizationId,
-                'brand_profile_id' => $contentContext['brand']['id'] ?? null,
+                'brand_profile_id' => $context->brandId ?? ($contentContext['brand']['id'] ?? null),
                 'strategy_id' => $contentContext['strategic_anchor']['strategy_id'] ?? null,
                 'pillar_id' => $contentContext['strategic_anchor']['pillar_id'] ?? null,
                 'campaign_theme_id' => $contentContext['strategic_anchor']['theme_id'] ?? null,

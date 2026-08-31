@@ -14,6 +14,7 @@ class AiRecommendationModel extends Model
 
     protected $fillable = [
         'organization_id',
+        'brand_profile_id',
         'strategy_id',
         'pillar_id',
         'type',

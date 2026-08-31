@@ -165,10 +165,16 @@ class MarketingStrategyGenerator
         string $dialect
     ): ?array {
         $contextJson = json_encode($strategyContext, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        $platformsListString = implode(', ', $platforms);
+
+        $systemInstruction = <<<SYS
+You are an elite Chief Marketing Officer (CMO) and Growth Strategist specialized in the Saudi and GCC / MENA markets.
+Your goal is to build aggressive, actionable, high-ROI marketing strategies that dominate competition and generate verified commercial impact.
+Write all strategic recommendations in {$dialect} Arabic where applicable. Avoid generic Western marketing clichés translated literally — ground every recommendation in how {$industry} businesses in the Saudi/Gulf market actually reach customers.
+SYS;
 
         $prompt = <<<PROMPT
-You are a CMO and chief marketing strategist for the brand "{$businessName}".
-Generate a comprehensive, actionable, high-ROI marketing strategy for the next {$timeHorizon} months.
+Generate an authoritative, multi-channel marketing strategy for "{$businessName}" over a {$timeHorizon}-month horizon.
 
 BUSINESS & BRAND INTELLIGENCE:
 {$contextJson}
@@ -177,13 +183,18 @@ KEY PARAMETERS:
 - Business: {$businessName}
 - Industry: {$industry}
 - Primary Objective: {$primaryObjective}
-- Target Platforms: {$timeHorizon} months across: {$dialect} dialect
+- Target Platforms: {$platformsListString}
+- Time Horizon: {$timeHorizon} months
+- Brand Voice Dialect: {$dialect}
 
-REQUIREMENTS:
-1. Provide between 3 and 5 high-impact content pillars with balanced percentage distributions summing up to 100% (or 90-100%).
-2. Provide 2-4 actionable campaign themes with audience persona targets.
-3. Provide strategic opportunities and platform breakdowns.
-4. Output MUST be valid JSON adhering strictly to the schema.
+CRITICAL STRATEGIC DIRECTIVES:
+1. Grounded & Actionable: Every recommendation must be specific and actionable — include concrete numbers (posting frequency, budget allocation percentage, timeline in weeks), not vague advice like 'post consistently' or 'engage with your audience'.
+2. Competitor Advantage: Explicitly reference any competitor weaknesses or market gaps provided in the context and position at least 2 pillars or opportunities to exploit them directly.
+3. Focused Channels: The platform breakdown in output MUST strictly match the requested target platforms: [{$platformsListString}].
+4. Pillars Mix: Provide 3 to 5 content pillars with percentages that sum up to 100%.
+5. Budget Realism: If an approximate budget is indicated in the context, tailor opportunities and formats to stay within realistic acquisition parameters.
+
+Output MUST strictly conform to the JSON schema.
 PROMPT;
 
         $schema = [
@@ -265,7 +276,8 @@ PROMPT;
         ];
 
         $output = $this->aiProvider->generateStructured($prompt, $schema, [
-            'temperature' => 0.5,
+            'system' => $systemInstruction,
+            'temperature' => 0.4,
             'max_tokens' => 4096,
         ]);
 

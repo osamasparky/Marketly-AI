@@ -13,6 +13,7 @@ class AnalyticsSnapshotModel extends Model
 
     protected $fillable = [
         'organization_id',
+        'brand_profile_id',
         'social_account_id',
         'platform',
         'captured_at',

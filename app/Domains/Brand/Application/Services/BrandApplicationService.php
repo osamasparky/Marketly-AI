@@ -19,6 +19,8 @@ use App\Domains\Brand\Domain\Services\BrandCompletenessService;
 use App\Domains\Brand\Domain\Services\BrandContextBuilder;
 use App\Domains\Brand\Domain\Repositories\BrandAssetRepositoryInterface;
 use App\Domains\Brand\Infrastructure\Persistence\Models\BrandAssetModel;
+use App\Domains\Billing\Domain\Services\EntitlementService;
+use App\Domains\Brand\Infrastructure\Persistence\Models\BrandProfileModel;
 use App\Domains\Tenancy\Application\Services\AuditApplicationService;
 use App\Domains\Tenancy\Domain\Entities\TenantContext;
 use App\Domains\Tenancy\Infrastructure\Services\TenantIsolationGuard;
@@ -33,6 +35,7 @@ class BrandApplicationService
         private readonly AuditApplicationService $auditService,
         private readonly BrandCompletenessService $completenessService,
         private readonly BrandContextBuilder $contextBuilder,
+        private readonly EntitlementService $entitlementService,
         private readonly BrandProfileRepositoryInterface $profileRepository,
         private readonly BrandProductServiceRepositoryInterface $productRepository,
         private readonly BrandAudienceRepositoryInterface $audienceRepository,
@@ -43,13 +46,24 @@ class BrandApplicationService
     ) {}
 
     /**
-     * Get Brand Profile with completeness score for the current tenant.
+     * List all Brand Profiles belonging to the organization.
      */
-    public function getBrandBrain(TenantContext $context): array
+    public function listBrands(TenantContext $context): Collection
     {
         TenantIsolationGuard::assertPermission($context, 'brand.view');
 
-        $profile = $this->profileRepository->findWithRelationsByOrganizationId($context->organizationId);
+        return $this->profileRepository->listByOrganizationId($context->organizationId);
+    }
+
+    /**
+     * Get Brand Profile with completeness score for the current tenant.
+     */
+    public function getBrandBrain(TenantContext $context, ?int $brandProfileId = null): array
+    {
+        TenantIsolationGuard::assertPermission($context, 'brand.view');
+
+        $targetBrandId = $brandProfileId ?? $context->brandId;
+        $profile = $this->profileRepository->findWithRelationsByOrganizationId($context->organizationId, $targetBrandId);
         $completeness = $this->completenessService->calculate($profile);
 
         return [
@@ -59,16 +73,30 @@ class BrandApplicationService
     }
 
     /**
-     * Create or update the Brand Profile using typed DTO.
+     * Create or update the Brand Profile using typed DTO with quota verification.
      */
-    public function saveBrandProfile(TenantContext $context, SaveBrandProfileData $data): object
+    public function saveBrandProfile(TenantContext $context, SaveBrandProfileData $data, ?int $brandProfileId = null): object
     {
         TenantIsolationGuard::assertPermission($context, 'brand.update');
 
-        $profile = $this->profileRepository->saveForOrganization($context->organizationId, $data);
+        $targetId = $brandProfileId ?: $data->id;
+
+        $existing = null;
+        if ($targetId) {
+            $existing = BrandProfileModel::where('organization_id', $context->organizationId)->where('id', $targetId)->first();
+        } else {
+            $existing = BrandProfileModel::where('organization_id', $context->organizationId)->where('business_name', $data->businessName)->first();
+        }
+
+        // If creating a brand that doesn't exist yet, verify subscription entitlement limit
+        if (!$existing) {
+            $this->entitlementService->assertCanCreateBrand($context->organizationId);
+        }
+
+        $profile = $this->profileRepository->saveForOrganization($context->organizationId, $data, $targetId ?: $existing?->id);
 
         $this->auditService->log(
-            action: 'brand.profile_updated',
+            action: $existing ? 'brand.profile_updated' : 'brand.profile_created',
             organizationId: $context->organizationId,
             userId: $context->userId,
             entityType: 'brand_profile',
@@ -76,6 +104,28 @@ class BrandApplicationService
         );
 
         return $profile;
+    }
+
+    /**
+     * Delete a brand profile.
+     */
+    public function deleteBrand(TenantContext $context, int $brandProfileId): void
+    {
+        TenantIsolationGuard::assertPermission($context, 'brand.delete');
+
+        $brand = BrandProfileModel::where('organization_id', $context->organizationId)
+            ->where('id', $brandProfileId)
+            ->firstOrFail();
+
+        $brand->delete();
+
+        $this->auditService->log(
+            action: 'brand.profile_deleted',
+            organizationId: $context->organizationId,
+            userId: $context->userId,
+            entityType: 'brand_profile',
+            entityId: (string) $brandProfileId
+        );
     }
 
     /**
@@ -378,7 +428,7 @@ class BrandApplicationService
             }
         }
 
-        return $this->contextBuilder->build($context->organizationId);
+        return $this->contextBuilder->build($context->organizationId, $context->brandId);
     }
 
     /**

@@ -15,13 +15,13 @@ class BrandContextBuilder
     /**
      * Assemble full, validated, tenant-isolated BrandContext DTO from repository.
      */
-    public function build(int $organizationId): BrandContext
+    public function build(int $organizationId, ?int $brandProfileId = null): BrandContext
     {
         if ($organizationId <= 0) {
             throw new InvalidArgumentException('Valid organization ID is required to build BrandContext.');
         }
 
-        $profile = $this->profileRepository->findWithRelationsByOrganizationId($organizationId);
+        $profile = $this->profileRepository->findWithRelationsByOrganizationId($organizationId, $brandProfileId);
 
         if (!$profile) {
             // Return safe fallback context without leaking database identifiers
@@ -52,6 +52,7 @@ class BrandContextBuilder
         $logoAsset = $profile->assets ? $profile->assets->firstWhere('type', 'logo') : null;
 
         $brandIdentity = [
+            'id' => $profile->id,
             'tagline' => $profile->tagline,
             'mission' => $profile->mission,
             'vision' => $profile->vision,
@@ -63,6 +64,11 @@ class BrandContextBuilder
             'secondary_color' => $profile->secondary_color,
             'accent_color' => $profile->accent_color,
             'background_color' => $profile->background_color,
+            'preferred_platforms' => $profile->preferred_platforms ?? [],
+            'content_pillars' => $profile->content_pillars_input ?? [],
+            'existing_social_handles' => $profile->existing_social_handles ?? [],
+            'approximate_monthly_budget' => $profile->approximate_monthly_budget ? (float) $profile->approximate_monthly_budget : null,
+            'budget_currency' => $profile->budget_currency ?? 'SAR',
             'logo_url' => $logoAsset ? \Illuminate\Support\Facades\Storage::disk('public')->url($logoAsset->file_path) : null,
         ];
 

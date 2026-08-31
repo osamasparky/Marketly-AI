@@ -24,15 +24,20 @@ class SocialPublishingApplicationService
     ) {}
 
     /**
-     * Get all connected social accounts for the organization.
+     * Get all connected social accounts for the organization (scoped by active brand if present).
      */
     public function getConnectedAccounts(TenantContext $context): array
     {
         TenantIsolationGuard::assertPermission($context, 'social.view');
 
-        $accounts = SocialAccountModel::where('organization_id', $context->organizationId)
-            ->where('is_active', true)
-            ->get();
+        $query = SocialAccountModel::where('organization_id', $context->organizationId)
+            ->where('is_active', true);
+
+        if ($context->brandId) {
+            $query->where('brand_profile_id', $context->brandId);
+        }
+
+        $accounts = $query->get();
 
         $supportedPlatforms = ['linkedin', 'instagram', 'x', 'facebook', 'tiktok'];
         $matrix = [];
@@ -65,6 +70,7 @@ class SocialPublishingApplicationService
         $adapter = $this->publisherFactory->make($platform);
         $state = base64_encode(json_encode([
             'org_id' => $context->organizationId,
+            'brand_id' => $context->brandId,
             'user_id' => $context->userId,
             'platform' => $platform,
             'nonce' => Str::random(16),
@@ -93,6 +99,7 @@ class SocialPublishingApplicationService
         $account = SocialAccountModel::updateOrCreate(
             [
                 'organization_id' => $context->organizationId,
+                'brand_profile_id' => $context->brandId,
                 'platform' => strtolower($platform),
                 'account_id' => $tokenData['account_id'],
             ],
@@ -333,10 +340,14 @@ class SocialPublishingApplicationService
      */
     private function assertCanConnectSocialAccount(TenantContext $context, string $platform, ?string $accountId = null): void
     {
-        // Check if an account for this platform is already connected (re-authenticating/refreshing existing account)
+        // Check if an account for this platform is already connected for this brand (re-authenticating/refreshing)
         $existingQuery = SocialAccountModel::where('organization_id', $context->organizationId)
             ->where('platform', strtolower($platform))
             ->where('is_active', true);
+
+        if ($context->brandId) {
+            $existingQuery->where('brand_profile_id', $context->brandId);
+        }
 
         if ($accountId) {
             $existingQuery->where('account_id', $accountId);
@@ -348,21 +359,6 @@ class SocialPublishingApplicationService
             return;
         }
 
-        $subscription = $this->entitlementService->getOrCreateDefaultSubscription($context->organizationId);
-        $entitlement = $subscription->plan->entitlements()->where('feature_key', 'social_accounts')->first();
-
-        if (!$entitlement || !$entitlement->is_enabled) {
-            throw new HttpException(403, "Your current subscription plan ({$subscription->plan->name}) does not support connecting social media accounts. Please upgrade your plan.");
-        }
-
-        if ($entitlement->limit_count !== -1) {
-            $activeCount = SocialAccountModel::where('organization_id', $context->organizationId)
-                ->where('is_active', true)
-                ->count();
-
-            if ($activeCount >= $entitlement->limit_count) {
-                throw new HttpException(403, "You have reached your plan limit of {$entitlement->limit_count} connected social account(s). Please upgrade your subscription to connect more channels.");
-            }
-        }
+        $this->entitlementService->assertCanConnectSocialAccount($context->organizationId, $context->brandId);
     }
 }

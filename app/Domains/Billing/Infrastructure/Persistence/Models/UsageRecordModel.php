@@ -12,6 +12,7 @@ class UsageRecordModel extends Model
 
     protected $fillable = [
         'organization_id',
+        'brand_profile_id',
         'feature_key',
         'period_start',
         'period_end',
@@ -27,5 +28,10 @@ class UsageRecordModel extends Model
     public function organization(): BelongsTo
     {
         return $this->belongsTo(OrganizationModel::class, 'organization_id');
+    }
+
+    public function brandProfile(): BelongsTo
+    {
+        return $this->belongsTo(\App\Domains\Brand\Infrastructure\Persistence\Models\BrandProfileModel::class, 'brand_profile_id');
     }
 }

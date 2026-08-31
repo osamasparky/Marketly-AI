@@ -34,13 +34,21 @@ class StrategyApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'strategy.view');
 
-        $strategy = MarketingStrategyModel::with([
+        $query = MarketingStrategyModel::with([
             'pillars',
             'campaignThemes',
             'opportunities',
             'platforms',
-        ])->where('organization_id', $context->organizationId)
-          ->orderByRaw("CASE WHEN status = 'active' THEN 1 WHEN status = 'draft' THEN 2 ELSE 3 END")
+        ])->where('organization_id', $context->organizationId);
+
+        if ($context->brandId) {
+            $query->where(function ($q) use ($context) {
+                $q->where('brand_profile_id', $context->brandId)
+                  ->orWhereNull('brand_profile_id');
+            });
+        }
+
+        $strategy = $query->orderByRaw("CASE WHEN status = 'active' THEN 1 WHEN status = 'draft' THEN 2 ELSE 3 END")
           ->latest()
           ->first();
 
@@ -59,14 +67,22 @@ class StrategyApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'strategy.view');
 
-        return MarketingStrategyModel::with([
+        $query = MarketingStrategyModel::with([
             'pillars',
             'campaignThemes',
             'opportunities',
             'platforms',
         ])->where('organization_id', $context->organizationId)
-          ->where('id', $strategyId)
-          ->firstOrFail();
+          ->where('id', $strategyId);
+
+        if ($context->brandId) {
+            $query->where(function ($q) use ($context) {
+                $q->where('brand_profile_id', $context->brandId)
+                  ->orWhereNull('brand_profile_id');
+            });
+        }
+
+        return $query->firstOrFail();
     }
 
     /**
@@ -76,10 +92,12 @@ class StrategyApplicationService
     {
         TenantIsolationGuard::assertPermission($context, 'strategy.generate');
 
-        // Verify and consume subscription plan quota
-        $this->entitlementService->assertCanAndConsume($context->organizationId, 'ai_strategy', 1);
+        // Verify and consume subscription plan quota per brand
+        $this->entitlementService->assertCanAndConsume($context->organizationId, 'ai_strategy', 1, $context->brandId);
 
-        $profile = BrandProfileModel::where('organization_id', $context->organizationId)->first();
+        $profile = $context->brandId 
+            ? BrandProfileModel::where('id', $context->brandId)->where('organization_id', $context->organizationId)->first()
+            : BrandProfileModel::where('organization_id', $context->organizationId)->first();
 
         // 1. Build bounded strategic context
         $strategyContext = $this->contextBuilder->build(
@@ -88,27 +106,27 @@ class StrategyApplicationService
             targetPlatforms: $params['target_platforms'] ?? ['linkedin', 'instagram'],
             timeHorizonMonths: (int) ($params['time_horizon_months'] ?? 3),
             seasonalFocus: $params['seasonal_focus'] ?? null,
-            targetAudienceId: isset($params['target_audience_id']) ? (int) $params['target_audience_id'] : null
+            targetAudienceId: isset($params['target_audience_id']) ? (int) $params['target_audience_id'] : null,
+            brandProfileId: $context->brandId ?? $profile?->id
         );
 
         // 2. Generate and validate AI strategy draft
         $generatedData = $this->strategyGenerator->generate($strategyContext);
 
-        // 3. Atomically persist draft strategy and components
-        return DB::transaction(function () use ($context, $profile, $generatedData) {
+        // 3. Persist strategy in database transaction
+        return DB::transaction(function () use ($context, $params, $generatedData, $profile) {
             $strategy = MarketingStrategyModel::create([
                 'organization_id' => $context->organizationId,
-                'brand_profile_id' => $profile?->id,
-                'name' => $generatedData['name'],
-                'description' => $generatedData['description'],
-                'primary_objective' => $generatedData['primary_objective'],
-                'secondary_objectives' => $generatedData['secondary_objectives'],
+                'brand_profile_id' => $context->brandId ?? $profile?->id,
+                'created_by' => $context->userId,
+                'name' => $generatedData['title'] ?? 'AI Marketing Strategy Draft',
+                'primary_objective' => $params['primary_objective'] ?? 'lead_generation',
+                'description' => $generatedData['summary'] ?? null,
                 'status' => 'draft',
                 'version' => 1,
                 'start_date' => now()->toDateString(),
-                'end_date' => now()->addMonths(3)->toDateString(),
+                'end_date' => now()->addMonths((int) ($params['time_horizon_months'] ?? 3))->toDateString(),
                 'rationale' => $generatedData['rationale'],
-                'created_by' => $context->userId,
             ]);
 
             // Save Content Pillars

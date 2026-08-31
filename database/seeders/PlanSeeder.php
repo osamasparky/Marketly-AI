@@ -24,6 +24,7 @@ class PlanSeeder extends Seeder
         );
 
         $starter->entitlements()->updateOrCreate(['feature_key' => 'brand_brain'], ['is_enabled' => true, 'limit_count' => -1]);
+        $starter->entitlements()->updateOrCreate(['feature_key' => 'brands'], ['is_enabled' => true, 'limit_count' => 1]); // 1 brand only
         $starter->entitlements()->updateOrCreate(['feature_key' => 'ai_strategy'], ['is_enabled' => true, 'limit_count' => 5]); // 5 strategies/month
         $starter->entitlements()->updateOrCreate(['feature_key' => 'ai_content'], ['is_enabled' => true, 'limit_count' => 30]); // 30 posts/month
         $starter->entitlements()->updateOrCreate(['feature_key' => 'team_members'], ['is_enabled' => true, 'limit_count' => 2]); // 2 team members
@@ -46,6 +47,7 @@ class PlanSeeder extends Seeder
         );
 
         $growth->entitlements()->updateOrCreate(['feature_key' => 'brand_brain'], ['is_enabled' => true, 'limit_count' => -1]);
+        $growth->entitlements()->updateOrCreate(['feature_key' => 'brands'], ['is_enabled' => true, 'limit_count' => 3]); // 3 brands
         $growth->entitlements()->updateOrCreate(['feature_key' => 'ai_strategy'], ['is_enabled' => true, 'limit_count' => 20]);
         $growth->entitlements()->updateOrCreate(['feature_key' => 'ai_content'], ['is_enabled' => true, 'limit_count' => 150]);
         $growth->entitlements()->updateOrCreate(['feature_key' => 'team_members'], ['is_enabled' => true, 'limit_count' => 5]);
@@ -68,6 +70,7 @@ class PlanSeeder extends Seeder
         );
 
         $pro->entitlements()->updateOrCreate(['feature_key' => 'brand_brain'], ['is_enabled' => true, 'limit_count' => -1]);
+        $pro->entitlements()->updateOrCreate(['feature_key' => 'brands'], ['is_enabled' => true, 'limit_count' => -1]); // Unlimited brands
         $pro->entitlements()->updateOrCreate(['feature_key' => 'ai_strategy'], ['is_enabled' => true, 'limit_count' => -1]); // Unlimited
         $pro->entitlements()->updateOrCreate(['feature_key' => 'ai_content'], ['is_enabled' => true, 'limit_count' => -1]); // Unlimited
         $pro->entitlements()->updateOrCreate(['feature_key' => 'team_members'], ['is_enabled' => true, 'limit_count' => -1]);

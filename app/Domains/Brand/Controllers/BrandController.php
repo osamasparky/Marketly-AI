@@ -37,9 +37,28 @@ class BrandController extends Controller
     /**
      * Get full Brand Brain with profile and completeness score.
      */
+    /**
+     * List all brands belonging to the organization.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $brands = $this->brandService->listBrands($this->getContext($request));
+
+        return ApiResponse::success(
+            data: [
+                'brands' => BrandProfileResource::collection($brands),
+            ],
+            meta: ['message' => 'Organization brands retrieved successfully.']
+        );
+    }
+
+    /**
+     * Get Brand Profile and Completeness Score for active tenant brand.
+     */
     public function show(Request $request): JsonResponse
     {
-        $result = $this->brandService->getBrandBrain($this->getContext($request));
+        $brandId = $request->query('brand_id') ? (int) $request->query('brand_id') : null;
+        $result = $this->brandService->getBrandBrain($this->getContext($request), $brandId);
 
         return ApiResponse::success(
             data: [
@@ -56,6 +75,7 @@ class BrandController extends Controller
     public function saveProfile(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'id' => 'nullable|integer',
             'business_name' => 'required|string|min:2|max:100',
             'legal_name' => 'nullable|string|max:150',
             'industry' => 'nullable|string|max:50',
@@ -82,15 +102,33 @@ class BrandController extends Controller
             'secondary_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'accent_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'background_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'preferred_platforms' => 'nullable|array',
+            'preferred_platforms.*' => 'string|in:linkedin,instagram,x,tiktok,facebook,youtube',
+            'content_pillars' => 'nullable|array|max:15',
+            'content_pillars.*.name' => 'required|string|max:100',
+            'content_pillars.*.description' => 'nullable|string|max:500',
+            'existing_social_handles' => 'nullable|array|max:10',
+            'existing_social_handles.*.platform' => 'required|string|in:linkedin,instagram,x,tiktok,facebook,youtube',
+            'existing_social_handles.*.handle' => 'required|string|max:150',
+            'approximate_monthly_budget' => 'nullable|numeric|min:0',
+            'budget_currency' => 'nullable|string|max:10',
         ]);
 
         $dto = SaveBrandProfileData::fromArray($validated);
-        $profile = $this->brandService->saveBrandProfile($this->getContext($request), $dto);
+        $brandId = isset($validated['id']) ? (int) $validated['id'] : null;
+        $profile = $this->brandService->saveBrandProfile($this->getContext($request), $dto, $brandId);
 
         return ApiResponse::success(
             data: ['profile' => new BrandProfileResource($profile)],
             meta: ['message' => 'Brand profile updated successfully.']
         );
+    }
+
+    public function destroy(Request $request, int $brand): JsonResponse
+    {
+        $this->brandService->deleteBrand($this->getContext($request), $brand);
+
+        return ApiResponse::success(null, ['message' => 'Brand profile deleted successfully.']);
     }
 
     /**

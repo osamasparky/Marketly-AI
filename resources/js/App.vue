@@ -216,6 +216,25 @@
               </button>
             </div>
           </div>
+
+          <!-- Brand Switcher Dropdown (Phase E Multi-Brand Support) -->
+          <div v-if="authUser && orgBrands.length > 0" class="relative hidden sm:block">
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-teal-500/30 text-xs">
+              <span class="text-teal-400">🏷️</span>
+              <select 
+                :value="activeBrandId" 
+                @change="handleBrandSwitch(Number(($event.target as HTMLSelectElement).value))"
+                class="bg-transparent text-teal-300 font-bold text-xs focus:outline-none cursor-pointer"
+              >
+                <option v-for="brand in orgBrands" :key="brand.id" :value="brand.id" class="bg-slate-900 text-slate-200">
+                  {{ brand.business_name }}
+                </option>
+              </select>
+              <button @click="showNewBrandModal = true" class="text-slate-400 hover:text-teal-400 text-xs px-1" title="Create New Brand">
+                ➕
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Right Controls: Public Site Switcher, Language, User -->
@@ -320,6 +339,7 @@
             <DashboardView 
               :auth-token="authToken"
               :organization-id="currentOrg?.id"
+              :brand-id="activeBrandId || undefined"
               :current-org="currentOrg"
               @navigate="activeNav = $event"
               @start-onboarding="currentMode = 'onboarding'"
@@ -331,6 +351,8 @@
             <BrandBrainHub 
               :auth-token="authToken" 
               :organization-id="currentOrg?.id"
+              :brand-id="activeBrandId || undefined"
+              @brand-updated="fetchBrands"
             />
           </div>
 
@@ -339,6 +361,7 @@
             <StrategyHub 
               :auth-token="authToken" 
               :organization-id="currentOrg?.id"
+              :brand-id="activeBrandId || undefined"
               @navigate-content="activeNav = 'content'"
             />
           </div>
@@ -348,6 +371,7 @@
             <ContentStudioView 
               :auth-token="authToken" 
               :organization-id="currentOrg?.id"
+              :brand-id="activeBrandId || undefined"
             />
           </div>
 
@@ -356,6 +380,7 @@
             <CreativeStudioView 
               :auth-token="authToken" 
               :organization-id="currentOrg?.id"
+              :brand-id="activeBrandId || undefined"
             />
           </div>
 
@@ -364,6 +389,7 @@
             <CalendarView 
               :auth-token="authToken" 
               :organization-id="currentOrg?.id"
+              :brand-id="activeBrandId || undefined"
             />
           </div>
 
@@ -372,6 +398,7 @@
             <PublishingChannelsView 
               :auth-token="authToken" 
               :organization-id="currentOrg?.id"
+              :brand-id="activeBrandId || undefined"
             />
           </div>
 
@@ -380,6 +407,7 @@
             <AnalyticsHubView 
               :auth-token="authToken" 
               :organization-id="currentOrg?.id"
+              :brand-id="activeBrandId || undefined"
             />
           </div>
 
@@ -436,6 +464,57 @@
         </div>
       </div>
     </div>
+
+    <!-- Create Brand Modal (Multi-Brand Support) -->
+    <div v-if="showNewBrandModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <span>🏷️</span>
+            <span>{{ currentLocale === 'ar' ? 'إنشاء براند جديد داخل الشركة' : 'Create New Brand' }}</span>
+          </h3>
+          <button @click="showNewBrandModal = false" class="text-slate-400 hover:text-white text-sm">✕</button>
+        </div>
+
+        <div v-if="brandModalError" class="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
+          <span>⚠️</span>
+          <span>{{ brandModalError }}</span>
+        </div>
+
+        <div class="space-y-3">
+          <div class="space-y-1.5">
+            <label class="text-xs text-slate-300 font-semibold">Brand / Business Name *</label>
+            <input v-model="newBrandForm.business_name" type="text" required class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-teal-500 outline-none" placeholder="e.g. Apex Health" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <label class="text-xs text-slate-300 font-semibold">Industry</label>
+              <input v-model="newBrandForm.industry" type="text" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-teal-500 outline-none" placeholder="Healthcare" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs text-slate-300 font-semibold">Business Type</label>
+              <select v-model="newBrandForm.business_type" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-teal-500 outline-none">
+                <option value="B2B">B2B</option>
+                <option value="B2C">B2C</option>
+                <option value="D2C">D2C</option>
+                <option value="Agency">Agency</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+          <button @click="showNewBrandModal = false" class="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300 hover:bg-slate-700">
+            {{ t('common.cancel') }}
+          </button>
+          <button @click="handleCreateBrand" :disabled="brandModalLoading" class="tactile-btn tactile-btn-primary text-xs px-5 py-2">
+            <span v-if="brandModalLoading">⏳</span>
+            <span v-else>➕ {{ currentLocale === 'ar' ? 'إنشاء البراند' : 'Create Brand' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -473,6 +552,18 @@ const healthStatus = ref<{ status?: string }>({ status: 'healthy' });
 
 const isImpersonating = ref(false);
 const originalAdminOrg = ref<any>(null);
+
+// Phase E: Multi-Brand State
+const orgBrands = ref<any[]>([]);
+const activeBrandId = ref<number | null>(null);
+const showNewBrandModal = ref(false);
+const brandModalLoading = ref(false);
+const brandModalError = ref('');
+const newBrandForm = ref({ business_name: '', industry: 'Technology', business_type: 'B2B' });
+
+const activeBrand = computed(() => {
+  return orgBrands.value.find(b => b.id === activeBrandId.value) || orgBrands.value[0] || null;
+});
 
 const authMode = ref<'login' | 'register' | 'forgot'>('login');
 const authLoading = ref(false);
@@ -514,6 +605,21 @@ const fillSuperAdminCreds = () => {
 const getHeaders = () => ({
   Authorization: `Bearer ${authToken.value}`,
   'X-Organization-Id': String(currentOrg.value?.id || ''),
+  ...(activeBrandId.value ? { 'X-Brand-Id': String(activeBrandId.value) } : {}),
+});
+
+// Configure Axios Request Interceptor for Tenant Context
+axios.interceptors.request.use((config) => {
+  if (authToken.value) {
+    config.headers.Authorization = `Bearer ${authToken.value}`;
+  }
+  if (currentOrg.value?.id) {
+    config.headers['X-Organization-Id'] = String(currentOrg.value.id);
+  }
+  if (activeBrandId.value) {
+    config.headers['X-Brand-Id'] = String(activeBrandId.value);
+  }
+  return config;
 });
 
 const handleAuthSubmit = async () => {
@@ -555,6 +661,70 @@ const handleAuthSubmit = async () => {
   }
 };
 
+const fetchBrands = async () => {
+  if (!authToken.value || !currentOrg.value?.id) return;
+  try {
+    const res = await axios.get('/api/v1/brand/brands', {
+      headers: {
+        Authorization: `Bearer ${authToken.value}`,
+        'X-Organization-Id': String(currentOrg.value.id),
+      },
+    });
+    orgBrands.value = res.data?.data?.brands || [];
+    
+    // Restore or initialize active brand
+    const savedBrandId = localStorage.getItem('marketly_brand_id');
+    if (savedBrandId && orgBrands.value.some(b => b.id === Number(savedBrandId))) {
+      activeBrandId.value = Number(savedBrandId);
+    } else if (orgBrands.value.length > 0) {
+      activeBrandId.value = orgBrands.value[0].id;
+      localStorage.setItem('marketly_brand_id', String(activeBrandId.value));
+    } else {
+      activeBrandId.value = null;
+    }
+  } catch (err) {
+    console.error('Failed to fetch organization brands', err);
+  }
+};
+
+const handleBrandSwitch = (brandId: number) => {
+  activeBrandId.value = brandId;
+  localStorage.setItem('marketly_brand_id', String(brandId));
+};
+
+const handleCreateBrand = async () => {
+  if (!newBrandForm.value.business_name) return;
+  brandModalLoading.value = true;
+  brandModalError.value = '';
+  try {
+    const res = await axios.post('/api/v1/brand', {
+      business_name: newBrandForm.value.business_name,
+      industry: newBrandForm.value.industry,
+      business_type: newBrandForm.value.business_type,
+    }, {
+      headers: {
+        Authorization: `Bearer ${authToken.value}`,
+        'X-Organization-Id': String(currentOrg.value.id),
+      },
+    });
+    
+    showNewBrandModal.value = false;
+    newBrandForm.value.business_name = '';
+    await fetchBrands();
+    if (res.data?.data?.profile?.id) {
+      handleBrandSwitch(res.data.data.profile.id);
+    }
+  } catch (err: any) {
+    if (err.response?.status === 403) {
+      brandModalError.value = err.response?.data?.message || 'Your subscription plan limit has been reached. Please upgrade your plan to create more brands.';
+    } else {
+      brandModalError.value = err.response?.data?.message || 'Failed to create new brand profile.';
+    }
+  } finally {
+    brandModalLoading.value = false;
+  }
+};
+
 const fetchUserData = async () => {
   if (!authToken.value) return;
   try {
@@ -564,6 +734,7 @@ const fetchUserData = async () => {
     currentOrg.value = meRes.data?.data?.current_organization || userOrgs.value[0];
     userRole.value = meRes.data?.data?.role || 'owner';
     permissionsList.value = meRes.data?.data?.permissions || [];
+    await fetchBrands();
   } catch (err) {
     console.error('Failed to fetch user profile', err);
   }

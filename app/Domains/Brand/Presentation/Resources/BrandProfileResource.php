@@ -38,6 +38,11 @@ class BrandProfileResource extends JsonResource
             'secondary_color' => $this->secondary_color,
             'accent_color' => $this->accent_color,
             'background_color' => $this->background_color,
+            'preferred_platforms' => $this->preferred_platforms ?? [],
+            'content_pillars' => $this->content_pillars_input ?? [],
+            'existing_social_handles' => $this->existing_social_handles ?? [],
+            'approximate_monthly_budget' => $this->approximate_monthly_budget ? (float) $this->approximate_monthly_budget : null,
+            'budget_currency' => $this->budget_currency ?? 'SAR',
             'version' => $this->version,
             'status' => $this->status,
             'assets' => $this->whenLoaded('assets', function () {

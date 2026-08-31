@@ -28,7 +28,13 @@ readonly class SaveBrandProfileData
         public ?string $primaryColor = '#10B981',
         public ?string $secondaryColor = null,
         public ?string $accentColor = null,
-        public ?string $backgroundColor = null
+        public ?string $backgroundColor = null,
+        public ?int $id = null,
+        public array $preferredPlatforms = [],
+        public array $contentPillarsInput = [],
+        public array $existingSocialHandles = [],
+        public ?float $approximateMonthlyBudget = null,
+        public string $budgetCurrency = 'SAR'
     ) {}
 
     public static function fromArray(array $data): self
@@ -57,7 +63,13 @@ readonly class SaveBrandProfileData
             primaryColor: $data['primary_color'] ?? '#10B981',
             secondaryColor: $data['secondary_color'] ?? null,
             accentColor: $data['accent_color'] ?? null,
-            backgroundColor: $data['background_color'] ?? null
+            backgroundColor: $data['background_color'] ?? null,
+            id: isset($data['id']) ? (int) $data['id'] : null,
+            preferredPlatforms: $data['preferred_platforms'] ?? [],
+            contentPillarsInput: $data['content_pillars'] ?? $data['content_pillars_input'] ?? [],
+            existingSocialHandles: $data['existing_social_handles'] ?? [],
+            approximateMonthlyBudget: isset($data['approximate_monthly_budget']) ? (float) $data['approximate_monthly_budget'] : null,
+            budgetCurrency: $data['budget_currency'] ?? 'SAR'
         );
     }
 }

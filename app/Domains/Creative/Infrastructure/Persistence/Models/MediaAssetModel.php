@@ -17,6 +17,7 @@ class MediaAssetModel extends Model
 
     protected $fillable = [
         'organization_id',
+        'brand_profile_id',
         'content_post_id',
         'created_by',
         'title',

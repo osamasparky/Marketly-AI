@@ -82,9 +82,26 @@ class TenantContextMiddleware
         $userRole = UserRole::tryFrom($roleSlug) ?? UserRole::VIEWER;
         $permissions = $this->authService->getPermissions($user->id, $membership->organization_id);
 
+        // 4. Resolve Active Brand Context (from X-Brand-Id header, route, or default)
+        $brandHeader = $request->header('X-Brand-Id') ?? $request->query('brand_id');
+        $brandId = $brandHeader ? (int) $brandHeader : null;
+
+        if ($brandId) {
+            $brandBelongs = \App\Domains\Brand\Infrastructure\Persistence\Models\BrandProfileModel::where('id', $brandId)
+                ->where('organization_id', $membership->organization_id)
+                ->exists();
+            if (!$brandBelongs) {
+                throw new AuthorizationException('The specified brand does not belong to the active organization.');
+            }
+        } else {
+            // Default to the first brand profile for this organization if one exists
+            $brandId = \App\Domains\Brand\Infrastructure\Persistence\Models\BrandProfileModel::where('organization_id', $membership->organization_id)->value('id');
+        }
+
         return new TenantContext(
             userId: $user->id,
             organizationId: $membership->organization_id,
+            brandId: $brandId,
             role: $userRole,
             permissions: $permissions
         );
