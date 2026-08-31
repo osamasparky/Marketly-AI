@@ -41,6 +41,15 @@ class SocialPublishingLifecycleTest extends TestCase
         ]);
 
         $this->token = $this->user->createToken('pub-token')->plainTextToken;
+
+        $growthPlan = \App\Domains\Billing\Infrastructure\Persistence\Models\PlanModel::where('slug', 'growth')->first();
+        \App\Domains\Billing\Infrastructure\Persistence\Models\SubscriptionModel::create([
+            'organization_id' => $this->organization->id,
+            'plan_id' => $growthPlan->id,
+            'status' => 'active',
+            'current_period_start' => now(),
+            'current_period_end' => now()->addMonth(),
+        ]);
     }
 
     public function test_get_connected_accounts_returns_channels_matrix(): void
@@ -64,6 +73,20 @@ class SocialPublishingLifecycleTest extends TestCase
 
     public function test_oauth_callback_connects_social_account(): void
     {
+        \Illuminate\Support\Facades\Http::fake([
+            'https://www.linkedin.com/oauth/v2/accessToken' => \Illuminate\Support\Facades\Http::response([
+                'access_token' => 'ln_live_token_123',
+                'expires_in' => 5184000,
+                'refresh_token' => 'ln_refresh_token_123',
+            ], 200),
+            'https://api.linkedin.com/v2/userinfo' => \Illuminate\Support\Facades\Http::response([
+                'sub' => 'urn:li:person:auth123',
+                'name' => 'Marketly Brand Admin',
+                'email' => 'admin@marketly.ai',
+                'picture' => 'https://example.com/avatar.png',
+            ], 200),
+        ]);
+
         $response = $this->withHeaders([
             'Authorization' => "Bearer {$this->token}",
             'X-Organization-Id' => (string) $this->organization->id,

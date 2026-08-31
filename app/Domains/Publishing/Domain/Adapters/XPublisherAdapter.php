@@ -6,6 +6,7 @@ use App\Domains\Publishing\Domain\Contracts\SocialPublisherInterface;
 use App\Domains\Publishing\Infrastructure\Persistence\Models\SocialAccountModel;
 use Illuminate\Support\Str;
 
+// STUB: not wired to a real API yet — see Phase 3 pattern.
 class XPublisherAdapter implements SocialPublisherInterface
 {
     public function getAuthorizationUrl(string $redirectUri, string $state): string
