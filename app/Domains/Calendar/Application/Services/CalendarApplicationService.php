@@ -46,6 +46,10 @@ class CalendarApplicationService
             'author',
         ])->where('organization_id', $context->organizationId);
 
+        if ($context->brandId) {
+            $query->where('brand_profile_id', $context->brandId);
+        }
+
         if (!empty($filters['platform'])) {
             $query->where('primary_platform', $filters['platform']);
         }
@@ -228,16 +232,17 @@ class CalendarApplicationService
             throw new HttpException(422, 'Horizon days must be between 1 and 30.');
         }
 
-        // Quota assertion & consumption (1 credit per planned day)
-        $this->entitlementService->assertCanAndConsume($context->organizationId, 'ai_content', min($days, 5));
+        // Quota assertion & consumption (1 credit per planned day, scoped per brand)
+        $this->entitlementService->assertCanAndConsume($context->organizationId, 'ai_content', min($days, 5), $context->brandId);
 
-        $planResult = $this->plannerAgent->plan($context->organizationId, $days, $params);
+        $planResult = $this->plannerAgent->plan($context->organizationId, $days, $params, $context->brandId);
 
         $createdPosts = DB::transaction(function () use ($context, $planResult) {
             $saved = [];
             foreach ($planResult['slots'] as $slot) {
                 $post = ContentPostModel::create([
                     'organization_id' => $context->organizationId,
+                    'brand_profile_id' => $context->brandId,
                     'strategy_id' => $slot['strategy_id'],
                     'pillar_id' => $slot['pillar_id'],
                     'title' => $slot['title'],

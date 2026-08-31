@@ -157,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { t, currentLocale } from '../i18n';
 
@@ -165,6 +165,8 @@ const props = defineProps<{
   authToken: string;
   organizationId: number;
   currentOrg: any;
+  brandId?: number;
+  brands?: any[];
 }>();
 
 defineEmits(['navigate', 'start-onboarding', 'create-brand']);
@@ -177,6 +179,7 @@ const trialDaysLeft = ref(14);
 const getHeaders = () => ({
   Authorization: `Bearer ${props.authToken}`,
   'X-Organization-Id': String(props.organizationId),
+  ...(props.brandId ? { 'X-Brand-Id': String(props.brandId) } : {}),
 });
 
 const loadDashboardData = async () => {
@@ -197,6 +200,10 @@ const loadDashboardData = async () => {
     console.error('Failed to load dashboard data', err);
   }
 };
+
+watch(() => props.brandId, () => {
+  loadDashboardData();
+});
 
 onMounted(() => {
   loadDashboardData();

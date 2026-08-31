@@ -393,12 +393,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { t, currentLocale } from '../i18n';
 
 const props = defineProps<{
   authToken?: string | null;
   organizationId?: number | null;
+  brandId?: number | null;
 }>();
 
 const loading = ref(false);
@@ -532,6 +533,7 @@ function getAuthHeaders() {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${props.authToken}`,
     'X-Organization-Id': String(props.organizationId || ''),
+    ...(props.brandId ? { 'X-Brand-Id': String(props.brandId) } : {}),
   };
 }
 
@@ -753,6 +755,10 @@ function formatTime(dateStr?: string) {
   }
   return '';
 }
+
+watch(() => props.brandId, () => {
+  fetchCalendar();
+});
 
 onMounted(() => {
   fetchCalendar();

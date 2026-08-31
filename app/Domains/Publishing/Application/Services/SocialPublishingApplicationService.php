@@ -321,6 +321,13 @@ class SocialPublishingApplicationService
             ->where('organization_id', $context->organizationId)
             ->latest();
 
+        if ($context->brandId) {
+            $query->where(function ($q) use ($context) {
+                $q->whereHas('post', fn($pq) => $pq->where('brand_profile_id', $context->brandId))
+                  ->orWhereHas('socialAccount', fn($sq) => $sq->where('brand_profile_id', $context->brandId));
+            });
+        }
+
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }

@@ -13,10 +13,21 @@ class CalendarPlannerAgent
     /**
      * Plan and distribute scheduled posts over a specified horizon (7, 14, 30 days).
      */
-    public function plan(int $organizationId, int $daysHorizon = 7, array $options = []): array
+    public function plan(int $organizationId, int $daysHorizon = 7, array $options = [], ?int $brandProfileId = null): array
     {
-        $profile = BrandProfileModel::where('organization_id', $organizationId)->first();
-        $voice = BrandVoiceModel::where('organization_id', $organizationId)->first();
+        $profileQuery = BrandProfileModel::where('organization_id', $organizationId);
+        if ($brandProfileId) {
+            $profileQuery->where('id', $brandProfileId);
+        }
+        $profile = $profileQuery->first() ?? BrandProfileModel::where('organization_id', $organizationId)->first();
+
+        $effectiveBrandId = $profile?->id ?? $brandProfileId;
+
+        $voiceQuery = BrandVoiceModel::where('organization_id', $organizationId);
+        if ($effectiveBrandId) {
+            $voiceQuery->where('brand_profile_id', $effectiveBrandId);
+        }
+        $voice = $voiceQuery->first() ?? BrandVoiceModel::where('organization_id', $organizationId)->first();
 
         $businessName = $profile?->business_name ?? 'Marketly AI';
         $industry = $profile?->industry ?? 'Technology';
@@ -24,10 +35,12 @@ class CalendarPlannerAgent
         $tone = $voice?->primary_tones[0] ?? 'professional';
 
         // Fetch active strategy & pillars
-        $strategy = MarketingStrategyModel::where('organization_id', $organizationId)
-            ->where('status', 'active')
-            ->latest()
-            ->first();
+        $strategyQuery = MarketingStrategyModel::where('organization_id', $organizationId)
+            ->where('status', 'active');
+        if ($effectiveBrandId) {
+            $strategyQuery->where('brand_profile_id', $effectiveBrandId);
+        }
+        $strategy = $strategyQuery->latest()->first();
 
         $pillars = $strategy
             ? $strategy->pillars()->where('status', 'active')->get()

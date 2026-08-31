@@ -251,13 +251,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { t, currentLocale } from '../i18n';
 
 const props = defineProps<{
   authToken: string;
   organizationId?: number;
+  brandId?: number;
 }>();
 
 const activeTab = ref('overview');
@@ -266,6 +267,13 @@ const health = ref<any>({ total_score: 0, status: 'empty', pillars: {} });
 const showWizard = ref(false);
 const generating = ref(false);
 const actionLoading = ref(false);
+
+const getHeaders = () => ({
+  Authorization: `Bearer ${props.authToken}`,
+  'X-Locale': currentLocale.value,
+  ...(props.organizationId ? { 'X-Organization-Id': String(props.organizationId) } : {}),
+  ...(props.brandId ? { 'X-Brand-Id': String(props.brandId) } : {}),
+});
 
 const wizardForm = ref({
   primary_objective: 'lead_generation',
@@ -284,11 +292,7 @@ const fetchStrategy = async () => {
   if (!props.authToken) return;
   try {
     const res = await axios.get('/api/v1/strategy', {
-      headers: {
-        Authorization: `Bearer ${props.authToken}`,
-        'X-Locale': currentLocale.value,
-        ...(props.organizationId ? { 'X-Organization-Id': String(props.organizationId) } : {}),
-      },
+      headers: getHeaders(),
     });
     strategy.value = res.data?.data?.strategy;
     health.value = res.data?.data?.health || { total_score: 0, status: 'empty', pillars: {} };
@@ -301,11 +305,7 @@ const handleGenerateStrategy = async () => {
   generating.value = true;
   try {
     const res = await axios.post('/api/v1/strategy/generate', wizardForm.value, {
-      headers: {
-        Authorization: `Bearer ${props.authToken}`,
-        'X-Locale': currentLocale.value,
-        ...(props.organizationId ? { 'X-Organization-Id': String(props.organizationId) } : {}),
-      },
+      headers: getHeaders(),
     });
     showWizard.value = false;
     await fetchStrategy();
@@ -320,11 +320,7 @@ const activateStrategy = async (id: number) => {
   actionLoading.value = true;
   try {
     await axios.post(`/api/v1/strategy/${id}/activate`, {}, {
-      headers: {
-        Authorization: `Bearer ${props.authToken}`,
-        'X-Locale': currentLocale.value,
-        ...(props.organizationId ? { 'X-Organization-Id': String(props.organizationId) } : {}),
-      },
+      headers: getHeaders(),
     });
     await fetchStrategy();
   } catch (err) {
@@ -338,11 +334,7 @@ const pauseStrategy = async (id: number) => {
   actionLoading.value = true;
   try {
     await axios.post(`/api/v1/strategy/${id}/pause`, {}, {
-      headers: {
-        Authorization: `Bearer ${props.authToken}`,
-        'X-Locale': currentLocale.value,
-        ...(props.organizationId ? { 'X-Organization-Id': String(props.organizationId) } : {}),
-      },
+      headers: getHeaders(),
     });
     await fetchStrategy();
   } catch (err) {
@@ -351,6 +343,10 @@ const pauseStrategy = async (id: number) => {
     actionLoading.value = false;
   }
 };
+
+watch(() => props.brandId, () => {
+  fetchStrategy();
+});
 
 onMounted(() => {
   fetchStrategy();

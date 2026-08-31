@@ -568,12 +568,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { t, currentLocale } from '../i18n';
 
 const props = defineProps<{
   authToken?: string | null;
   organizationId?: number | null;
+  brandId?: number | null;
 }>();
 
 // State
@@ -652,6 +653,7 @@ function getAuthHeaders() {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${props.authToken}`,
     'X-Organization-Id': String(props.organizationId || ''),
+    ...(props.brandId ? { 'X-Brand-Id': String(props.brandId) } : {}),
     'X-Locale': currentLocale.value,
   };
 }
@@ -971,7 +973,14 @@ function debounceSearch() {
   }, 350);
 }
 
+watch(() => props.brandId, () => {
+  selectedPost.value = null;
+  fetchPosts();
+  fetchActiveStrategyPillars();
+});
+
 onMounted(() => {
   fetchPosts();
+  fetchActiveStrategyPillars();
 });
 </script>
