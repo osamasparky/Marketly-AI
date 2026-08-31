@@ -133,7 +133,8 @@
             <tr>
               <th class="p-4">Company / Organization</th>
               <th class="p-4">Plan & Subscription</th>
-              <th class="p-4">Members</th>
+              <th class="p-4">Channels</th>
+              <th class="p-4">AI Usage (Mo)</th>
               <th class="p-4">Posts</th>
               <th class="p-4">AI Keys</th>
               <th class="p-4">Status</th>
@@ -158,8 +159,33 @@
                 </span>
               </td>
 
-              <td class="p-4 font-mono">{{ org.members_count || 1 }}</td>
-              <td class="p-4 font-mono">{{ org.published_posts_count || 0 }} / {{ org.posts_count || 0 }}</td>
+              <!-- Social Accounts Connected vs Plan Limit -->
+              <td class="p-4 font-mono text-xs">
+                <div class="flex items-center gap-1.5">
+                  <span :class="org.connected_social_accounts_count > 0 ? 'text-cyan-400 font-bold' : 'text-slate-500'">
+                    {{ org.connected_social_accounts_count ?? 0 }}
+                  </span>
+                  <span class="text-slate-600">/</span>
+                  <span class="text-slate-400">
+                    {{ org.social_accounts_limit === -1 ? '∞' : (org.social_accounts_limit ?? 0) }}
+                  </span>
+                </div>
+              </td>
+
+              <!-- AI Content Quota Used this month vs Limit -->
+              <td class="p-4 font-mono text-xs">
+                <div class="flex items-center gap-1.5">
+                  <span :class="org.ai_content_used_this_month > 0 ? 'text-amber-400 font-bold' : 'text-slate-400'">
+                    {{ org.ai_content_used_this_month ?? 0 }}
+                  </span>
+                  <span class="text-slate-600">/</span>
+                  <span class="text-slate-400">
+                    {{ org.ai_content_limit === -1 ? '∞' : (org.ai_content_limit ?? 30) }}
+                  </span>
+                </div>
+              </td>
+
+              <td class="p-4 font-mono text-xs">{{ org.published_posts_count || 0 }} / {{ org.posts_count || 0 }}</td>
 
               <td class="p-4">
                 <span v-if="org.has_custom_ai_keys" class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">

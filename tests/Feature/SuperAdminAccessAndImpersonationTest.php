@@ -123,7 +123,23 @@ class SuperAdminAccessAndImpersonationTest extends TestCase
         ])->getJson('/api/v1/super-admin/organizations?search=Acme');
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.organizations.0.name', 'Acme Corporation');
+            ->assertJsonPath('data.organizations.0.name', 'Acme Corporation')
+            ->assertJsonStructure([
+                'data' => [
+                    'organizations' => [
+                        '*' => [
+                            'id',
+                            'name',
+                            'slug',
+                            'connected_social_accounts_count',
+                            'social_accounts_limit',
+                            'ai_content_used_this_month',
+                            'ai_content_limit',
+                            'current_plan',
+                        ]
+                    ]
+                ]
+            ]);
     }
 
     public function test_super_admin_can_update_organization_status(): void

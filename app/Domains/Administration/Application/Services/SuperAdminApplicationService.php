@@ -120,7 +120,7 @@ class SuperAdminApplicationService
 
         // Transform collection to add enriched subscription and stats
         $paginator->getCollection()->transform(function ($org) {
-            $subscription = SubscriptionModel::with('plan')
+            $subscription = SubscriptionModel::with('plan.entitlements')
                 ->where('organization_id', $org->id)
                 ->latest()
                 ->first();
@@ -128,6 +128,23 @@ class SuperAdminApplicationService
             $membersCount = OrganizationMembershipModel::where('organization_id', $org->id)->count();
             $postsCount = ContentPostModel::where('organization_id', $org->id)->count();
             $publishedCount = ContentPostModel::where('organization_id', $org->id)->where('status', 'published')->count();
+
+            // Connected social accounts & plan limit
+            $connectedSocialCount = \App\Domains\Publishing\Infrastructure\Persistence\Models\SocialAccountModel::where('organization_id', $org->id)
+                ->where('is_active', true)
+                ->count();
+
+            $socialEntitlement = $subscription?->plan?->entitlements?->where('feature_key', 'social_accounts')->first();
+            $socialLimit = $socialEntitlement ? (int) $socialEntitlement->limit_count : 0;
+
+            // Monthly AI content generation usage & limit
+            $aiEntitlement = $subscription?->plan?->entitlements?->where('feature_key', 'ai_content')->first();
+            $aiContentLimit = $aiEntitlement ? (int) $aiEntitlement->limit_count : 30;
+
+            $startOfMonth = now()->startOfMonth();
+            $aiContentUsed = ContentPostModel::where('organization_id', $org->id)
+                ->where('created_at', '>=', $startOfMonth)
+                ->count();
 
             return [
                 'id' => $org->id,
@@ -144,6 +161,10 @@ class SuperAdminApplicationService
                 'members_count' => $membersCount,
                 'posts_count' => $postsCount,
                 'published_posts_count' => $publishedCount,
+                'connected_social_accounts_count' => $connectedSocialCount,
+                'social_accounts_limit' => $socialLimit,
+                'ai_content_used_this_month' => $aiContentUsed,
+                'ai_content_limit' => $aiContentLimit,
                 'current_plan' => $subscription ? [
                     'id' => $subscription->plan?->id,
                     'name' => $subscription->plan?->name ?? 'None',
