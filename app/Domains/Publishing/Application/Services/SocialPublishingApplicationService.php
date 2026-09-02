@@ -345,6 +345,29 @@ class SocialPublishingApplicationService
         // Idempotency key
         $idempotencyKey = "pub_{$context->organizationId}_{$post->id}_{$socialAccount->id}_" . time();
 
+        // Resolve attached media asset or latest brand creative visual asset
+        $mediaAsset = $post->mediaAssets()->latest()->first();
+        if (!$mediaAsset && $post->brand_profile_id) {
+            $mediaAsset = \App\Domains\Creative\Infrastructure\Persistence\Models\MediaAssetModel::where('organization_id', $context->organizationId)
+                ->where('brand_profile_id', $post->brand_profile_id)
+                ->latest()
+                ->first();
+        }
+
+        $mediaUrl = null;
+        $mediaPath = null;
+        if ($mediaAsset && $mediaAsset->file_path) {
+            $diskPath = storage_path('app/public/' . ltrim($mediaAsset->file_path, '/'));
+            $publicPath = public_path('storage/' . ltrim($mediaAsset->file_path, '/'));
+            
+            if (file_exists($diskPath)) {
+                $mediaPath = $diskPath;
+            } elseif (file_exists($publicPath)) {
+                $mediaPath = $publicPath;
+            }
+            $mediaUrl = asset('storage/' . ltrim($mediaAsset->file_path, '/'));
+        }
+
         $variation = $post->variations->where('platform', $socialAccount->platform)->first();
         $captionToSend = $variation?->body ?: ($post->hook ? "{$post->hook}\n\n{$post->caption}" : $post->caption);
 
@@ -354,6 +377,8 @@ class SocialPublishingApplicationService
             'cta' => $variation?->cta ?: $post->cta,
             'hashtags' => $variation?->hashtags ?: $post->hashtags,
             'content_type' => $post->content_type,
+            'media_url' => $mediaUrl,
+            'media_path' => $mediaPath,
         ];
 
         return DB::transaction(function () use ($context, $post, $variation, $socialAccount, $idempotencyKey, $payload) {

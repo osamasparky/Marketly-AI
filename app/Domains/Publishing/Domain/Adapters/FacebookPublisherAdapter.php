@@ -152,21 +152,37 @@ class FacebookPublisherAdapter implements SocialPublisherInterface
     {
         $caption = $payload['content_text'] ?? ($payload['caption'] ?? '');
         $mediaUrl = $payload['media_url'] ?? null;
+        $mediaPath = $payload['media_path'] ?? null;
         $pageId = $account->account_id;
         $pageAccessToken = $account->access_token;
 
         // Attempt live Graph API publish if live token
         if (!str_starts_with($pageAccessToken, 'fb_live_at_') && !str_starts_with($pageAccessToken, 'EAAB_sandbox_token_') && !str_starts_with($pageAccessToken, 'sandbox_')) {
             try {
-                $endpoint = $mediaUrl 
-                    ? "https://graph.facebook.com/{$this->graphVersion}/{$pageId}/photos"
-                    : "https://graph.facebook.com/{$this->graphVersion}/{$pageId}/feed";
+                $client = Http::withoutVerifying()->timeout(60);
 
-                $postParams = $mediaUrl
-                    ? ['url' => $mediaUrl, 'caption' => $caption, 'access_token' => $pageAccessToken]
-                    : ['message' => $caption, 'access_token' => $pageAccessToken];
-
-                $response = Http::withoutVerifying()->timeout(30)->post($endpoint, $postParams);
+                if ($mediaPath && file_exists($mediaPath)) {
+                    // Direct binary image attachment to /photos
+                    $response = $client->attach(
+                        'source',
+                        file_get_contents($mediaPath),
+                        basename($mediaPath)
+                    )->post("https://graph.facebook.com/{$this->graphVersion}/{$pageId}/photos", [
+                        'caption' => $caption,
+                        'access_token' => $pageAccessToken,
+                    ]);
+                } elseif ($mediaUrl && !str_contains($mediaUrl, '127.0.0.1') && !str_contains($mediaUrl, 'localhost')) {
+                    $response = $client->post("https://graph.facebook.com/{$this->graphVersion}/{$pageId}/photos", [
+                        'url' => $mediaUrl,
+                        'caption' => $caption,
+                        'access_token' => $pageAccessToken,
+                    ]);
+                } else {
+                    $response = $client->post("https://graph.facebook.com/{$this->graphVersion}/{$pageId}/feed", [
+                        'message' => $caption,
+                        'access_token' => $pageAccessToken,
+                    ]);
+                }
 
                 if ($response->successful()) {
                     $json = $response->json();
