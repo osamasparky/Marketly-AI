@@ -63,7 +63,7 @@ class InstagramPublisherAdapter implements SocialPublisherInterface
         }
 
         try {
-            $response = Http::timeout(15)->get("https://graph.facebook.com/{$this->graphVersion}/me/accounts", [
+            $response = Http::withoutVerifying()->timeout(15)->get("https://graph.facebook.com/{$this->graphVersion}/me/accounts", [
                 'access_token' => trim($userAccessToken),
                 'fields' => 'id,name,access_token,instagram_business_account{id,username,name,profile_picture_url}',
             ]);
@@ -125,7 +125,7 @@ class InstagramPublisherAdapter implements SocialPublisherInterface
         if (!str_starts_with($accessToken, 'ig_live_at_') && !str_starts_with($accessToken, 'EAAB_ig_sandbox_') && $mediaUrl) {
             try {
                 // Step 1: Create Container
-                $createRes = Http::timeout(30)->post("https://graph.facebook.com/{$this->graphVersion}/{$igUserId}/media", [
+                $createRes = Http::withoutVerifying()->timeout(30)->post("https://graph.facebook.com/{$this->graphVersion}/{$igUserId}/media", [
                     'image_url' => $mediaUrl,
                     'caption' => $caption,
                     'access_token' => $accessToken,
@@ -134,7 +134,7 @@ class InstagramPublisherAdapter implements SocialPublisherInterface
                 if ($createRes->successful()) {
                     $creationId = $createRes->json('id');
                     // Step 2: Publish Container
-                    $publishRes = Http::timeout(30)->post("https://graph.facebook.com/{$this->graphVersion}/{$igUserId}/media_publish", [
+                    $publishRes = Http::withoutVerifying()->timeout(30)->post("https://graph.facebook.com/{$this->graphVersion}/{$igUserId}/media_publish", [
                         'creation_id' => $creationId,
                         'access_token' => $accessToken,
                     ]);

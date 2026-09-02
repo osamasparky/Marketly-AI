@@ -34,7 +34,7 @@ class FacebookPublisherAdapter implements SocialPublisherInterface
 
         if ($appId && $appSecret && !str_starts_with($code, 'oauth_sandbox_')) {
             try {
-                $response = Http::timeout(20)->get("https://graph.facebook.com/{$this->graphVersion}/oauth/access_token", [
+                $response = Http::withoutVerifying()->timeout(20)->get("https://graph.facebook.com/{$this->graphVersion}/oauth/access_token", [
                     'client_id' => $appId,
                     'client_secret' => $appSecret,
                     'redirect_uri' => $redirectUri,
@@ -99,7 +99,7 @@ class FacebookPublisherAdapter implements SocialPublisherInterface
         }
 
         try {
-            $response = Http::timeout(15)->get("https://graph.facebook.com/{$this->graphVersion}/me/accounts", [
+            $response = Http::withoutVerifying()->timeout(15)->get("https://graph.facebook.com/{$this->graphVersion}/me/accounts", [
                 'access_token' => trim($userAccessToken),
                 'fields' => 'id,name,category,access_token,tasks,picture{url}',
             ]);
@@ -166,7 +166,7 @@ class FacebookPublisherAdapter implements SocialPublisherInterface
                     ? ['url' => $mediaUrl, 'caption' => $caption, 'access_token' => $pageAccessToken]
                     : ['message' => $caption, 'access_token' => $pageAccessToken];
 
-                $response = Http::timeout(30)->post($endpoint, $postParams);
+                $response = Http::withoutVerifying()->timeout(30)->post($endpoint, $postParams);
 
                 if ($response->successful()) {
                     $json = $response->json();
