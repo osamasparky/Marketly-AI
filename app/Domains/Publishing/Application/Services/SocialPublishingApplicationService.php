@@ -59,6 +59,82 @@ class SocialPublishingApplicationService
     }
 
     /**
+     * Connect account directly via user-provided access token / custom API keys.
+     */
+    public function connectCustomCredentials(TenantContext $context, string $platform, array $credentials): SocialAccountModel
+    {
+        TenantIsolationGuard::assertPermission($context, 'social.connect');
+
+        $this->assertCanConnectSocialAccount($context, $platform);
+
+        $accountId = $credentials['account_id'] ?? ($platform . '_page_' . substr(md5(uniqid()), 0, 8));
+        $accountName = $credentials['account_name'] ?? (ucfirst($platform) . ' Account');
+        $username = $credentials['account_username'] ?? null;
+        $accessToken = $credentials['access_token'];
+
+        $expiresAt = !empty($credentials['expires_in_days'])
+            ? Carbon::now()->addDays((int) $credentials['expires_in_days'])
+            : Carbon::now()->addDays(90);
+
+        $account = SocialAccountModel::updateOrCreate(
+            [
+                'organization_id' => $context->organizationId,
+                'brand_profile_id' => $context->brandId,
+                'platform' => strtolower($platform),
+                'account_id' => $accountId,
+            ],
+            [
+                'user_id' => $context->userId,
+                'account_name' => $accountName,
+                'account_username' => $username,
+                'account_avatar' => null,
+                'access_token' => $accessToken,
+                'refresh_token' => $credentials['refresh_token'] ?? null,
+                'token_expires_at' => $expiresAt,
+                'scopes' => ['publish_pages', 'manage_posts', 'direct_publish'],
+                'is_active' => true,
+                'health_status' => 'healthy',
+                'last_health_check_at' => Carbon::now(),
+                'metadata' => [
+                    'mode' => 'custom_credentials',
+                    'app_id' => $credentials['app_id'] ?? null,
+                    'connected_at' => Carbon::now()->toIso8601String(),
+                ],
+            ]
+        );
+
+        $this->auditService->log(
+            action: 'social.account_connected_custom',
+            organizationId: $context->organizationId,
+            userId: $context->userId,
+            entityType: 'social_account',
+            entityId: (string) $account->id
+        );
+
+        return $account;
+    }
+
+    /**
+     * Get posts ready for direct publishing.
+     */
+    public function getReadyPosts(TenantContext $context): array
+    {
+        TenantIsolationGuard::assertPermission($context, 'social.view');
+
+        $query = ContentPostModel::where('organization_id', $context->organizationId);
+        if ($context->brandId) {
+            $query->where('brand_profile_id', $context->brandId);
+        }
+
+        $posts = $query->whereIn('status', ['approved', 'scheduled', 'draft'])
+            ->orderBy('id', 'desc')
+            ->limit(20)
+            ->get();
+
+        return $posts->toArray();
+    }
+
+    /**
      * Generate signed OAuth authorization URL for given platform.
      */
     public function getOAuthRedirectUrl(TenantContext $context, string $platform, string $callbackUrl): string

@@ -185,8 +185,10 @@ Route::prefix('v1')->group(function () {
             Route::get('/accounts', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'index'])->name('api.v1.social.accounts.index');
             Route::get('/oauth/{platform}/redirect', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'getOAuthUrl'])->name('api.v1.social.oauth.redirect');
             Route::post('/oauth/{platform}/callback', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'handleCallback'])->name('api.v1.social.oauth.callback');
+            Route::post('/accounts/{platform}/connect-custom', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'connectCustom'])->name('api.v1.social.accounts.connect_custom');
             Route::post('/accounts/{account}/health-check', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'healthCheck'])->name('api.v1.social.accounts.health_check');
             Route::delete('/accounts/{account}', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'disconnect'])->name('api.v1.social.accounts.disconnect');
+            Route::get('/ready-posts', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'getReadyPosts'])->name('api.v1.social.posts.ready');
             Route::post('/posts/{post}/publish-now', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'publishNow'])->name('api.v1.social.posts.publish_now');
             Route::get('/jobs', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'getJobs'])->name('api.v1.social.jobs.index');
         });

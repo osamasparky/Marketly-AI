@@ -80,6 +80,48 @@ class SocialPublishingController extends Controller
     }
 
     /**
+     * Connect account via direct access token / custom API keys.
+     */
+    public function connectCustom(Request $request, string $platform): JsonResponse
+    {
+        $tenantContext = $request->attributes->get('tenant_context');
+
+        $validated = $request->validate([
+            'access_token' => ['required', 'string'],
+            'account_id' => ['nullable', 'string'],
+            'account_name' => ['nullable', 'string'],
+            'account_username' => ['nullable', 'string'],
+            'app_id' => ['nullable', 'string'],
+            'expires_in_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+        ]);
+
+        $account = $this->publishingService->connectCustomCredentials(
+            $tenantContext,
+            $platform,
+            $validated
+        );
+
+        return response()->json([
+            'message' => "Successfully connected " . ucfirst($platform) . " with custom API credentials.",
+            'data' => $account,
+        ], 201);
+    }
+
+    /**
+     * Get posts ready for direct publishing.
+     */
+    public function getReadyPosts(Request $request): JsonResponse
+    {
+        $tenantContext = $request->attributes->get('tenant_context');
+
+        $posts = $this->publishingService->getReadyPosts($tenantContext);
+
+        return response()->json([
+            'data' => $posts,
+        ]);
+    }
+
+    /**
      * Health check for account token.
      */
     public function healthCheck(Request $request, int $id): JsonResponse

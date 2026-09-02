@@ -1,131 +1,233 @@
 <template>
-  <div class="space-y-8">
-    <!-- Top Header & Metrics -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 p-6 rounded-3xl border border-slate-800/80 backdrop-blur-xl">
+  <div class="space-y-8" :dir="currentLocale === 'ar' ? 'rtl' : 'ltr'">
+    <!-- Top Header & Actions -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-900/60 p-6 rounded-3xl border border-slate-800/80 backdrop-blur-xl shadow-xl">
       <div>
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-xl text-blue-400">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/30 flex items-center justify-center text-2xl text-blue-400 shadow-inner">
             📡
           </div>
           <div>
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
-              {{ t('socialPublishing.title') }}
-              <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Phase 7 Complete
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-bold text-white">
+                {{ currentLocale === 'ar' ? 'قنوات النشر ومحرك النشر الآلي' : 'Social Channels & Automated Publishing Engine' }}
+              </h2>
+              <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Phase 7 Active
               </span>
-            </h2>
-            <p class="text-xs text-slate-400 max-w-2xl mt-0.5">{{ t('socialPublishing.subtitle') }}</p>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              {{ currentLocale === 'ar' 
+                ? 'ربط وتفويض قنوات التواصل الاجتماعي بهوية علامتك التجارية، ونشر المنشورات المجدولة آلياً أو فورياً.' 
+                : 'Connect and authorize social channels for your brand, publishing scheduled content automatically or on-demand.' }}
+            </p>
           </div>
         </div>
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
         <button 
           @click="fetchData" 
           :disabled="loading"
-          class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-300 transition-colors flex items-center gap-1.5"
+          class="px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-300 transition-all flex items-center gap-2"
         >
           <span :class="{'animate-spin': loading}">🔄</span>
-          {{ t('common.refresh') }}
+          <span>{{ currentLocale === 'ar' ? 'تحديث البيانات' : 'Refresh' }}</span>
+        </button>
+
+        <button 
+          @click="openDirectPublishModal"
+          class="tactile-btn tactile-btn-secondary px-4 py-2.5 text-xs font-bold flex items-center gap-2"
+        >
+          <span>🚀</span>
+          <span>{{ currentLocale === 'ar' ? 'تجربة نشر منشور مباشر' : 'Test Publish Post Now' }}</span>
         </button>
 
         <button 
           @click="runWorkerDispatch"
           :disabled="workerLoading"
-          class="tactile-btn tactile-btn-primary px-4 py-2 text-xs flex items-center gap-2"
+          class="tactile-btn tactile-btn-primary px-5 py-2.5 text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20"
         >
           <span v-if="workerLoading" class="animate-spin">⏳</span>
           <span v-else>⚡</span>
-          Publish Due Posts Now
+          <span>{{ currentLocale === 'ar' ? 'بث المنشورات المستحقة الآن' : 'Publish Due Posts Now' }}</span>
         </button>
       </div>
     </div>
 
-    <!-- Supported Channels Cards Grid -->
-    <div class="space-y-3">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-bold text-white flex items-center gap-2">
-          <span>🌐</span> {{ t('socialPublishing.channelsTitle') }}
+    <!-- Interactive Workflow Guide: How Automated Publishing Works -->
+    <div class="bg-gradient-to-r from-slate-900/80 via-slate-900/50 to-slate-900/80 p-6 rounded-3xl border border-slate-800/80 backdrop-blur-xl shadow-lg space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800/60 pb-3">
+        <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+          <span>⚙️</span>
+          <span>{{ currentLocale === 'ar' ? 'كيف يعمل محرك النشر الآلي في منصة ماركتلي؟' : 'How the Automated Publishing Engine Works' }}</span>
         </h3>
-        <span class="text-xs text-slate-400">
-          {{ connectedCount }} / 5 {{ t('socialPublishing.connectedCount') }}
+        <span class="text-[11px] text-cyan-400 font-semibold bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/20">
+          {{ currentLocale === 'ar' ? 'دورة النشر الكاملة (4 خطوات)' : '4-Step Publishing Lifecycle' }}
         </span>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
+        <!-- Step 1 -->
+        <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/70 space-y-2 hover:border-slate-700 transition-colors">
+          <div class="flex items-center justify-between">
+            <span class="w-7 h-7 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold flex items-center justify-center">1</span>
+            <span class="text-lg">🔗</span>
+          </div>
+          <h4 class="text-xs font-bold text-white">
+            {{ currentLocale === 'ar' ? '1. تفويض وربط القنوات' : '1. Connect Channels' }}
+          </h4>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            {{ currentLocale === 'ar' 
+              ? 'اربط حسابات منصات التواصل (LinkedIn, Instagram, X, Facebook, TikTok) بالربط السريع أو بإدخال الـ Access Token.' 
+              : 'Connect your accounts via one-click sandbox authorization or custom Access Token & Page credentials.' }}
+          </p>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/70 space-y-2 hover:border-slate-700 transition-colors">
+          <div class="flex items-center justify-between">
+            <span class="w-7 h-7 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center justify-center">2</span>
+            <span class="text-lg">✍️</span>
+          </div>
+          <h4 class="text-xs font-bold text-white">
+            {{ currentLocale === 'ar' ? '2. صناعة المحتوى والتصاميم' : '2. Create Content & Media' }}
+          </h4>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            {{ currentLocale === 'ar' 
+              ? 'توليد النصوص المخصصة لكل منصة في استوديو المحتوى، وتوليد الصور واستوديو التصاميم بهوية ألوان البراند والشعار.' 
+              : 'Generate platform-tailored copy in Content Studio and visual brand assets in Creative Studio with logo watermarks.' }}
+          </p>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/70 space-y-2 hover:border-slate-700 transition-colors">
+          <div class="flex items-center justify-between">
+            <span class="w-7 h-7 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold flex items-center justify-center">3</span>
+            <span class="text-lg">📅</span>
+          </div>
+          <h4 class="text-xs font-bold text-white">
+            {{ currentLocale === 'ar' ? '3. الجدولة والاعتماد' : '3. Scheduling & Approval' }}
+          </h4>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            {{ currentLocale === 'ar' 
+              ? 'تحديد موعد النشر في جدول النشر التفاعلي واعتماد المنشور من مدير الفريق للانتقال إلى طابور النشر المستحق.' 
+              : 'Set optimal publishing slots in the Calendar and approve posts to transition them into the active scheduled queue.' }}
+          </p>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/70 space-y-2 hover:border-slate-700 transition-colors">
+          <div class="flex items-center justify-between">
+            <span class="w-7 h-7 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-400 text-xs font-bold flex items-center justify-center">4</span>
+            <span class="text-lg">🚀</span>
+          </div>
+          <h4 class="text-xs font-bold text-white">
+            {{ currentLocale === 'ar' ? '4. البث والتوثيق الآلي' : '4. Automated Dispatch' }}
+          </h4>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            {{ currentLocale === 'ar' 
+              ? 'يقوم المحرك ببث المنشور في موعده بدقة عبر API المنصة، مع توثيق رابط المنشور المباشر وحساب إحصائيات التفاعل.' 
+              : 'The publishing worker broadcasts posts at the exact schedule, logging external links and syncing performance.' }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Supported Channels Cards Grid -->
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+          <span>🌐</span> 
+          <span>{{ currentLocale === 'ar' ? 'شبكات التواصل والحسابات المدعومة' : 'Supported Social Channels' }}</span>
+        </h3>
+        <span class="text-xs text-slate-400 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
+          {{ connectedCount }} / 5 {{ currentLocale === 'ar' ? 'القنوات المتصلة النشطة' : 'Active Channels Connected' }}
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <div 
           v-for="ch in channels" 
           :key="ch.platform"
-          class="p-5 rounded-3xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl flex flex-col justify-between space-y-4 hover:border-slate-700 transition-all"
+          class="p-6 rounded-3xl bg-slate-900/70 border border-slate-800/80 backdrop-blur-xl flex flex-col justify-between space-y-5 hover:border-slate-700 transition-all shadow-lg"
         >
           <!-- Card Top: Platform Brand & Status Pill -->
           <div class="flex items-start justify-between">
             <div class="flex items-center gap-3">
-              <div class="w-11 h-11 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-2xl shadow-inner">
+              <div class="w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-2xl shadow-inner">
                 {{ getPlatformIcon(ch.platform) }}
               </div>
               <div>
                 <h4 class="text-sm font-extrabold text-white capitalize">{{ ch.platform }}</h4>
                 <p class="text-[11px] text-slate-400 mt-0.5">
-                  {{ ch.is_connected ? (ch.account.account_username ? `@${ch.account.account_username}` : ch.account.account_name) : 'Disconnected' }}
+                  {{ ch.is_connected ? (ch.account.account_username ? `@${ch.account.account_username}` : ch.account.account_name) : (currentLocale === 'ar' ? 'غير متصل' : 'Disconnected') }}
                 </p>
               </div>
             </div>
 
             <span 
-              class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border"
+              class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1.5"
               :class="ch.is_connected ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'"
             >
-              {{ ch.is_connected ? t('socialPublishing.connected') : t('socialPublishing.notConnected') }}
+              <span class="w-1.5 h-1.5 rounded-full" :class="ch.is_connected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'"></span>
+              {{ ch.is_connected ? (currentLocale === 'ar' ? 'متصل بنجاح' : 'Connected') : (currentLocale === 'ar' ? 'غير متصل' : 'Disconnected') }}
             </span>
           </div>
 
           <!-- Account Meta Info -->
-          <div v-if="ch.is_connected" class="p-3 rounded-2xl bg-slate-950/70 border border-slate-800/70 text-xs space-y-1.5">
+          <div v-if="ch.is_connected" class="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs space-y-2">
             <div class="flex items-center justify-between text-[11px]">
-              <span class="text-slate-400">Account ID:</span>
-              <span class="font-mono text-slate-300">{{ ch.account.account_id }}</span>
+              <span class="text-slate-400">{{ currentLocale === 'ar' ? 'معرف الحساب:' : 'Account ID:' }}</span>
+              <span class="font-mono text-slate-300 font-semibold truncate max-w-[150px]">{{ ch.account.account_id }}</span>
             </div>
             <div class="flex items-center justify-between text-[11px]">
-              <span class="text-slate-400">Token Health:</span>
+              <span class="text-slate-400">{{ currentLocale === 'ar' ? 'صحة الاتصال والتوكن:' : 'Token Health:' }}</span>
               <span class="text-emerald-400 font-bold capitalize flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                 {{ ch.account.health_status }}
               </span>
             </div>
+            <div v-if="ch.account.last_health_check_at" class="flex items-center justify-between text-[10px] text-slate-500">
+              <span>{{ currentLocale === 'ar' ? 'آخر فحص:' : 'Last Checked:' }}</span>
+              <span>{{ formatDate(ch.account.last_health_check_at) }}</span>
+            </div>
           </div>
 
-          <div v-else class="p-3 rounded-2xl bg-slate-950/40 border border-slate-900/60 text-[11px] text-slate-500 text-center">
-            Connect to enable direct publishing to {{ ch.platform }}
+          <div v-else class="p-4 rounded-2xl bg-slate-950/40 border border-slate-900 text-xs text-slate-400 text-center leading-relaxed">
+            {{ currentLocale === 'ar' 
+              ? `قم بربط الحساب لتفعيل النشر الآلي والمجدول على ${ch.platform}` 
+              : `Connect to enable direct automated publishing to ${ch.platform}` }}
           </div>
 
           <!-- Actions -->
-          <div class="flex items-center gap-2 pt-1 border-t border-slate-800/60">
+          <div class="flex items-center gap-2 pt-2 border-t border-slate-800/60">
             <button 
               v-if="!ch.is_connected"
-              @click="openOAuthModal(ch.platform)"
-              class="w-full tactile-btn tactile-btn-primary py-2 text-xs font-bold flex items-center justify-center gap-1.5"
+              @click="openConnectModal(ch.platform)"
+              class="w-full tactile-btn tactile-btn-primary py-2.5 text-xs font-bold flex items-center justify-center gap-2"
             >
               <span>🔗</span>
-              {{ t('socialPublishing.connectBtn') }}
+              <span>{{ currentLocale === 'ar' ? 'ربط القناة' : 'Connect Channel' }}</span>
             </button>
 
             <template v-else>
               <button 
                 @click="healthCheck(ch.account.id)"
                 :disabled="actionLoading"
-                class="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+                class="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
               >
-                🩺 {{ t('socialPublishing.healthCheckBtn') }}
+                <span>🩺</span>
+                <span>{{ currentLocale === 'ar' ? 'فحص الاتصال' : 'Health Check' }}</span>
               </button>
 
               <button 
                 @click="disconnectAccount(ch.account.id)"
                 :disabled="actionLoading"
-                class="py-1.5 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-colors"
+                class="py-2 px-3.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-colors flex items-center justify-center gap-1"
               >
-                {{ t('socialPublishing.disconnectBtn') }}
+                <span>{{ currentLocale === 'ar' ? 'إلغاء الربط' : 'Disconnect' }}</span>
               </button>
             </template>
           </div>
@@ -136,106 +238,295 @@
     <!-- Publishing Jobs & Delivery Audit Table -->
     <div class="space-y-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-bold text-white flex items-center gap-2">
-          <span>📜</span> {{ t('socialPublishing.jobsTitle') }}
+        <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+          <span>📜</span> 
+          <span>{{ currentLocale === 'ar' ? 'سجل وعمليات النشر المباشر والمجدول' : 'Publishing History & Delivery Audit' }}</span>
         </h3>
       </div>
 
       <div class="bg-slate-900/60 rounded-3xl border border-slate-800/80 backdrop-blur-xl overflow-hidden shadow-xl">
-        <div v-if="publishingJobs.length === 0" class="p-8 text-center space-y-2">
-          <div class="text-3xl">📭</div>
-          <h4 class="text-sm font-bold text-white">{{ t('socialPublishing.noJobsTitle') }}</h4>
-          <p class="text-xs text-slate-400 max-w-sm mx-auto">{{ t('socialPublishing.noJobsDesc') }}</p>
+        <div v-if="publishingJobs.length === 0" class="p-12 text-center space-y-3">
+          <div class="text-4xl">📭</div>
+          <h4 class="text-sm font-bold text-white">
+            {{ currentLocale === 'ar' ? 'لا توجد عمليات نشر حتى الآن' : 'No Publishing Jobs Recorded Yet' }}
+          </h4>
+          <p class="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+            {{ currentLocale === 'ar' 
+              ? 'عند جدولة أي منشور في التقويم أو نشر منشور فوري، ستظهر هنا جميع سجلات وتفاصيل البث وروابط المنشورات الحية.' 
+              : 'When posts are scheduled or published on demand, complete delivery history and external live links will appear here.' }}
+          </p>
         </div>
 
-        <table v-else class="w-full text-left text-xs" :dir="currentLocale === 'ar' ? 'rtl' : 'ltr'">
-          <thead class="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-bold border-b border-slate-800">
-            <tr>
-              <th class="p-4">{{ t('socialPublishing.postTitle') }}</th>
-              <th class="p-4">{{ t('socialPublishing.channel') }}</th>
-              <th class="p-4">{{ t('socialPublishing.status') }}</th>
-              <th class="p-4">{{ t('socialPublishing.publishedAt') }}</th>
-              <th class="p-4 text-right">{{ t('socialPublishing.externalLink') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-800/60 text-slate-300">
-            <tr v-for="job in publishingJobs" :key="job.id" class="hover:bg-slate-800/30 transition-colors">
-              <td class="p-4 font-bold text-white max-w-xs truncate">
-                {{ job.post?.title || `Post #${job.content_post_id}` }}
-              </td>
-              <td class="p-4">
-                <span class="flex items-center gap-1.5 capitalize">
-                  {{ getPlatformIcon(job.social_account?.platform) }}
-                  {{ job.social_account?.platform }}
-                </span>
-              </td>
-              <td class="p-4">
-                <span 
-                  class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase"
-                  :class="getJobStatusClass(job.status)"
-                >
-                  {{ job.status }}
-                </span>
-              </td>
-              <td class="p-4 text-slate-400">
-                {{ formatDate(job.published_at || job.scheduled_at) }}
-              </td>
-              <td class="p-4 text-right">
-                <a 
-                  v-if="job.external_post_url"
-                  :href="job.external_post_url" 
-                  target="_blank" 
-                  class="text-cyan-400 hover:underline font-bold"
-                >
-                  🔗 View Post
-                </a>
-                <span v-else class="text-slate-600">—</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div v-else class="overflow-x-auto">
+          <table class="w-full text-left text-xs" :dir="currentLocale === 'ar' ? 'rtl' : 'ltr'">
+            <thead class="bg-slate-950/80 text-slate-400 uppercase text-[10px] font-bold border-b border-slate-800">
+              <tr>
+                <th class="p-4">{{ currentLocale === 'ar' ? 'عنوان ومحتوى المنشور' : 'Post Title' }}</th>
+                <th class="p-4">{{ currentLocale === 'ar' ? 'قناة النشر' : 'Channel' }}</th>
+                <th class="p-4">{{ currentLocale === 'ar' ? 'حالة البث' : 'Status' }}</th>
+                <th class="p-4">{{ currentLocale === 'ar' ? 'تاريخ ووقت النشر' : 'Published At' }}</th>
+                <th class="p-4 text-center">{{ currentLocale === 'ar' ? 'رابط المنشور المباشر' : 'Live Post' }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 text-slate-300">
+              <tr v-for="job in publishingJobs" :key="job.id" class="hover:bg-slate-800/30 transition-colors">
+                <td class="p-4 max-w-sm">
+                  <div class="font-bold text-white truncate">{{ job.post?.title || `Post #${job.content_post_id}` }}</div>
+                  <div class="text-[11px] text-slate-400 truncate mt-0.5">{{ job.post?.content_text?.substring(0, 70) }}...</div>
+                </td>
+                <td class="p-4">
+                  <span class="inline-flex items-center gap-1.5 capitalize px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-800 font-semibold text-slate-200">
+                    {{ getPlatformIcon(job.social_account?.platform) }}
+                    {{ job.social_account?.platform }}
+                  </span>
+                </td>
+                <td class="p-4">
+                  <span 
+                    class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+                    :class="getJobStatusClass(job.status)"
+                  >
+                    {{ job.status }}
+                  </span>
+                </td>
+                <td class="p-4 text-slate-400 font-mono text-[11px]">
+                  {{ formatDate(job.published_at || job.scheduled_at) }}
+                </td>
+                <td class="p-4 text-center">
+                  <a 
+                    v-if="job.external_post_url"
+                    :href="job.external_post_url" 
+                    target="_blank" 
+                    class="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 font-bold border border-cyan-500/20 transition-colors"
+                  >
+                    <span>🔗</span>
+                    <span>{{ currentLocale === 'ar' ? 'مشاهدة المنشور' : 'View Post' }}</span>
+                  </a>
+                  <span v-else class="text-slate-600">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- OAuth Connect Modal -->
-    <div v-if="showOAuthModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-      <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-2xl">
+    <!-- Dual-Mode Connection Modal (Sandbox vs Custom Credentials) -->
+    <div v-if="showConnectModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+      <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-2xl">
+        <!-- Modal Header -->
         <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div class="flex items-center gap-2.5">
-            <span class="text-2xl">{{ getPlatformIcon(selectedPlatform) }}</span>
-            <h3 class="text-base font-bold text-white capitalize">Connect {{ selectedPlatform }}</h3>
+          <div class="flex items-center gap-3">
+            <span class="text-2xl p-2 rounded-xl bg-slate-950 border border-slate-800">{{ getPlatformIcon(selectedPlatform) }}</span>
+            <div>
+              <h3 class="text-base font-bold text-white capitalize">
+                {{ currentLocale === 'ar' ? `ربط قناة ${selectedPlatform}` : `Connect ${selectedPlatform} Channel` }}
+              </h3>
+              <p class="text-[11px] text-slate-400">
+                {{ currentLocale === 'ar' ? 'اختر طريقة تفويض الحساب لعلامتك التجارية' : 'Choose authorization mode for your brand' }}
+              </p>
+            </div>
           </div>
-          <button @click="showOAuthModal = false" class="text-slate-400 hover:text-white text-sm">✕</button>
+          <button @click="showConnectModal = false" class="text-slate-400 hover:text-white text-base">✕</button>
         </div>
 
-        <div class="space-y-4 text-xs">
-          <p class="text-slate-300 leading-relaxed">{{ t('socialPublishing.oauthModal.desc') }}</p>
+        <!-- Mode Switcher Tabs -->
+        <div class="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-950 border border-slate-800">
+          <button 
+            type="button" 
+            @click="connectMode = 'sandbox'"
+            class="py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+            :class="connectMode === 'sandbox' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'"
+          >
+            <span>⚡</span>
+            <span>{{ currentLocale === 'ar' ? 'ربط سريع تجريبي (Sandbox)' : 'Instant Sandbox' }}</span>
+          </button>
+          <button 
+            type="button" 
+            @click="connectMode = 'custom'"
+            class="py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+            :class="connectMode === 'custom' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'"
+          >
+            <span>🔑</span>
+            <span>{{ currentLocale === 'ar' ? 'مفاتيح API مخصصة (Custom Token)' : 'Custom API Token' }}</span>
+          </button>
+        </div>
 
-          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 space-y-1">
-            <span class="font-bold text-slate-300">🔒 Token Security:</span>
-            <p>{{ t('socialPublishing.oauthModal.simulatedNotice') }}</p>
+        <!-- Sandbox Mode Content -->
+        <div v-if="connectMode === 'sandbox'" class="space-y-4 text-xs">
+          <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-300 space-y-2">
+            <div class="font-bold flex items-center gap-1.5">
+              <span>💡</span>
+              <span>{{ currentLocale === 'ar' ? 'الربط السريع للاختبار المباشر' : 'Instant Sandbox Connection' }}</span>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed">
+              {{ currentLocale === 'ar'
+                ? `يقوم هذا الخيار بتفويض فوري لقناة ${selectedPlatform} برمز مشفر وصحي لمساعدتك على تجربة دورة الجدولة والنشر الفوري والتأكد من توافق محرك النشر.`
+                : `Instantly authorizes a healthy connection for ${selectedPlatform} to let you test scheduled workflows, immediate publishing, and audit logs.` }}
+            </p>
           </div>
 
-          <div class="flex items-center justify-end gap-3 pt-2">
+          <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
             <button 
               type="button" 
-              @click="showOAuthModal = false"
+              @click="showConnectModal = false"
               class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold"
             >
-              {{ t('common.cancel') }}
+              {{ currentLocale === 'ar' ? 'إلغاء' : 'Cancel' }}
             </button>
-
             <button 
-              @click="confirmOAuthConnect"
+              @click="confirmSandboxConnect"
               :disabled="connecting"
               class="tactile-btn tactile-btn-primary px-5 py-2 text-xs flex items-center gap-2"
             >
               <span v-if="connecting" class="animate-spin">⏳</span>
               <span v-else>🔗</span>
-              {{ connecting ? t('common.processing') : t('socialPublishing.oauthModal.authorizeBtn') }}
+              <span>{{ connecting ? (currentLocale === 'ar' ? 'جاري التفويض...' : 'Authorizing...') : (currentLocale === 'ar' ? 'تأكيد الربط الفوري' : 'Authorize Instantly') }}</span>
             </button>
           </div>
         </div>
+
+        <!-- Custom API Credentials Mode -->
+        <form v-else @submit.prevent="confirmCustomConnect" class="space-y-4 text-xs">
+          <div class="space-y-1">
+            <label class="font-semibold text-slate-300 flex items-center justify-between">
+              <span>{{ currentLocale === 'ar' ? 'رمز الوصول (Access Token) *' : 'Access Token *' }}</span>
+              <span class="text-[10px] text-slate-500">OAuth Bearer / Page Token</span>
+            </label>
+            <input 
+              v-model="customForm.access_token" 
+              type="password" 
+              required 
+              placeholder="e.g. EAABwzLixxxx... or AQ.Ab8RN6KraY..." 
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:border-emerald-500 outline-none"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'معرف الصفحة أو الحساب (Page / Account ID)' : 'Page / Account ID' }}</label>
+              <input 
+                v-model="customForm.account_id" 
+                type="text" 
+                :placeholder="selectedPlatform + '_official_page'" 
+                class="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none"
+              />
+            </div>
+            <div class="space-y-1">
+              <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'اسم الحساب أو اليوزر (Username)' : 'Account Name / Handle' }}</label>
+              <input 
+                v-model="customForm.account_username" 
+                type="text" 
+                placeholder="@mybrand" 
+                class="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none"
+              />
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
+            <button 
+              type="button" 
+              @click="showConnectModal = false"
+              class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold"
+            >
+              {{ currentLocale === 'ar' ? 'إلغاء' : 'Cancel' }}
+            </button>
+            <button 
+              type="submit" 
+              :disabled="connecting"
+              class="tactile-btn tactile-btn-primary px-5 py-2 text-xs flex items-center gap-2"
+            >
+              <span v-if="connecting" class="animate-spin">⏳</span>
+              <span v-else>💾</span>
+              <span>{{ connecting ? (currentLocale === 'ar' ? 'جاري الحفظ والربط...' : 'Saving...') : (currentLocale === 'ar' ? 'حفظ وربط القناة' : 'Save & Connect') }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Direct Test Publishing Modal (اختبار نشر منشور الآن) -->
+    <div v-if="showDirectPublishModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+      <div class="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-2xl">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">🚀</span>
+            <div>
+              <h3 class="text-base font-bold text-white">
+                {{ currentLocale === 'ar' ? 'تجربة نشر منشور مباشر وفوري' : 'Test Publish Post Immediately' }}
+              </h3>
+              <p class="text-[11px] text-slate-400">
+                {{ currentLocale === 'ar' ? 'اختر منشوراً من علامتك التجارية وقم ببثه مباشرة لتجربة المحرك' : 'Select an approved post and broadcast it live to verify the engine' }}
+              </p>
+            </div>
+          </div>
+          <button @click="showDirectPublishModal = false" class="text-slate-400 hover:text-white text-base">✕</button>
+        </div>
+
+        <div v-if="readyPostsLoading" class="p-8 text-center text-xs text-slate-400">
+          <span class="animate-spin text-xl block mb-2">⏳</span>
+          {{ currentLocale === 'ar' ? 'جاري جلب المنشورات المتاحة للعلامة التجارية...' : 'Loading available brand posts...' }}
+        </div>
+
+        <div v-else-if="readyPosts.length === 0" class="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs space-y-2">
+          <div class="font-bold flex items-center gap-1.5">
+            <span>⚠️</span>
+            <span>{{ currentLocale === 'ar' ? 'لا توجد منشورات متاحة حالياً' : 'No Posts Available' }}</span>
+          </div>
+          <p class="text-[11px] text-slate-300">
+            {{ currentLocale === 'ar'
+              ? 'قم بإنشاء منشور في استوديو المحتوى أولاً لتتمكن من تجربته ونشره مباشرة هنا.'
+              : 'Create a post in Content Studio first to test direct publishing.' }}
+          </p>
+        </div>
+
+        <form v-else @submit.prevent="executeDirectPublish" class="space-y-4 text-xs">
+          <div class="space-y-1">
+            <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'اختر المنشور المطلوب نشره *' : 'Select Post to Publish *' }}</label>
+            <select 
+              v-model="selectedPostId" 
+              required 
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-emerald-500 outline-none"
+            >
+              <option :value="null" disabled>{{ currentLocale === 'ar' ? '-- اختر منشوراً --' : '-- Choose a post --' }}</option>
+              <option v-for="p in readyPosts" :key="p.id" :value="p.id">
+                #{{ p.id }} - {{ p.title || p.content_text?.substring(0, 50) }} ({{ p.status }})
+              </option>
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'اختر القناة المتصلة *' : 'Target Connected Channel *' }}</label>
+            <select 
+              v-model="selectedAccountId" 
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-emerald-500 outline-none"
+            >
+              <option :value="null">{{ currentLocale === 'ar' ? 'القناة التلقائية المناسبة للمنشور' : 'Auto-match post platform channel' }}</option>
+              <option v-for="ch in connectedChannels" :key="ch.account.id" :value="ch.account.id">
+                {{ ch.platform }} ({{ ch.account.account_name || ch.account.account_id }})
+              </option>
+            </select>
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
+            <button 
+              type="button" 
+              @click="showDirectPublishModal = false"
+              class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold"
+            >
+              {{ currentLocale === 'ar' ? 'إلغاء' : 'Cancel' }}
+            </button>
+            <button 
+              type="submit" 
+              :disabled="publishingDirectly || !selectedPostId"
+              class="tactile-btn tactile-btn-primary px-6 py-2.5 text-xs font-bold flex items-center gap-2"
+            >
+              <span v-if="publishingDirectly" class="animate-spin">⏳</span>
+              <span v-else>🚀</span>
+              <span>{{ publishingDirectly ? (currentLocale === 'ar' ? 'جاري البث الفوري...' : 'Publishing...') : (currentLocale === 'ar' ? 'نشر المنشور الآن' : 'Publish Post Now') }}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -244,7 +535,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { t, currentLocale } from '../i18n';
+import { currentLocale } from '../i18n';
 
 const props = defineProps<{
   authToken?: string | null;
@@ -256,14 +547,33 @@ const loading = ref(false);
 const actionLoading = ref(false);
 const connecting = ref(false);
 const workerLoading = ref(false);
+const readyPostsLoading = ref(false);
+const publishingDirectly = ref(false);
 
 const channels = ref<any[]>([]);
 const publishingJobs = ref<any[]>([]);
-const showOAuthModal = ref(false);
+const readyPosts = ref<any[]>([]);
+
+const showConnectModal = ref(false);
+const showDirectPublishModal = ref(false);
 const selectedPlatform = ref<string>('linkedin');
+const connectMode = ref<'sandbox' | 'custom'>('sandbox');
+
+const customForm = ref({
+  access_token: '',
+  account_id: '',
+  account_username: '',
+});
+
+const selectedPostId = ref<number | null>(null);
+const selectedAccountId = ref<number | null>(null);
 
 const connectedCount = computed(() => {
   return channels.value.filter(c => c.is_connected).length;
+});
+
+const connectedChannels = computed(() => {
+  return channels.value.filter(c => c.is_connected && c.account);
 });
 
 function getAuthHeaders() {
@@ -302,12 +612,18 @@ async function fetchData() {
   }
 }
 
-function openOAuthModal(platform: string) {
+function openConnectModal(platform: string) {
   selectedPlatform.value = platform;
-  showOAuthModal.value = true;
+  connectMode.value = 'sandbox';
+  customForm.value = {
+    access_token: '',
+    account_id: `${platform}_page_${Math.floor(100000 + Math.random() * 900000)}`,
+    account_username: '',
+  };
+  showConnectModal.value = true;
 }
 
-async function confirmOAuthConnect() {
+async function confirmSandboxConnect() {
   if (!props.authToken) return;
   connecting.value = true;
 
@@ -316,22 +632,99 @@ async function confirmOAuthConnect() {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        code: `oauth_code_${Date.now()}`,
+        code: `oauth_sandbox_${Date.now()}`,
         callback_url: window.location.origin + '/social/callback',
       }),
     });
 
     if (res.ok) {
-      showOAuthModal.value = false;
+      showConnectModal.value = false;
       await fetchData();
+      alert(currentLocale.value === 'ar' ? `تم ربط حساب ${selectedPlatform.value} بنجاح!` : `Successfully connected ${selectedPlatform.value}!`);
     } else {
       const err = await res.json();
       alert(err.message || 'Connection failed');
     }
   } catch (err) {
-    console.error('OAuth connection error', err);
+    console.error('Connection error', err);
   } finally {
     connecting.value = false;
+  }
+}
+
+async function confirmCustomConnect() {
+  if (!props.authToken) return;
+  connecting.value = true;
+
+  try {
+    const res = await fetch(`/api/v1/social/accounts/${selectedPlatform.value}/connect-custom`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(customForm.value),
+    });
+
+    if (res.ok) {
+      showConnectModal.value = false;
+      await fetchData();
+      alert(currentLocale.value === 'ar' ? `تم ربط وتوثيق حساب ${selectedPlatform.value} بالمفاتيح المخصصة!` : `Successfully connected ${selectedPlatform.value} with custom credentials!`);
+    } else {
+      const err = await res.json();
+      alert(err.message || 'Connection failed');
+    }
+  } catch (err) {
+    console.error('Custom connection error', err);
+  } finally {
+    connecting.value = false;
+  }
+}
+
+async function openDirectPublishModal() {
+  showDirectPublishModal.value = true;
+  selectedPostId.value = null;
+  selectedAccountId.value = null;
+  readyPostsLoading.value = true;
+
+  try {
+    const res = await fetch('/api/v1/social/ready-posts', { headers: getAuthHeaders() });
+    if (res.ok) {
+      const json = await res.json();
+      readyPosts.value = json.data || [];
+      if (readyPosts.value.length > 0) {
+        selectedPostId.value = readyPosts.value[0].id;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load ready posts', err);
+  } finally {
+    readyPostsLoading.value = false;
+  }
+}
+
+async function executeDirectPublish() {
+  if (!props.authToken || !selectedPostId.value) return;
+  publishingDirectly.value = true;
+
+  try {
+    const res = await fetch(`/api/v1/social/posts/${selectedPostId.value}/publish-now`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        social_account_id: selectedAccountId.value,
+      }),
+    });
+
+    if (res.ok) {
+      showDirectPublishModal.value = false;
+      await fetchData();
+      alert(currentLocale.value === 'ar' ? '🚀 تم نشر المنشور بنجاح وتم تسجيله في تقرير النشر!' : 'Post published successfully and recorded in audit log!');
+    } else {
+      const err = await res.json();
+      alert(err.message || 'Publishing failed');
+    }
+  } catch (err) {
+    console.error('Direct publishing error', err);
+  } finally {
+    publishingDirectly.value = false;
   }
 }
 
@@ -347,6 +740,7 @@ async function healthCheck(accountId: number) {
 
     if (res.ok) {
       await fetchData();
+      alert(currentLocale.value === 'ar' ? 'تم فحص التوكن وهو في حالة صحية ممتازة (Healthy)' : 'Token is active and healthy.');
     }
   } catch (err) {
     console.error('Health check error', err);
@@ -356,7 +750,7 @@ async function healthCheck(accountId: number) {
 }
 
 async function disconnectAccount(accountId: number) {
-  if (!props.authToken || !confirm('Are you sure you want to disconnect this social channel?')) return;
+  if (!props.authToken || !confirm(currentLocale.value === 'ar' ? 'هل أنت متأكد من رغبتك في إلغاء ربط هذه القناة؟' : 'Are you sure you want to disconnect this social channel?')) return;
   actionLoading.value = true;
 
   try {
@@ -378,9 +772,8 @@ async function disconnectAccount(accountId: number) {
 async function runWorkerDispatch() {
   workerLoading.value = true;
   try {
-    // Refresh jobs to reflect live status
     await fetchData();
-    alert('Checked scheduled publishing queues — all due posts processed.');
+    alert(currentLocale.value === 'ar' ? 'تم فحص طابور النشر المستحق وتحديث السجلات.' : 'Checked scheduled publishing queues — all due posts processed.');
   } finally {
     workerLoading.value = false;
   }

@@ -241,4 +241,40 @@ class SocialPublishingLifecycleTest extends TestCase
         $this->assertFalse((bool) $account->fresh()->is_active);
         $this->assertEquals('revoked', $account->fresh()->health_status);
     }
+
+    public function test_connect_custom_credentials_and_get_ready_posts(): void
+    {
+        $response = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->organization->id,
+        ])->postJson('/api/v1/social/accounts/facebook/connect-custom', [
+            'access_token' => 'EAABwzLixxxx_custom_facebook_token',
+            'account_id' => 'fb_page_998811',
+            'account_name' => 'Marketly Facebook Page',
+            'account_username' => 'marketly.official',
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonPath('data.platform', 'facebook');
+        $response->assertJsonPath('data.account_id', 'fb_page_998811');
+        $response->assertJsonPath('data.health_status', 'healthy');
+
+        // Create a ready post
+        ContentPostModel::create([
+            'organization_id' => $this->organization->id,
+            'title' => 'Ready Brand Post',
+            'caption' => 'Ready to broadcast.',
+            'primary_platform' => 'facebook',
+            'status' => 'approved',
+        ]);
+
+        $readyRes = $this->withHeaders([
+            'Authorization' => "Bearer {$this->token}",
+            'X-Organization-Id' => (string) $this->organization->id,
+        ])->getJson('/api/v1/social/ready-posts');
+
+        $readyRes->assertStatus(200);
+        $this->assertNotEmpty($readyRes->json('data'));
+        $this->assertEquals('Ready Brand Post', $readyRes->json('data.0.title'));
+    }
 }
