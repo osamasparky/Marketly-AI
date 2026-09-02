@@ -7,6 +7,7 @@ use App\Domains\Publishing\Infrastructure\Persistence\Models\SocialAccountModel;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class FacebookPublisherAdapter implements SocialPublisherInterface
 {
@@ -61,7 +62,7 @@ class FacebookPublisherAdapter implements SocialPublisherInterface
                     }
                 }
             } catch (\Throwable $e) {
-                Log::warning('Facebook OAuth exchange fallback to simulated token: ' . $e->getMessage());
+                Log::warning('Facebook OAuth exchange error: ' . $e->getMessage());
             }
         }
 
@@ -72,62 +73,65 @@ class FacebookPublisherAdapter implements SocialPublisherInterface
             'refresh_token' => 'fb_live_rt_' . Str::random(40),
             'expires_in' => 5184000,
             'account_id' => $pageId,
-            'account_name' => 'Marketly Official Page',
+            'account_name' => 'Marketly Official Page (Sandbox)',
             'account_username' => 'marketly.official',
             'account_avatar' => 'https://api.dicebear.com/7.x/identicon/svg?seed=fb_' . Str::random(6),
             'scopes' => ['pages_manage_posts', 'pages_read_engagement', 'pages_show_list'],
-            'metadata' => ['provider' => 'facebook', 'page_category' => 'Technology Company'],
+            'metadata' => ['provider' => 'facebook', 'page_category' => 'Technology Company', 'mode' => 'sandbox'],
         ];
     }
 
     /**
-     * Fetch all Facebook Pages the authenticated user can manage (/me/accounts).
+     * Fetch all real Facebook Pages managed by the provided User/System Access Token (/me/accounts).
      */
-    public function fetchManagedPages(string $userAccessToken): array
+    public function fetchManagedPages(?string $userAccessToken): array
     {
+        if (empty($userAccessToken) || $userAccessToken === 'sandbox_mode') {
+            return [
+                [
+                    'id' => 'fb_page_demo_101',
+                    'name' => 'Demo Sandbox Page',
+                    'category' => 'Testing & Demonstration',
+                    'access_token' => 'EAAB_sandbox_token_' . Str::random(32),
+                    'picture' => 'https://api.dicebear.com/7.x/identicon/svg?seed=fb_demo',
+                ],
+            ];
+        }
+
         try {
             $response = Http::timeout(15)->get("https://graph.facebook.com/{$this->graphVersion}/me/accounts", [
-                'access_token' => $userAccessToken,
+                'access_token' => trim($userAccessToken),
                 'fields' => 'id,name,category,access_token,tasks,picture{url}',
             ]);
 
             if ($response->successful()) {
                 $items = $response->json('data') ?? [];
+                if (empty($items)) {
+                    throw new RuntimeException('No Facebook Pages found for this Access Token. Ensure the user is an admin of at least one Page and granted pages_show_list permission.');
+                }
+
                 $pages = [];
                 foreach ($items as $item) {
                     $pages[] = [
-                        'id' => $item['id'],
-                        'name' => $item['name'],
-                        'category' => $item['category'] ?? 'General',
-                        'access_token' => $item['access_token'] ?? $userAccessToken,
+                        'id' => (string) $item['id'],
+                        'name' => (string) $item['name'],
+                        'category' => (string) ($item['category'] ?? 'General Page'),
+                        'access_token' => (string) ($item['access_token'] ?? $userAccessToken),
                         'picture' => $item['picture']['data']['url'] ?? null,
                     ];
                 }
-                if (!empty($pages)) {
-                    return $pages;
-                }
+                return $pages;
             }
-        } catch (\Throwable $e) {
-            Log::info('Could not reach Facebook /me/accounts live endpoint, returning fallback pages list: ' . $e->getMessage());
-        }
 
-        // Return structured page list for user selection
-        return [
-            [
-                'id' => 'fb_page_10928374',
-                'name' => 'Meem DTT Official Page',
-                'category' => 'Technology & Software',
-                'access_token' => 'EAAB_page_token_' . Str::random(32),
-                'picture' => 'https://api.dicebear.com/7.x/identicon/svg?seed=meemdtt',
-            ],
-            [
-                'id' => 'fb_page_55667788',
-                'name' => 'Meem Tech Solutions',
-                'category' => 'Digital Agency & Consulting',
-                'access_token' => 'EAAB_page_token_' . Str::random(32),
-                'picture' => 'https://api.dicebear.com/7.x/identicon/svg?seed=meemtech',
-            ],
-        ];
+            $error = $response->json('error');
+            $errorMsg = is_array($error) ? ($error['message'] ?? 'Unknown Meta API error') : 'Invalid Access Token or secret key provided.';
+            throw new RuntimeException("Meta Graph API Error: {$errorMsg}");
+        } catch (\Throwable $e) {
+            if ($e instanceof RuntimeException) {
+                throw $e;
+            }
+            throw new RuntimeException("Could not connect to Meta Graph API: " . $e->getMessage());
+        }
     }
 
     public function refreshToken(string $refreshToken): array
@@ -152,7 +156,7 @@ class FacebookPublisherAdapter implements SocialPublisherInterface
         $pageAccessToken = $account->access_token;
 
         // Attempt live Graph API publish if live token
-        if (!str_starts_with($pageAccessToken, 'fb_live_at_') && !str_starts_with($pageAccessToken, 'EAAB_page_token_')) {
+        if (!str_starts_with($pageAccessToken, 'fb_live_at_') && !str_starts_with($pageAccessToken, 'EAAB_sandbox_token_')) {
             try {
                 $endpoint = $mediaUrl 
                     ? "https://graph.facebook.com/{$this->graphVersion}/{$pageId}/photos"

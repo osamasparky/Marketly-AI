@@ -115,14 +115,21 @@ class SocialPublishingController extends Controller
         $tenantContext = $request->attributes->get('tenant_context');
 
         $userToken = $request->input('user_token');
-        $pages = $this->publishingService->getAvailablePages($tenantContext, $platform, $userToken);
 
-        return response()->json([
-            'data' => [
-                'platform' => $platform,
-                'pages' => $pages,
-            ],
-        ]);
+        try {
+            $pages = $this->publishingService->getAvailablePages($tenantContext, $platform, $userToken);
+
+            return response()->json([
+                'data' => [
+                    'platform' => $platform,
+                    'pages' => $pages,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     /**

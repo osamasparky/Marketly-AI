@@ -7,6 +7,7 @@ use App\Domains\Publishing\Infrastructure\Persistence\Models\SocialAccountModel;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class InstagramPublisherAdapter implements SocialPublisherInterface
 {
@@ -35,22 +36,35 @@ class InstagramPublisherAdapter implements SocialPublisherInterface
             'refresh_token' => 'ig_live_rt_' . Str::random(40),
             'expires_in' => 5184000, // 60 days
             'account_id' => $igId,
-            'account_name' => 'Marketly Visuals',
+            'account_name' => 'Marketly Visuals (Sandbox)',
             'account_username' => 'marketly.app',
             'account_avatar' => 'https://api.dicebear.com/7.x/identicon/svg?seed=ig_' . Str::random(6),
             'scopes' => ['instagram_basic', 'instagram_content_publish', 'pages_show_list'],
-            'metadata' => ['provider' => 'instagram', 'account_type' => 'business'],
+            'metadata' => ['provider' => 'instagram', 'account_type' => 'business', 'mode' => 'sandbox'],
         ];
     }
 
     /**
-     * Fetch all linked Instagram Professional/Business accounts via Facebook Graph API.
+     * Fetch all linked Instagram Professional/Business accounts via Facebook Graph API with user token.
      */
-    public function fetchLinkedInstagramAccounts(string $userAccessToken): array
+    public function fetchLinkedInstagramAccounts(?string $userAccessToken): array
     {
+        if (empty($userAccessToken) || $userAccessToken === 'sandbox_mode') {
+            return [
+                [
+                    'id' => '17841400987654321',
+                    'name' => 'Demo Instagram Business (Sandbox)',
+                    'username' => 'demo.business',
+                    'category' => 'Instagram Professional Account',
+                    'access_token' => 'EAAB_ig_sandbox_' . Str::random(32),
+                    'picture' => 'https://api.dicebear.com/7.x/identicon/svg?seed=ig_demo',
+                ],
+            ];
+        }
+
         try {
             $response = Http::timeout(15)->get("https://graph.facebook.com/{$this->graphVersion}/me/accounts", [
-                'access_token' => $userAccessToken,
+                'access_token' => trim($userAccessToken),
                 'fields' => 'id,name,access_token,instagram_business_account{id,username,name,profile_picture_url}',
             ]);
 
@@ -61,33 +75,30 @@ class InstagramPublisherAdapter implements SocialPublisherInterface
                     if (!empty($item['instagram_business_account'])) {
                         $ig = $item['instagram_business_account'];
                         $accounts[] = [
-                            'id' => $ig['id'],
-                            'name' => $ig['name'] ?? $item['name'],
-                            'username' => $ig['username'] ?? 'instagram_business',
-                            'category' => 'Instagram Professional Account',
-                            'access_token' => $item['access_token'] ?? $userAccessToken,
+                            'id' => (string) $ig['id'],
+                            'name' => (string) ($ig['name'] ?? $item['name']),
+                            'username' => (string) ($ig['username'] ?? 'instagram_business'),
+                            'category' => 'Instagram Business Account',
+                            'access_token' => (string) ($item['access_token'] ?? $userAccessToken),
                             'picture' => $ig['profile_picture_url'] ?? null,
                         ];
                     }
                 }
-                if (!empty($accounts)) {
-                    return $accounts;
+                if (empty($accounts)) {
+                    throw new RuntimeException('No Instagram Business Accounts linked to your Facebook Pages. Ensure your Instagram Professional Account is linked to a Facebook Page.');
                 }
+                return $accounts;
             }
-        } catch (\Throwable $e) {
-            Log::info('Instagram accounts fetch fallback: ' . $e->getMessage());
-        }
 
-        return [
-            [
-                'id' => '17841400987654321',
-                'name' => 'Meem DTT Instagram',
-                'username' => 'meem.dtt',
-                'category' => 'Instagram Professional Account',
-                'access_token' => 'EAAB_ig_token_' . Str::random(32),
-                'picture' => 'https://api.dicebear.com/7.x/identicon/svg?seed=meem_ig',
-            ],
-        ];
+            $error = $response->json('error');
+            $errorMsg = is_array($error) ? ($error['message'] ?? 'Unknown Meta error') : 'Failed to fetch linked Instagram accounts.';
+            throw new RuntimeException("Meta Graph API Error: {$errorMsg}");
+        } catch (\Throwable $e) {
+            if ($e instanceof RuntimeException) {
+                throw $e;
+            }
+            throw new RuntimeException("Could not connect to Instagram Graph API: " . $e->getMessage());
+        }
     }
 
     public function refreshToken(string $refreshToken): array
@@ -111,7 +122,7 @@ class InstagramPublisherAdapter implements SocialPublisherInterface
         $igUserId = $account->account_id;
         $accessToken = $account->access_token;
 
-        if (!str_starts_with($accessToken, 'ig_live_at_') && !str_starts_with($accessToken, 'EAAB_ig_token_') && $mediaUrl) {
+        if (!str_starts_with($accessToken, 'ig_live_at_') && !str_starts_with($accessToken, 'EAAB_ig_sandbox_') && $mediaUrl) {
             try {
                 // Step 1: Create Container
                 $createRes = Http::timeout(30)->post("https://graph.facebook.com/{$this->graphVersion}/{$igUserId}/media", [

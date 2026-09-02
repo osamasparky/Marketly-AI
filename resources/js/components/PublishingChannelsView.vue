@@ -80,8 +80,8 @@
           </h4>
           <p class="text-[11px] text-slate-400 leading-relaxed">
             {{ currentLocale === 'ar' 
-              ? 'تفويض حساب المنصة واختيار الصفحة المستهدفة المحددة (/me/accounts) لحفظ الـ Page Access Token الخاص بها فقط.' 
-              : 'Authorize platform account and choose specific target page from /me/accounts to store its dedicated Page Token.' }}
+              ? 'إدخال رمز الوصول الخاص بحسابك أو تطبيقك واستخراج الصفحات الحقيقية (/me/accounts) لاختيار الصفحة المستهدفة.' 
+              : 'Enter your Meta Access Token to discover real managed pages (/me/accounts) and select your target page.' }}
           </p>
         </div>
 
@@ -321,7 +321,7 @@
       </div>
     </div>
 
-    <!-- Dual-Mode & Page Selection Connection Modal -->
+    <!-- Real Meta Token & Page Discovery Connection Modal -->
     <div v-if="showConnectModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
       <div class="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-2xl">
         <!-- Modal Header -->
@@ -330,10 +330,10 @@
             <span class="text-2xl p-2 rounded-xl bg-slate-950 border border-slate-800">{{ getPlatformIcon(selectedPlatform) }}</span>
             <div>
               <h3 class="text-base font-bold text-white capitalize">
-                {{ currentLocale === 'ar' ? `ربط واختيار صفحة ${selectedPlatform}` : `Connect & Select ${selectedPlatform} Page` }}
+                {{ currentLocale === 'ar' ? `ربط صفحة ${selectedPlatform} الحقيقية` : `Connect Real ${selectedPlatform} Page` }}
               </h3>
               <p class="text-[11px] text-slate-400">
-                {{ currentLocale === 'ar' ? 'جلب الصفحات وتحديد الصفحة المستهدفة لنشر منشورات وريلز البراند' : 'Discover managed pages and bind specific target page for your brand' }}
+                {{ currentLocale === 'ar' ? 'أدخل مفتاح / رمز الوصول للبحث في حسابك واستخراج الصفحات الحقيقية' : 'Enter your Access Token / Secret Key to discover real pages from your Meta account' }}
               </p>
             </div>
           </div>
@@ -344,52 +344,88 @@
         <div class="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-950 border border-slate-800">
           <button 
             type="button" 
+            @click="switchMode('real')"
+            class="py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+            :class="connectMode === 'real' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'"
+          >
+            <span>🔑</span>
+            <span>{{ currentLocale === 'ar' ? 'ربط حقيقي بمفتاح التوكن (Real Meta Token)' : 'Real Meta Token' }}</span>
+          </button>
+          <button 
+            type="button" 
             @click="switchMode('sandbox')"
             class="py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
             :class="connectMode === 'sandbox' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'"
           >
             <span>⚡</span>
-            <span>{{ currentLocale === 'ar' ? 'الربط التلقائي واختيار الصفحة' : 'Auto Login & Page Select' }}</span>
-          </button>
-          <button 
-            type="button" 
-            @click="switchMode('custom')"
-            class="py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
-            :class="connectMode === 'custom' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'"
-          >
-            <span>🔑</span>
-            <span>{{ currentLocale === 'ar' ? 'مفاتيح مخصصة (Custom Token)' : 'Custom Token & Page ID' }}</span>
+            <span>{{ currentLocale === 'ar' ? 'تجربة سريعة بدون توكن (Sandbox)' : 'Quick Sandbox' }}</span>
           </button>
         </div>
 
-        <!-- Step 1: Pages Selection List (Auto/Sandbox Mode) -->
-        <div v-if="connectMode === 'sandbox'" class="space-y-4 text-xs">
-          <div v-if="loadingPages" class="p-8 text-center text-slate-400">
-            <span class="animate-spin text-2xl block mb-2">⏳</span>
-            {{ currentLocale === 'ar' ? 'جاري استدعاء /me/accounts وجلب الصفحات المتاحة...' : 'Querying /me/accounts for available pages...' }}
+        <!-- Real Meta Token Mode (Queries /me/accounts only with user input) -->
+        <div v-if="connectMode === 'real'" class="space-y-4 text-xs">
+          <!-- Token Input Section -->
+          <div class="space-y-2 p-4 rounded-2xl bg-slate-950 border border-slate-800">
+            <label class="font-semibold text-slate-200 flex items-center justify-between">
+              <span>{{ currentLocale === 'ar' ? 'رمز الوصول الخاص بحسابك أو تطبيقك (Access Token / Secret) *' : 'User Access Token / App Secret *' }}</span>
+              <span class="text-[10px] text-slate-500 font-mono">Meta Graph API</span>
+            </label>
+            <div class="flex gap-2">
+              <input 
+                v-model="inputToken" 
+                type="password" 
+                placeholder="EAABwzLixxxx... (User Token with pages_show_list, pages_manage_posts)" 
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-mono placeholder-slate-600 focus:border-emerald-500 outline-none"
+              />
+              <button 
+                type="button" 
+                @click="discoverRealPages" 
+                :disabled="!inputToken.trim() || loadingPages"
+                class="tactile-btn tactile-btn-secondary px-4 py-2.5 text-xs font-bold shrink-0 flex items-center gap-1.5"
+              >
+                <span v-if="loadingPages" class="animate-spin">⏳</span>
+                <span v-else>🔍</span>
+                <span>{{ loadingPages ? (currentLocale === 'ar' ? 'جاري الفحص...' : 'Querying...') : (currentLocale === 'ar' ? 'بحث وجلب الصفحات' : 'Fetch Pages') }}</span>
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-400">
+              {{ currentLocale === 'ar' 
+                ? '💡 يتم استخدام هذا التوكن لاستدعاء /me/accounts مباشرة من سيرفرات فيسبوك لجلب الصفحات التي يديرها المفتاح.' 
+                : '💡 This token is used to call /me/accounts on Meta servers to discover the real pages you manage.' }}
+            </p>
           </div>
 
-          <div v-else class="space-y-3">
+          <!-- Error Alert if Token Query Fails -->
+          <div v-if="metaError" class="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs space-y-1">
+            <div class="font-bold flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>{{ currentLocale === 'ar' ? 'خطأ في المصادقة من Meta API:' : 'Meta API Error:' }}</span>
+            </div>
+            <p class="text-[11px] leading-relaxed">{{ metaError }}</p>
+          </div>
+
+          <!-- Real Pages List (Only shown after successful fetch) -->
+          <div v-if="realPages.length > 0" class="space-y-3 pt-1">
             <div class="flex items-center justify-between">
               <label class="font-bold text-slate-200">
-                {{ currentLocale === 'ar' ? 'اختر الصفحة المحددة المطلوب ربطها بالبراند:' : 'Select Specific Page to Bind to Brand:' }}
+                {{ currentLocale === 'ar' ? 'اختر الصفحة الحقيقية المطلوب ربطها:' : 'Select Real Page to Bind:' }}
               </label>
               <span class="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                {{ availablePages.length }} {{ currentLocale === 'ar' ? 'صفحات متوفرة' : 'Pages Found' }}
+                {{ realPages.length }} {{ currentLocale === 'ar' ? 'صفحات تم العثور عليها' : 'Real Pages Found' }}
               </span>
             </div>
 
-            <!-- Pages List Cards -->
-            <div class="space-y-2 max-h-56 overflow-y-auto pr-1">
+            <div class="space-y-2 max-h-52 overflow-y-auto pr-1">
               <div 
-                v-for="pg in availablePages" 
+                v-for="pg in realPages" 
                 :key="pg.id"
-                @click="selectedPageId = pg.id"
+                @click="selectedRealPageId = pg.id"
                 class="p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between"
-                :class="selectedPageId === pg.id ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md' : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'"
+                :class="selectedRealPageId === pg.id ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md' : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'"
               >
                 <div class="flex items-center gap-3">
-                  <div class="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-slate-200 text-xs">
+                  <img v-if="pg.picture" :src="pg.picture" class="w-9 h-9 rounded-xl object-cover border border-slate-700" />
+                  <div v-else class="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-slate-200 text-xs">
                     {{ pg.name.substring(0, 2).toUpperCase() }}
                   </div>
                   <div>
@@ -397,22 +433,15 @@
                     <div class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2">
                       <span>{{ pg.category }}</span>
                       <span>•</span>
-                      <span class="font-mono text-cyan-400">ID: {{ pg.id }}</span>
+                      <span class="font-mono text-cyan-400">Page ID: {{ pg.id }}</span>
                     </div>
                   </div>
                 </div>
 
-                <div class="w-5 h-5 rounded-full border flex items-center justify-center" :class="selectedPageId === pg.id ? 'border-emerald-400 bg-emerald-500 text-slate-950 font-bold text-xs' : 'border-slate-700'">
-                  <span v-if="selectedPageId === pg.id">✓</span>
+                <div class="w-5 h-5 rounded-full border flex items-center justify-center" :class="selectedRealPageId === pg.id ? 'border-emerald-400 bg-emerald-500 text-slate-950 font-bold text-xs' : 'border-slate-700'">
+                  <span v-if="selectedRealPageId === pg.id">✓</span>
                 </div>
               </div>
-            </div>
-
-            <div class="p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80 text-[11px] text-slate-400 leading-relaxed">
-              <span class="font-bold text-slate-300">🔒 عزل النشر والأمان:</span>
-              {{ currentLocale === 'ar' 
-                ? 'سيقوم النظام بحفظ Page Access Token الخاص بهذه الصفحة فقط، ولن يتم النشر على أي صفحة أخرى.' 
-                : 'The system will securely store the dedicated Page Access Token for this selected Page only.' }}
             </div>
           </div>
 
@@ -425,62 +454,29 @@
               {{ currentLocale === 'ar' ? 'إلغاء' : 'Cancel' }}
             </button>
             <button 
-              @click="confirmPageSelection"
-              :disabled="connecting || !selectedPageId"
+              @click="confirmRealPageBinding"
+              :disabled="connecting || !selectedRealPageId"
               class="tactile-btn tactile-btn-primary px-5 py-2 text-xs flex items-center gap-2"
             >
               <span v-if="connecting" class="animate-spin">⏳</span>
               <span v-else>💾</span>
-              <span>{{ connecting ? (currentLocale === 'ar' ? 'جاري الاعتماد...' : 'Authorizing...') : (currentLocale === 'ar' ? 'اعتماد وربط هذه الصفحة' : 'Authorize Selected Page') }}</span>
+              <span>{{ connecting ? (currentLocale === 'ar' ? 'جاري الربط والحفظ...' : 'Connecting...') : (currentLocale === 'ar' ? 'اعتماد وربط هذه الصفحة' : 'Authorize & Bind Page') }}</span>
             </button>
           </div>
         </div>
 
-        <!-- Custom API Credentials Mode -->
-        <form v-else @submit.prevent="confirmCustomConnect" class="space-y-4 text-xs">
-          <div class="space-y-1">
-            <label class="font-semibold text-slate-300 flex items-center justify-between">
-              <span>{{ currentLocale === 'ar' ? 'رمز الوصول (Page Access Token) *' : 'Page Access Token *' }}</span>
-              <button 
-                type="button" 
-                @click="fetchPagesFromCustomToken"
-                :disabled="!customForm.access_token || loadingPages"
-                class="text-[10px] text-cyan-400 hover:underline flex items-center gap-1"
-              >
-                <span>🔍</span>
-                <span>{{ loadingPages ? 'جاري الفحص...' : 'فحص وجلب بيانات الصفحة' }}</span>
-              </button>
-            </label>
-            <input 
-              v-model="customForm.access_token" 
-              type="password" 
-              required 
-              placeholder="e.g. EAABwzLixxxx... or custom page token" 
-              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:border-emerald-500 outline-none"
-            />
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div class="space-y-1">
-              <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'معرف الصفحة المستهدفة (Page ID) *' : 'Target Page ID *' }}</label>
-              <input 
-                v-model="customForm.account_id" 
-                type="text" 
-                required
-                :placeholder="selectedPlatform + '_page_10293847'" 
-                class="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:border-emerald-500 outline-none"
-              />
+        <!-- Sandbox Simulation Mode -->
+        <div v-else class="space-y-4 text-xs">
+          <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-300 space-y-2">
+            <div class="font-bold flex items-center gap-1.5">
+              <span>💡</span>
+              <span>{{ currentLocale === 'ar' ? 'الربط السريع للاختبار المباشر (Sandbox Mode)' : 'Instant Sandbox Connection' }}</span>
             </div>
-            <div class="space-y-1">
-              <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'اسم الصفحة الرسمية (Page Name) *' : 'Page Name *' }}</label>
-              <input 
-                v-model="customForm.account_name" 
-                type="text" 
-                required
-                placeholder="e.g. Meem DTT Official" 
-                class="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none"
-              />
-            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed">
+              {{ currentLocale === 'ar'
+                ? `يقوم هذا الخيار بتفويض صفحة تجريبية لـ ${selectedPlatform} لاختبار دورة الجدولة والنشر الفوري وتجربة كامل المنظومة دون الحاجة لتوكن حقيقي.`
+                : `Instantly connects a demo page for ${selectedPlatform} to test the publishing engine, scheduling workflows, and audit logs.` }}
+            </p>
           </div>
 
           <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
@@ -492,16 +488,16 @@
               {{ currentLocale === 'ar' ? 'إلغاء' : 'Cancel' }}
             </button>
             <button 
-              type="submit" 
+              @click="confirmSandboxConnect"
               :disabled="connecting"
               class="tactile-btn tactile-btn-primary px-5 py-2 text-xs flex items-center gap-2"
             >
               <span v-if="connecting" class="animate-spin">⏳</span>
-              <span v-else>💾</span>
-              <span>{{ connecting ? (currentLocale === 'ar' ? 'جاري الحفظ والربط...' : 'Saving...') : (currentLocale === 'ar' ? 'حفظ وربط الصفحة' : 'Save & Bind Page') }}</span>
+              <span v-else>⚡</span>
+              <span>{{ connecting ? (currentLocale === 'ar' ? 'جاري التفويض...' : 'Authorizing...') : (currentLocale === 'ar' ? 'تأكيد الربط التجريبي' : 'Authorize Sandbox') }}</span>
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
 
@@ -615,20 +611,15 @@ const publishingDirectly = ref(false);
 const channels = ref<any[]>([]);
 const publishingJobs = ref<any[]>([]);
 const readyPosts = ref<any[]>([]);
-const availablePages = ref<any[]>([]);
+const realPages = ref<any[]>([]);
 
 const showConnectModal = ref(false);
 const showDirectPublishModal = ref(false);
 const selectedPlatform = ref<string>('facebook');
-const connectMode = ref<'sandbox' | 'custom'>('sandbox');
-const selectedPageId = ref<string | null>(null);
-
-const customForm = ref({
-  access_token: '',
-  account_id: '',
-  account_name: '',
-  account_username: '',
-});
+const connectMode = ref<'real' | 'sandbox'>('real');
+const inputToken = ref('');
+const metaError = ref('');
+const selectedRealPageId = ref<string | null>(null);
 
 const selectedPostId = ref<number | null>(null);
 const selectedAccountId = ref<number | null>(null);
@@ -677,66 +668,54 @@ async function fetchData() {
   }
 }
 
-async function openConnectModal(platform: string) {
+function openConnectModal(platform: string) {
   selectedPlatform.value = platform;
-  connectMode.value = 'sandbox';
-  selectedPageId.value = null;
-  customForm.value = {
-    access_token: '',
-    account_id: '',
-    account_name: '',
-    account_username: '',
-  };
+  connectMode.value = 'real';
+  inputToken.value = '';
+  metaError.value = '';
+  realPages.value = [];
+  selectedRealPageId.value = null;
   showConnectModal.value = true;
-  await loadPlatformPages();
 }
 
-async function switchMode(mode: 'sandbox' | 'custom') {
+function switchMode(mode: 'real' | 'sandbox') {
   connectMode.value = mode;
-  if (mode === 'sandbox') {
-    await loadPlatformPages();
-  }
+  metaError.value = '';
 }
 
-async function loadPlatformPages(token?: string) {
-  if (!props.authToken) return;
+async function discoverRealPages() {
+  if (!inputToken.value.trim() || !props.authToken) return;
   loadingPages.value = true;
+  metaError.value = '';
+  realPages.value = [];
+  selectedRealPageId.value = null;
 
   try {
-    const query = token ? `?user_token=${encodeURIComponent(token)}` : '';
-    const res = await fetch(`/api/v1/social/pages/${selectedPlatform.value}${query}`, {
+    const res = await fetch(`/api/v1/social/pages/${selectedPlatform.value}?user_token=${encodeURIComponent(inputToken.value.trim())}`, {
       headers: getAuthHeaders(),
     });
 
+    const json = await res.json();
     if (res.ok) {
-      const json = await res.json();
-      availablePages.value = json.data?.pages || [];
-      if (availablePages.value.length > 0) {
-        selectedPageId.value = availablePages.value[0].id;
+      realPages.value = json.data?.pages || [];
+      if (realPages.value.length > 0) {
+        selectedRealPageId.value = realPages.value[0].id;
+      } else {
+        metaError.value = currentLocale.value === 'ar' ? 'لم يتم العثور على صفحات مرتبطة بهذا التوكن.' : 'No pages found for this token.';
       }
+    } else {
+      metaError.value = json.message || 'Failed to authenticate with Meta Graph API.';
     }
-  } catch (err) {
-    console.error('Failed to load available pages', err);
+  } catch (err: any) {
+    metaError.value = err.message || 'Network error while connecting to Meta.';
   } finally {
     loadingPages.value = false;
   }
 }
 
-async function fetchPagesFromCustomToken() {
-  if (!customForm.value.access_token) return;
-  await loadPlatformPages(customForm.value.access_token);
-  if (availablePages.value.length > 0) {
-    const first = availablePages.value[0];
-    customForm.value.account_id = first.id;
-    customForm.value.account_name = first.name;
-    customForm.value.account_username = first.category;
-    alert(currentLocale.value === 'ar' ? `تم العثور على ${availablePages.value.length} صفحات. تم تحديد صفحة: ${first.name}` : `Found ${availablePages.value.length} pages. Auto-filled: ${first.name}`);
-  }
-}
-
-async function confirmPageSelection() {
-  if (!props.authToken || !selectedPageId.value) return;
-  const page = availablePages.value.find(p => p.id === selectedPageId.value);
+async function confirmRealPageBinding() {
+  if (!props.authToken || !selectedRealPageId.value) return;
+  const page = realPages.value.find(p => p.id === selectedRealPageId.value);
   if (!page) return;
 
   connecting.value = true;
@@ -746,7 +725,7 @@ async function confirmPageSelection() {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        access_token: page.access_token || `token_${page.id}`,
+        access_token: page.access_token || inputToken.value.trim(),
         account_id: page.id,
         account_name: page.name,
         account_username: page.category,
@@ -768,27 +747,30 @@ async function confirmPageSelection() {
   }
 }
 
-async function confirmCustomConnect() {
+async function confirmSandboxConnect() {
   if (!props.authToken) return;
   connecting.value = true;
 
   try {
-    const res = await fetch(`/api/v1/social/accounts/${selectedPlatform.value}/connect-custom`, {
+    const res = await fetch(`/api/v1/social/oauth/${selectedPlatform.value}/callback`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify(customForm.value),
+      body: JSON.stringify({
+        code: `oauth_sandbox_${Date.now()}`,
+        callback_url: window.location.origin + '/social/callback',
+      }),
     });
 
     if (res.ok) {
       showConnectModal.value = false;
       await fetchData();
-      alert(currentLocale.value === 'ar' ? `تم ربط وتوثيق صفحة ${customForm.value.account_name || selectedPlatform.value} بالمفاتيح المخصصة!` : `Successfully connected ${customForm.value.account_name || selectedPlatform.value} with custom credentials!`);
+      alert(currentLocale.value === 'ar' ? `تم تفعيل الربط التجريبي لـ ${selectedPlatform.value} بنجاح!` : `Successfully authorized sandbox connection for ${selectedPlatform.value}!`);
     } else {
       const err = await res.json();
-      alert(err.message || 'Connection failed');
+      alert(err.message || 'Sandbox connection failed');
     }
   } catch (err) {
-    console.error('Custom connection error', err);
+    console.error('Sandbox connection error', err);
   } finally {
     connecting.value = false;
   }
