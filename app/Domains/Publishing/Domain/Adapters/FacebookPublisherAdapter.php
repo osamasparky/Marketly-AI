@@ -184,6 +184,11 @@ class FacebookPublisherAdapter implements SocialPublisherInterface
 
                 $err = $response->json('error.message') ?? 'Facebook API rejected publishing.';
                 Log::error("Facebook live publish failed: " . $err);
+                
+                if (str_contains($err, '(#200)') || str_contains($err, 'pages_manage_posts')) {
+                    throw new RuntimeException("Facebook Error (#200): التوكن الحالي ينقصه تصريح النشر (pages_manage_posts). يرجى فتح Graph API Explorer وإضافة الصلاحيتين (pages_manage_posts) و (pages_read_engagement) ثم الضغط على Generate Access Token وإعادة ربط الصفحة.");
+                }
+
                 throw new RuntimeException("Facebook API Error: {$err}");
             } catch (\Throwable $e) {
                 if ($e instanceof RuntimeException) {
