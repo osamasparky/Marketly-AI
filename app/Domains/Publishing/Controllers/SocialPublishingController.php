@@ -108,6 +108,24 @@ class SocialPublishingController extends Controller
     }
 
     /**
+     * Get available pages/accounts for a platform (e.g. /me/accounts).
+     */
+    public function getPages(Request $request, string $platform): JsonResponse
+    {
+        $tenantContext = $request->attributes->get('tenant_context');
+
+        $userToken = $request->input('user_token');
+        $pages = $this->publishingService->getAvailablePages($tenantContext, $platform, $userToken);
+
+        return response()->json([
+            'data' => [
+                'platform' => $platform,
+                'pages' => $pages,
+            ],
+        ]);
+    }
+
+    /**
      * Get posts ready for direct publishing.
      */
     public function getReadyPosts(Request $request): JsonResponse

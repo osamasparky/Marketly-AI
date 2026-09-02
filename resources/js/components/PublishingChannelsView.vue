@@ -18,8 +18,8 @@
             </div>
             <p class="text-xs text-slate-400 mt-0.5">
               {{ currentLocale === 'ar' 
-                ? 'ربط وتفويض قنوات التواصل الاجتماعي بهوية علامتك التجارية، ونشر المنشورات المجدولة آلياً أو فورياً.' 
-                : 'Connect and authorize social channels for your brand, publishing scheduled content automatically or on-demand.' }}
+                ? 'ربط وتفويض قنوات التواصل الاجتماعي بهوية علامتك التجارية، واختيار الصفحة المستهدفة، ونشر المنشورات آلياً.' 
+                : 'Connect and authorize social channels for your brand, select specific target pages, and publish scheduled content.' }}
             </p>
           </div>
         </div>
@@ -76,12 +76,12 @@
             <span class="text-lg">🔗</span>
           </div>
           <h4 class="text-xs font-bold text-white">
-            {{ currentLocale === 'ar' ? '1. تفويض وربط القنوات' : '1. Connect Channels' }}
+            {{ currentLocale === 'ar' ? '1. تفويض واختيار الصفحة' : '1. Connect & Select Page' }}
           </h4>
           <p class="text-[11px] text-slate-400 leading-relaxed">
             {{ currentLocale === 'ar' 
-              ? 'اربط حسابات منصات التواصل (LinkedIn, Instagram, X, Facebook, TikTok) بالربط السريع أو بإدخال الـ Access Token.' 
-              : 'Connect your accounts via one-click sandbox authorization or custom Access Token & Page credentials.' }}
+              ? 'تفويض حساب المنصة واختيار الصفحة المستهدفة المحددة (/me/accounts) لحفظ الـ Page Access Token الخاص بها فقط.' 
+              : 'Authorize platform account and choose specific target page from /me/accounts to store its dedicated Page Token.' }}
           </p>
         </div>
 
@@ -128,8 +128,8 @@
           </h4>
           <p class="text-[11px] text-slate-400 leading-relaxed">
             {{ currentLocale === 'ar' 
-              ? 'يقوم المحرك ببث المنشور في موعده بدقة عبر API المنصة، مع توثيق رابط المنشور المباشر وحساب إحصائيات التفاعل.' 
-              : 'The publishing worker broadcasts posts at the exact schedule, logging external links and syncing performance.' }}
+              ? 'يقوم المحرك ببث المنشور إلى الصفحة المختارة حصراً ({PAGE_ID}/feed) وتوثيق رابط المنشور المباشر وحساب التفاعل.' 
+              : 'The publishing worker broadcasts posts to the selected Page ({PAGE_ID}/feed), logging external links and syncing metrics.' }}
           </p>
         </div>
       </div>
@@ -162,7 +162,7 @@
               <div>
                 <h4 class="text-sm font-extrabold text-white capitalize">{{ ch.platform }}</h4>
                 <p class="text-[11px] text-slate-400 mt-0.5">
-                  {{ ch.is_connected ? (ch.account.account_username ? `@${ch.account.account_username}` : ch.account.account_name) : (currentLocale === 'ar' ? 'غير متصل' : 'Disconnected') }}
+                  {{ ch.is_connected ? (ch.account.account_name || (ch.account.account_username ? `@${ch.account.account_username}` : 'Connected')) : (currentLocale === 'ar' ? 'غير متصل' : 'Disconnected') }}
                 </p>
               </div>
             </div>
@@ -172,33 +172,33 @@
               :class="ch.is_connected ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'"
             >
               <span class="w-1.5 h-1.5 rounded-full" :class="ch.is_connected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'"></span>
-              {{ ch.is_connected ? (currentLocale === 'ar' ? 'متصل بنجاح' : 'Connected') : (currentLocale === 'ar' ? 'غير متصل' : 'Disconnected') }}
+              {{ ch.is_connected ? (currentLocale === 'ar' ? 'متصل ومفوض' : 'Connected') : (currentLocale === 'ar' ? 'غير متصل' : 'Disconnected') }}
             </span>
           </div>
 
           <!-- Account Meta Info -->
           <div v-if="ch.is_connected" class="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs space-y-2">
             <div class="flex items-center justify-between text-[11px]">
-              <span class="text-slate-400">{{ currentLocale === 'ar' ? 'معرف الحساب:' : 'Account ID:' }}</span>
-              <span class="font-mono text-slate-300 font-semibold truncate max-w-[150px]">{{ ch.account.account_id }}</span>
+              <span class="text-slate-400">{{ currentLocale === 'ar' ? 'الصفحة / الحساب المربوط:' : 'Target Page / Account:' }}</span>
+              <span class="font-bold text-white truncate max-w-[140px]">{{ ch.account.account_name || ch.account.account_id }}</span>
             </div>
             <div class="flex items-center justify-between text-[11px]">
-              <span class="text-slate-400">{{ currentLocale === 'ar' ? 'صحة الاتصال والتوكن:' : 'Token Health:' }}</span>
+              <span class="text-slate-400">{{ currentLocale === 'ar' ? 'معرف الصفحة (ID):' : 'Page ID:' }}</span>
+              <span class="font-mono text-cyan-400 font-semibold truncate max-w-[140px]">{{ ch.account.account_id }}</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-400">{{ currentLocale === 'ar' ? 'صحة التوكن:' : 'Token Health:' }}</span>
               <span class="text-emerald-400 font-bold capitalize flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                 {{ ch.account.health_status }}
               </span>
             </div>
-            <div v-if="ch.account.last_health_check_at" class="flex items-center justify-between text-[10px] text-slate-500">
-              <span>{{ currentLocale === 'ar' ? 'آخر فحص:' : 'Last Checked:' }}</span>
-              <span>{{ formatDate(ch.account.last_health_check_at) }}</span>
-            </div>
           </div>
 
           <div v-else class="p-4 rounded-2xl bg-slate-950/40 border border-slate-900 text-xs text-slate-400 text-center leading-relaxed">
             {{ currentLocale === 'ar' 
-              ? `قم بربط الحساب لتفعيل النشر الآلي والمجدول على ${ch.platform}` 
-              : `Connect to enable direct automated publishing to ${ch.platform}` }}
+              ? `قم بربط الحساب واختيار الصفحة المستهدفة لتفعيل النشر الآلي على ${ch.platform}` 
+              : `Connect and select target page to enable direct publishing to ${ch.platform}` }}
           </div>
 
           <!-- Actions -->
@@ -209,7 +209,7 @@
               class="w-full tactile-btn tactile-btn-primary py-2.5 text-xs font-bold flex items-center justify-center gap-2"
             >
               <span>🔗</span>
-              <span>{{ currentLocale === 'ar' ? 'ربط القناة' : 'Connect Channel' }}</span>
+              <span>{{ currentLocale === 'ar' ? 'ربط واختيار الصفحة' : 'Connect & Select Page' }}</span>
             </button>
 
             <template v-else>
@@ -223,11 +223,19 @@
               </button>
 
               <button 
+                @click="openConnectModal(ch.platform)"
+                class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+                :title="currentLocale === 'ar' ? 'تغيير الصفحة المربوطة' : 'Switch Target Page'"
+              >
+                🔄
+              </button>
+
+              <button 
                 @click="disconnectAccount(ch.account.id)"
                 :disabled="actionLoading"
                 class="py-2 px-3.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-colors flex items-center justify-center gap-1"
               >
-                <span>{{ currentLocale === 'ar' ? 'إلغاء الربط' : 'Disconnect' }}</span>
+                <span>{{ currentLocale === 'ar' ? 'إلغاء' : 'Disconnect' }}</span>
               </button>
             </template>
           </div>
@@ -262,7 +270,7 @@
             <thead class="bg-slate-950/80 text-slate-400 uppercase text-[10px] font-bold border-b border-slate-800">
               <tr>
                 <th class="p-4">{{ currentLocale === 'ar' ? 'عنوان ومحتوى المنشور' : 'Post Title' }}</th>
-                <th class="p-4">{{ currentLocale === 'ar' ? 'قناة النشر' : 'Channel' }}</th>
+                <th class="p-4">{{ currentLocale === 'ar' ? 'قناة النشر والصفحة' : 'Channel & Target Page' }}</th>
                 <th class="p-4">{{ currentLocale === 'ar' ? 'حالة البث' : 'Status' }}</th>
                 <th class="p-4">{{ currentLocale === 'ar' ? 'تاريخ ووقت النشر' : 'Published At' }}</th>
                 <th class="p-4 text-center">{{ currentLocale === 'ar' ? 'رابط المنشور المباشر' : 'Live Post' }}</th>
@@ -278,6 +286,9 @@
                   <span class="inline-flex items-center gap-1.5 capitalize px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-800 font-semibold text-slate-200">
                     {{ getPlatformIcon(job.social_account?.platform) }}
                     {{ job.social_account?.platform }}
+                    <span v-if="job.social_account?.account_name" class="text-slate-400 text-[10px]">
+                      ({{ job.social_account.account_name }})
+                    </span>
                   </span>
                 </td>
                 <td class="p-4">
@@ -310,19 +321,19 @@
       </div>
     </div>
 
-    <!-- Dual-Mode Connection Modal (Sandbox vs Custom Credentials) -->
+    <!-- Dual-Mode & Page Selection Connection Modal -->
     <div v-if="showConnectModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-      <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-2xl">
+      <div class="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-2xl">
         <!-- Modal Header -->
         <div class="flex items-center justify-between pb-3 border-b border-slate-800">
           <div class="flex items-center gap-3">
             <span class="text-2xl p-2 rounded-xl bg-slate-950 border border-slate-800">{{ getPlatformIcon(selectedPlatform) }}</span>
             <div>
               <h3 class="text-base font-bold text-white capitalize">
-                {{ currentLocale === 'ar' ? `ربط قناة ${selectedPlatform}` : `Connect ${selectedPlatform} Channel` }}
+                {{ currentLocale === 'ar' ? `ربط واختيار صفحة ${selectedPlatform}` : `Connect & Select ${selectedPlatform} Page` }}
               </h3>
               <p class="text-[11px] text-slate-400">
-                {{ currentLocale === 'ar' ? 'اختر طريقة تفويض الحساب لعلامتك التجارية' : 'Choose authorization mode for your brand' }}
+                {{ currentLocale === 'ar' ? 'جلب الصفحات وتحديد الصفحة المستهدفة لنشر منشورات وريلز البراند' : 'Discover managed pages and bind specific target page for your brand' }}
               </p>
             </div>
           </div>
@@ -333,36 +344,76 @@
         <div class="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-950 border border-slate-800">
           <button 
             type="button" 
-            @click="connectMode = 'sandbox'"
+            @click="switchMode('sandbox')"
             class="py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
             :class="connectMode === 'sandbox' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'"
           >
             <span>⚡</span>
-            <span>{{ currentLocale === 'ar' ? 'ربط سريع تجريبي (Sandbox)' : 'Instant Sandbox' }}</span>
+            <span>{{ currentLocale === 'ar' ? 'الربط التلقائي واختيار الصفحة' : 'Auto Login & Page Select' }}</span>
           </button>
           <button 
             type="button" 
-            @click="connectMode = 'custom'"
+            @click="switchMode('custom')"
             class="py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
             :class="connectMode === 'custom' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'"
           >
             <span>🔑</span>
-            <span>{{ currentLocale === 'ar' ? 'مفاتيح API مخصصة (Custom Token)' : 'Custom API Token' }}</span>
+            <span>{{ currentLocale === 'ar' ? 'مفاتيح مخصصة (Custom Token)' : 'Custom Token & Page ID' }}</span>
           </button>
         </div>
 
-        <!-- Sandbox Mode Content -->
+        <!-- Step 1: Pages Selection List (Auto/Sandbox Mode) -->
         <div v-if="connectMode === 'sandbox'" class="space-y-4 text-xs">
-          <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-300 space-y-2">
-            <div class="font-bold flex items-center gap-1.5">
-              <span>💡</span>
-              <span>{{ currentLocale === 'ar' ? 'الربط السريع للاختبار المباشر' : 'Instant Sandbox Connection' }}</span>
+          <div v-if="loadingPages" class="p-8 text-center text-slate-400">
+            <span class="animate-spin text-2xl block mb-2">⏳</span>
+            {{ currentLocale === 'ar' ? 'جاري استدعاء /me/accounts وجلب الصفحات المتاحة...' : 'Querying /me/accounts for available pages...' }}
+          </div>
+
+          <div v-else class="space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="font-bold text-slate-200">
+                {{ currentLocale === 'ar' ? 'اختر الصفحة المحددة المطلوب ربطها بالبراند:' : 'Select Specific Page to Bind to Brand:' }}
+              </label>
+              <span class="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                {{ availablePages.length }} {{ currentLocale === 'ar' ? 'صفحات متوفرة' : 'Pages Found' }}
+              </span>
             </div>
-            <p class="text-[11px] text-slate-300 leading-relaxed">
-              {{ currentLocale === 'ar'
-                ? `يقوم هذا الخيار بتفويض فوري لقناة ${selectedPlatform} برمز مشفر وصحي لمساعدتك على تجربة دورة الجدولة والنشر الفوري والتأكد من توافق محرك النشر.`
-                : `Instantly authorizes a healthy connection for ${selectedPlatform} to let you test scheduled workflows, immediate publishing, and audit logs.` }}
-            </p>
+
+            <!-- Pages List Cards -->
+            <div class="space-y-2 max-h-56 overflow-y-auto pr-1">
+              <div 
+                v-for="pg in availablePages" 
+                :key="pg.id"
+                @click="selectedPageId = pg.id"
+                class="p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between"
+                :class="selectedPageId === pg.id ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md' : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-slate-200 text-xs">
+                    {{ pg.name.substring(0, 2).toUpperCase() }}
+                  </div>
+                  <div>
+                    <div class="font-bold text-xs">{{ pg.name }}</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2">
+                      <span>{{ pg.category }}</span>
+                      <span>•</span>
+                      <span class="font-mono text-cyan-400">ID: {{ pg.id }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="w-5 h-5 rounded-full border flex items-center justify-center" :class="selectedPageId === pg.id ? 'border-emerald-400 bg-emerald-500 text-slate-950 font-bold text-xs' : 'border-slate-700'">
+                  <span v-if="selectedPageId === pg.id">✓</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80 text-[11px] text-slate-400 leading-relaxed">
+              <span class="font-bold text-slate-300">🔒 عزل النشر والأمان:</span>
+              {{ currentLocale === 'ar' 
+                ? 'سيقوم النظام بحفظ Page Access Token الخاص بهذه الصفحة فقط، ولن يتم النشر على أي صفحة أخرى.' 
+                : 'The system will securely store the dedicated Page Access Token for this selected Page only.' }}
+            </div>
           </div>
 
           <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
@@ -374,13 +425,13 @@
               {{ currentLocale === 'ar' ? 'إلغاء' : 'Cancel' }}
             </button>
             <button 
-              @click="confirmSandboxConnect"
-              :disabled="connecting"
+              @click="confirmPageSelection"
+              :disabled="connecting || !selectedPageId"
               class="tactile-btn tactile-btn-primary px-5 py-2 text-xs flex items-center gap-2"
             >
               <span v-if="connecting" class="animate-spin">⏳</span>
-              <span v-else>🔗</span>
-              <span>{{ connecting ? (currentLocale === 'ar' ? 'جاري التفويض...' : 'Authorizing...') : (currentLocale === 'ar' ? 'تأكيد الربط الفوري' : 'Authorize Instantly') }}</span>
+              <span v-else>💾</span>
+              <span>{{ connecting ? (currentLocale === 'ar' ? 'جاري الاعتماد...' : 'Authorizing...') : (currentLocale === 'ar' ? 'اعتماد وربط هذه الصفحة' : 'Authorize Selected Page') }}</span>
             </button>
           </div>
         </div>
@@ -389,34 +440,44 @@
         <form v-else @submit.prevent="confirmCustomConnect" class="space-y-4 text-xs">
           <div class="space-y-1">
             <label class="font-semibold text-slate-300 flex items-center justify-between">
-              <span>{{ currentLocale === 'ar' ? 'رمز الوصول (Access Token) *' : 'Access Token *' }}</span>
-              <span class="text-[10px] text-slate-500">OAuth Bearer / Page Token</span>
+              <span>{{ currentLocale === 'ar' ? 'رمز الوصول (Page Access Token) *' : 'Page Access Token *' }}</span>
+              <button 
+                type="button" 
+                @click="fetchPagesFromCustomToken"
+                :disabled="!customForm.access_token || loadingPages"
+                class="text-[10px] text-cyan-400 hover:underline flex items-center gap-1"
+              >
+                <span>🔍</span>
+                <span>{{ loadingPages ? 'جاري الفحص...' : 'فحص وجلب بيانات الصفحة' }}</span>
+              </button>
             </label>
             <input 
               v-model="customForm.access_token" 
               type="password" 
               required 
-              placeholder="e.g. EAABwzLixxxx... or AQ.Ab8RN6KraY..." 
+              placeholder="e.g. EAABwzLixxxx... or custom page token" 
               class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:border-emerald-500 outline-none"
             />
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1">
-              <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'معرف الصفحة أو الحساب (Page / Account ID)' : 'Page / Account ID' }}</label>
+              <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'معرف الصفحة المستهدفة (Page ID) *' : 'Target Page ID *' }}</label>
               <input 
                 v-model="customForm.account_id" 
                 type="text" 
-                :placeholder="selectedPlatform + '_official_page'" 
-                class="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none"
+                required
+                :placeholder="selectedPlatform + '_page_10293847'" 
+                class="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:border-emerald-500 outline-none"
               />
             </div>
             <div class="space-y-1">
-              <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'اسم الحساب أو اليوزر (Username)' : 'Account Name / Handle' }}</label>
+              <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'اسم الصفحة الرسمية (Page Name) *' : 'Page Name *' }}</label>
               <input 
-                v-model="customForm.account_username" 
+                v-model="customForm.account_name" 
                 type="text" 
-                placeholder="@mybrand" 
+                required
+                placeholder="e.g. Meem DTT Official" 
                 class="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 outline-none"
               />
             </div>
@@ -437,7 +498,7 @@
             >
               <span v-if="connecting" class="animate-spin">⏳</span>
               <span v-else>💾</span>
-              <span>{{ connecting ? (currentLocale === 'ar' ? 'جاري الحفظ والربط...' : 'Saving...') : (currentLocale === 'ar' ? 'حفظ وربط القناة' : 'Save & Connect') }}</span>
+              <span>{{ connecting ? (currentLocale === 'ar' ? 'جاري الحفظ والربط...' : 'Saving...') : (currentLocale === 'ar' ? 'حفظ وربط الصفحة' : 'Save & Bind Page') }}</span>
             </button>
           </div>
         </form>
@@ -496,14 +557,14 @@
           </div>
 
           <div class="space-y-1">
-            <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'اختر القناة المتصلة *' : 'Target Connected Channel *' }}</label>
+            <label class="font-semibold text-slate-300">{{ currentLocale === 'ar' ? 'اختر القناة والصفحة المستهدفة *' : 'Target Connected Channel & Page *' }}</label>
             <select 
               v-model="selectedAccountId" 
               class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-emerald-500 outline-none"
             >
               <option :value="null">{{ currentLocale === 'ar' ? 'القناة التلقائية المناسبة للمنشور' : 'Auto-match post platform channel' }}</option>
               <option v-for="ch in connectedChannels" :key="ch.account.id" :value="ch.account.id">
-                {{ ch.platform }} ({{ ch.account.account_name || ch.account.account_id }})
+                {{ ch.platform }} — {{ ch.account.account_name || ch.account.account_id }}
               </option>
             </select>
           </div>
@@ -546,6 +607,7 @@ const props = defineProps<{
 const loading = ref(false);
 const actionLoading = ref(false);
 const connecting = ref(false);
+const loadingPages = ref(false);
 const workerLoading = ref(false);
 const readyPostsLoading = ref(false);
 const publishingDirectly = ref(false);
@@ -553,15 +615,18 @@ const publishingDirectly = ref(false);
 const channels = ref<any[]>([]);
 const publishingJobs = ref<any[]>([]);
 const readyPosts = ref<any[]>([]);
+const availablePages = ref<any[]>([]);
 
 const showConnectModal = ref(false);
 const showDirectPublishModal = ref(false);
-const selectedPlatform = ref<string>('linkedin');
+const selectedPlatform = ref<string>('facebook');
 const connectMode = ref<'sandbox' | 'custom'>('sandbox');
+const selectedPageId = ref<string | null>(null);
 
 const customForm = ref({
   access_token: '',
   account_id: '',
+  account_name: '',
   account_username: '',
 });
 
@@ -612,35 +677,86 @@ async function fetchData() {
   }
 }
 
-function openConnectModal(platform: string) {
+async function openConnectModal(platform: string) {
   selectedPlatform.value = platform;
   connectMode.value = 'sandbox';
+  selectedPageId.value = null;
   customForm.value = {
     access_token: '',
-    account_id: `${platform}_page_${Math.floor(100000 + Math.random() * 900000)}`,
+    account_id: '',
+    account_name: '',
     account_username: '',
   };
   showConnectModal.value = true;
+  await loadPlatformPages();
 }
 
-async function confirmSandboxConnect() {
+async function switchMode(mode: 'sandbox' | 'custom') {
+  connectMode.value = mode;
+  if (mode === 'sandbox') {
+    await loadPlatformPages();
+  }
+}
+
+async function loadPlatformPages(token?: string) {
   if (!props.authToken) return;
+  loadingPages.value = true;
+
+  try {
+    const query = token ? `?user_token=${encodeURIComponent(token)}` : '';
+    const res = await fetch(`/api/v1/social/pages/${selectedPlatform.value}${query}`, {
+      headers: getAuthHeaders(),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      availablePages.value = json.data?.pages || [];
+      if (availablePages.value.length > 0) {
+        selectedPageId.value = availablePages.value[0].id;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load available pages', err);
+  } finally {
+    loadingPages.value = false;
+  }
+}
+
+async function fetchPagesFromCustomToken() {
+  if (!customForm.value.access_token) return;
+  await loadPlatformPages(customForm.value.access_token);
+  if (availablePages.value.length > 0) {
+    const first = availablePages.value[0];
+    customForm.value.account_id = first.id;
+    customForm.value.account_name = first.name;
+    customForm.value.account_username = first.category;
+    alert(currentLocale.value === 'ar' ? `تم العثور على ${availablePages.value.length} صفحات. تم تحديد صفحة: ${first.name}` : `Found ${availablePages.value.length} pages. Auto-filled: ${first.name}`);
+  }
+}
+
+async function confirmPageSelection() {
+  if (!props.authToken || !selectedPageId.value) return;
+  const page = availablePages.value.find(p => p.id === selectedPageId.value);
+  if (!page) return;
+
   connecting.value = true;
 
   try {
-    const res = await fetch(`/api/v1/social/oauth/${selectedPlatform.value}/callback`, {
+    const res = await fetch(`/api/v1/social/accounts/${selectedPlatform.value}/connect-custom`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        code: `oauth_sandbox_${Date.now()}`,
-        callback_url: window.location.origin + '/social/callback',
+        access_token: page.access_token || `token_${page.id}`,
+        account_id: page.id,
+        account_name: page.name,
+        account_username: page.category,
       }),
     });
 
     if (res.ok) {
       showConnectModal.value = false;
       await fetchData();
-      alert(currentLocale.value === 'ar' ? `تم ربط حساب ${selectedPlatform.value} بنجاح!` : `Successfully connected ${selectedPlatform.value}!`);
+      alert(currentLocale.value === 'ar' ? `تم ربط وتفويض صفحة (${page.name}) بنجاح لعلامتك التجارية!` : `Successfully connected and bound page (${page.name}) to your brand!`);
     } else {
       const err = await res.json();
       alert(err.message || 'Connection failed');
@@ -666,7 +782,7 @@ async function confirmCustomConnect() {
     if (res.ok) {
       showConnectModal.value = false;
       await fetchData();
-      alert(currentLocale.value === 'ar' ? `تم ربط وتوثيق حساب ${selectedPlatform.value} بالمفاتيح المخصصة!` : `Successfully connected ${selectedPlatform.value} with custom credentials!`);
+      alert(currentLocale.value === 'ar' ? `تم ربط وتوثيق صفحة ${customForm.value.account_name || selectedPlatform.value} بالمفاتيح المخصصة!` : `Successfully connected ${customForm.value.account_name || selectedPlatform.value} with custom credentials!`);
     } else {
       const err = await res.json();
       alert(err.message || 'Connection failed');
@@ -716,7 +832,7 @@ async function executeDirectPublish() {
     if (res.ok) {
       showDirectPublishModal.value = false;
       await fetchData();
-      alert(currentLocale.value === 'ar' ? '🚀 تم نشر المنشور بنجاح وتم تسجيله في تقرير النشر!' : 'Post published successfully and recorded in audit log!');
+      alert(currentLocale.value === 'ar' ? '🚀 تم نشر المنشور بنجاح إلى الصفحة المستهدفة وتم تسجيله في التقرير!' : 'Post published successfully to target page and recorded in audit log!');
     } else {
       const err = await res.json();
       alert(err.message || 'Publishing failed');
@@ -750,7 +866,7 @@ async function healthCheck(accountId: number) {
 }
 
 async function disconnectAccount(accountId: number) {
-  if (!props.authToken || !confirm(currentLocale.value === 'ar' ? 'هل أنت متأكد من رغبتك في إلغاء ربط هذه القناة؟' : 'Are you sure you want to disconnect this social channel?')) return;
+  if (!props.authToken || !confirm(currentLocale.value === 'ar' ? 'هل أنت متأكد من رغبتك في إلغاء ربط هذه الصفحة/القناة؟' : 'Are you sure you want to disconnect this social page?')) return;
   actionLoading.value = true;
 
   try {
