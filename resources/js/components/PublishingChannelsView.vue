@@ -365,16 +365,38 @@
         <!-- Real Meta Token Mode (Queries /me/accounts only with user input) -->
         <div v-if="connectMode === 'real'" class="space-y-4 text-xs">
           <!-- Token Input Section -->
-          <div class="space-y-2 p-4 rounded-2xl bg-slate-950 border border-slate-800">
-            <label class="font-semibold text-slate-200 flex items-center justify-between">
-              <span>{{ currentLocale === 'ar' ? 'رمز الوصول الخاص بحسابك أو تطبيقك (Access Token / Secret) *' : 'User Access Token / App Secret *' }}</span>
-              <span class="text-[10px] text-slate-500 font-mono">Meta Graph API</span>
-            </label>
+          <div class="space-y-3 p-4 rounded-2xl bg-slate-950 border border-slate-800">
+            <div class="flex items-center justify-between">
+              <label class="font-semibold text-slate-200">
+                <span>{{ currentLocale === 'ar' ? 'رمز الوصول (User Access Token يبدأ بـ EAAB...) *' : 'User Access Token (starts with EAAB...) *' }}</span>
+              </label>
+              <a 
+                href="https://developers.facebook.com/tools/explorer/" 
+                target="_blank" 
+                class="text-[11px] text-cyan-400 hover:underline font-bold flex items-center gap-1"
+              >
+                <span>🔗</span>
+                <span>{{ currentLocale === 'ar' ? 'فتح Graph API Explorer' : 'Open Graph API Explorer' }}</span>
+              </a>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 space-y-1.5 leading-relaxed">
+              <div class="font-bold text-amber-400 flex items-center gap-1">
+                <span>💡</span>
+                <span>{{ currentLocale === 'ar' ? 'كيفية استخراج التوكن في ثوانٍ من شاشتك الحالية:' : 'How to get this token in seconds:' }}</span>
+              </div>
+              <ol class="list-decimal list-inside space-y-1 text-slate-400 text-[10px]">
+                <li>{{ currentLocale === 'ar' ? 'من القائمة العلوية في Meta Developers، اضغط على Tools ➔ Graph API Explorer' : 'From top bar in Meta Developers, click Tools ➔ Graph API Explorer' }}</li>
+                <li>{{ currentLocale === 'ar' ? 'اختر تطبيق Marketly وأضف الصلاحيات: pages_show_list و pages_manage_posts' : 'Select Marketly app & add permissions: pages_show_list, pages_manage_posts' }}</li>
+                <li>{{ currentLocale === 'ar' ? 'اضغط Generate Access Token وانسخ الكود الذي يبدأ بـ EAAB...' : 'Click Generate Access Token and copy the token starting with EAAB...' }}</li>
+              </ol>
+            </div>
+
             <div class="flex gap-2">
               <input 
                 v-model="inputToken" 
                 type="password" 
-                placeholder="EAABwzLixxxx... (User Token with pages_show_list, pages_manage_posts)" 
+                placeholder="EAABwzLixxxx... (Access Token)" 
                 class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-mono placeholder-slate-600 focus:border-emerald-500 outline-none"
               />
               <button 
@@ -388,11 +410,6 @@
                 <span>{{ loadingPages ? (currentLocale === 'ar' ? 'جاري الفحص...' : 'Querying...') : (currentLocale === 'ar' ? 'بحث وجلب الصفحات' : 'Fetch Pages') }}</span>
               </button>
             </div>
-            <p class="text-[10px] text-slate-400">
-              {{ currentLocale === 'ar' 
-                ? '💡 يتم استخدام هذا التوكن لاستدعاء /me/accounts مباشرة من سيرفرات فيسبوك لجلب الصفحات التي يديرها المفتاح.' 
-                : '💡 This token is used to call /me/accounts on Meta servers to discover the real pages you manage.' }}
-            </p>
           </div>
 
           <!-- Error Alert if Token Query Fails -->
