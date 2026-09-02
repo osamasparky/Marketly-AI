@@ -885,10 +885,26 @@ async function disconnectAccount(accountId: number) {
 }
 
 async function runWorkerDispatch() {
+  if (!props.authToken) return;
   workerLoading.value = true;
   try {
-    await fetchData();
-    alert(currentLocale.value === 'ar' ? 'تم فحص طابور النشر المستحق وتحديث السجلات.' : 'Checked scheduled publishing queues — all due posts processed.');
+    const res = await fetch('/api/v1/social/dispatch-due', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      await fetchData();
+      alert(currentLocale.value === 'ar' 
+        ? `🚀 تم بنجاح معالجة وبث المنشورات المستحقة (${json.data?.processed_count || 0} منشور)!` 
+        : `Successfully processed and published (${json.data?.processed_count || 0}) due posts!`);
+    } else {
+      const err = await res.json();
+      alert(err.message || 'Dispatch failed');
+    }
+  } catch (err) {
+    console.error('Dispatch error', err);
   } finally {
     workerLoading.value = false;
   }

@@ -156,7 +156,7 @@ class FacebookPublisherAdapter implements SocialPublisherInterface
         $pageAccessToken = $account->access_token;
 
         // Attempt live Graph API publish if live token
-        if (!str_starts_with($pageAccessToken, 'fb_live_at_') && !str_starts_with($pageAccessToken, 'EAAB_sandbox_token_')) {
+        if (!str_starts_with($pageAccessToken, 'fb_live_at_') && !str_starts_with($pageAccessToken, 'EAAB_sandbox_token_') && !str_starts_with($pageAccessToken, 'sandbox_')) {
             try {
                 $endpoint = $mediaUrl 
                     ? "https://graph.facebook.com/{$this->graphVersion}/{$pageId}/photos"
@@ -171,14 +171,25 @@ class FacebookPublisherAdapter implements SocialPublisherInterface
                 if ($response->successful()) {
                     $json = $response->json();
                     $postId = $json['id'] ?? ($pageId . '_' . rand(100000000, 999999999));
+                    $parts = explode('_', $postId);
+                    $fbPostId = count($parts) > 1 ? $parts[1] : $postId;
+                    $postUrl = "https://www.facebook.com/{$pageId}/posts/{$fbPostId}";
+
                     return [
                         'external_post_id' => $postId,
-                        'external_post_url' => "https://facebook.com/{$postId}",
+                        'external_post_url' => $postUrl,
                         'metrics' => ['reach' => 0, 'reactions' => 0, 'comments' => 0],
                     ];
                 }
+
+                $err = $response->json('error.message') ?? 'Facebook API rejected publishing.';
+                Log::error("Facebook live publish failed: " . $err);
+                throw new RuntimeException("Facebook API Error: {$err}");
             } catch (\Throwable $e) {
-                Log::warning('Facebook live publish failed, returning deterministic response: ' . $e->getMessage());
+                if ($e instanceof RuntimeException) {
+                    throw $e;
+                }
+                throw new RuntimeException("Could not publish to Facebook: " . $e->getMessage());
             }
         }
 

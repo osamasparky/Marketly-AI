@@ -190,6 +190,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/accounts/{account}/health-check', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'healthCheck'])->name('api.v1.social.accounts.health_check');
             Route::delete('/accounts/{account}', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'disconnect'])->name('api.v1.social.accounts.disconnect');
             Route::get('/ready-posts', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'getReadyPosts'])->name('api.v1.social.posts.ready');
+            Route::post('/dispatch-due', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'dispatchDue'])->name('api.v1.social.dispatch_due');
             Route::post('/posts/{post}/publish-now', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'publishNow'])->name('api.v1.social.posts.publish_now');
             Route::get('/jobs', [\App\Domains\Publishing\Controllers\SocialPublishingController::class, 'getJobs'])->name('api.v1.social.jobs.index');
         });

@@ -296,6 +296,16 @@
             </button>
 
             <button 
+              v-if="selectedPost.status === 'scheduled' || selectedPost.status === 'approved'"
+              @click="publishLiveNow(selectedPost.id)"
+              :disabled="actionLoading"
+              class="px-3 py-2 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-300 font-bold transition-colors flex items-center gap-1.5"
+            >
+              <span>🚀</span>
+              <span>{{ currentLocale === 'ar' ? 'نشر فوري الآن على الصفحة' : 'Publish Live Now' }}</span>
+            </button>
+
+            <button 
               v-if="selectedPost.status === 'scheduled'"
               @click="unschedulePost(selectedPost.id)"
               :disabled="actionLoading"
@@ -670,6 +680,33 @@ async function approvePost(postId: number) {
     }
   } catch (err) {
     console.error('Approve failed', err);
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
+async function publishLiveNow(postId: number) {
+  if (!props.authToken) return;
+  actionLoading.value = true;
+
+  try {
+    const res = await fetch(`/api/v1/social/posts/${postId}/publish-now`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({}),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      selectedPost.value = null;
+      await fetchCalendar();
+      alert(currentLocale.value === 'ar' ? '🚀 تم نشر المنشور بنجاح ومباشرة على صفحتك في فيسبوك!' : 'Post published live to your Facebook Page successfully!');
+    } else {
+      const err = await res.json();
+      alert(err.message || 'Publishing failed');
+    }
+  } catch (err: any) {
+    alert(err.message || 'Error occurred while publishing to Facebook');
   } finally {
     actionLoading.value = false;
   }

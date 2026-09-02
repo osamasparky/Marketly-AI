@@ -199,6 +199,23 @@ class SocialPublishingController extends Controller
     }
 
     /**
+     * Dispatch and broadcast all scheduled posts that are due now.
+     */
+    public function dispatchDue(Request $request): JsonResponse
+    {
+        $tenantContext = $request->attributes->get('tenant_context');
+
+        $processed = $this->publishingService->processDuePublishingJobs();
+
+        return response()->json([
+            'message' => "Successfully processed {$processed} due scheduled posts.",
+            'data' => [
+                'processed_count' => $processed,
+            ],
+        ]);
+    }
+
+    /**
      * Get publishing history and queue jobs.
      */
     public function getJobs(Request $request): JsonResponse
